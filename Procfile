@@ -1,0 +1,1 @@
+web: gunicorn clash_arena.wsgi

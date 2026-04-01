@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clash Arena</title>
+
+    <!-- Tailwind CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        body {
+            background-color: #020617;
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+    </style>
+</head>
+
+<body class="text-white overflow-x-hidden">
+
+    <!-- 🔥 NAVBAR -->
+    <nav class="flex justify-between items-center px-4 md:px-8 py-4 border-b border-gray-800">
+        {% if user.is_authenticated and user.profile.is_creator %}
+    <a href="/create-tournament/" class="text-yellow-400 hover:underline">
+        Host Tournament
+    </a>
+{% endif %}
+
+        <!-- LOGO -->
+        <h1 class="text-lg md:text-xl font-bold text-cyan-400">
+            Clash Arena
+        </h1>
+
+        <!-- LINKS -->
+        <div class="space-x-4 md:space-x-6 text-sm font-semibold">
+
+            <a href="/" class="hover:text-cyan-400">Home</a>
+
+            {% if user.is_authenticated %}
+            <a href="/profile/" class="hover:text-green-400">Profile</a>
+            <a href="/logout/" class="hover:text-red-400">Logout</a>
+            {% else %}
+            <a href="/login/" class="hover:text-cyan-400">Login</a>
+            <a href="/register/" class="hover:text-yellow-400">Register</a>
+            {% endif %}
+
+        </div>
+
+    </nav>
+
+    <!-- CONTENT WRAPPER -->
+    <main class="max-w-7xl mx-auto px-4 md:px-6">
+        {% block content %}{% endblock %}
+    </main>
+
+</body>
+
+</html>

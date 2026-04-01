@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+
+<div class="max-w-4xl mx-auto px-4 py-10">
+
+```
+<!-- BACK -->
+<a href="/" class="text-cyan-400 hover:underline mb-4 inline-block">
+    ← Back
+</a>
+
+<!-- HEADER -->
+<div class="flex justify-between items-center mb-4">
+    <h1 class="text-3xl font-bold text-cyan-400">
+        {{ tournament.name }}
+    </h1>
+
+    <button onclick="copyName()"
+        class="bg-green-400 text-black px-3 py-2 rounded font-bold text-sm">
+        Copy Name
+    </button>
+</div>
+
+<p class="text-gray-400 mb-6">
+    {{ tournament.description }}
+</p>
+
+<!-- PASSWORD -->
+{% if tournament.password and tournament.id not in joined_tournaments %}
+    {% if show_password %}
+        <p class="text-green-400 mb-4">
+            🔓 Password: {{ tournament.password }}
+        </p>
+    {% else %}
+        <p class="text-yellow-400 mb-4">
+            🔒 Unlocks 10 minutes before start
+        </p>
+    {% endif %}
+{% endif %}
+
+<!-- GUIDE BUTTON -->
+<button onclick="openGuide()"
+    class="bg-cyan-400 text-black px-4 py-2 rounded font-bold mb-6">
+    📘 How to Join
+</button>
+
+<!-- MATCHES -->
+<h2 class="text-xl text-green-400 mb-3">⚔️ Matches</h2>
+
+<div class="bg-gray-900 rounded-xl p-5 mb-6">
+    {% for match in matches %}
+        <div class="flex justify-between border-b border-gray-700 py-3">
+            <span>{{ match.player1.username }}</span>
+            <span>vs</span>
+            <span>{{ match.player2.username }}</span>
+        </div>
+    {% empty %}
+        <p class="text-gray-500">No matches yet</p>
+    {% endfor %}
+</div>
+
+<!-- PLAYERS -->
+<h2 class="text-xl text-yellow-400 mb-3">
+    👥 Players ({{ participants|length }})
+</h2>
+
+<div class="bg-gray-900 rounded-xl p-5">
+    {% for p in participants %}
+        <div class="border-b border-gray-700 py-2">
+            {{ p.user.username }}
+        </div>
+    {% endfor %}
+</div>
+```
+
+</div>
+
+<!-- MODAL -->
+
+<div id="guideModal"
+     class="fixed inset-0 bg-black/70 hidden flex items-center justify-center z-50 px-4">
+
+```
+<div class="bg-gray-900 rounded-2xl w-full max-w-sm md:max-w-md p-5 relative">
+
+    <button onclick="closeGuide()"
+        class="absolute top-3 right-4 text-gray-400 text-xl">
+        ✖
+    </button>
+
+    <h2 class="text-xl text-cyan-400 mb-4 text-center">
+        How to Join Tournament
+    </h2>
+
+    <!-- IMAGE -->
+    <div class="w-full max-w-sm mx-auto bg-black rounded-xl overflow-hidden mb-4 flex items-center justify-center border border-gray-700 shadow-lg">
+
+        <img id="slideImage"
+             class="w-full h-auto max-h-[60vh] object-contain">
+    </div>
+
+    <!-- TEXT -->
+    <p id="slideText" class="text-gray-300 text-sm text-center mb-4"></p>
+
+    <!-- CONTROLS -->
+    <div class="flex justify-between items-center">
+        <button onclick="prevSlide()" class="bg-gray-800 px-4 py-2 rounded">←</button>
+
+        <span class="text-gray-400 text-sm">
+            Step <span id="stepNum">1</span>/3
+        </span>
+
+        <button onclick="nextSlide()" class="bg-gray-800 px-4 py-2 rounded">→</button>
+    </div>
+
+</div>
+```
+
+</div>
+
+<script>
+
+function copyName() {
+    navigator.clipboard.writeText("{{ tournament.name }}");
+    alert("Copied!");
+}
+
+const slides = [
+    {
+        img: "{% static 'images/step1.jpeg' %}",
+        text: "Open Clash Royale and click menu"
+    },
+    {
+        img: "{% static 'images/step2.jpeg' %}",
+        text: "Go to Tournaments section"
+    },
+    {
+        img: "{% static 'images/step3.jpeg' %}",
+        text: "Search tournament name and join"
+    }
+];
+
+let current = 0;
+
+function updateSlide() {
+    document.getElementById("slideImage").src = slides[current].img;
+    document.getElementById("slideText").innerText = slides[current].text;
+    document.getElementById("stepNum").innerText = current + 1;
+}
+
+function nextSlide() {
+    current = (current + 1) % slides.length;
+    updateSlide();
+}
+
+function prevSlide() {
+    current = (current - 1 + slides.length) % slides.length;
+    updateSlide();
+}
+
+function openGuide() {
+    document.getElementById("guideModal").classList.remove("hidden");
+    updateSlide();
+}
+
+function closeGuide() {
+    document.getElementById("guideModal").classList.add("hidden");
+}
+
+</script>
+
+{% endblock %}

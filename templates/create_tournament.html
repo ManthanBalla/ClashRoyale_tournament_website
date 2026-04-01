@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="min-h-screen flex items-center justify-center">
+
+    <form method="POST" class="bg-gray-900 p-8 rounded-xl w-full max-w-md shadow-lg">
+        {% csrf_token %}
+
+        <h2 class="text-2xl text-yellow-400 mb-6 text-center">
+            Create Tournament
+        </h2>
+
+        <input type="text" name="name" placeholder="Tournament Name"
+               class="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded focus:outline-none">
+
+        <textarea name="description" placeholder="Description"
+                  class="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded focus:outline-none"></textarea>
+
+        <button type="submit"
+                class="w-full bg-yellow-400 text-black py-3 rounded font-bold hover:bg-yellow-300">
+            Create
+        </button>
+    </form>
+
+</div>
+
+{% endblock %}
