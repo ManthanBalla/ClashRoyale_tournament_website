@@ -5,10 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Clash Arena</title>
-
-    <!-- Tailwind CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-
     <style>
         body {
             background-color: #020617;
@@ -22,41 +19,69 @@
 
 <body class="text-white overflow-x-hidden">
 
-    <!-- 🔥 NAVBAR -->
-    <nav class="flex justify-between items-center px-4 md:px-8 py-4 border-b border-gray-800">
-        {% if user.is_authenticated and user.profile.is_creator %}
-    <a href="/create-tournament/" class="text-yellow-400 hover:underline">
-        Host Tournament
-    </a>
-{% endif %}
+    <!-- NAVBAR -->
+    <nav class="flex justify-between items-center px-4 md:px-8 py-4 border-b border-gray-800 relative">
 
         <!-- LOGO -->
-        <h1 class="text-lg md:text-xl font-bold text-cyan-400">
-            Clash Arena
-        </h1>
+        <h1 class="text-lg md:text-xl font-bold text-cyan-400">Clash Arena</h1>
 
-        <!-- LINKS -->
-        <div class="space-x-4 md:space-x-6 text-sm font-semibold">
-
+        <!-- DESKTOP LINKS (hidden on mobile) -->
+        <div class="hidden md:flex space-x-6 text-sm font-semibold items-center">
             <a href="/" class="hover:text-cyan-400">Home</a>
-
             {% if user.is_authenticated %}
-            <a href="/profile/" class="hover:text-green-400">Profile</a>
-            <a href="/logout/" class="hover:text-red-400">Logout</a>
+                {% if user.profile.is_creator %}
+                    <a href="/create-tournament/" class="text-yellow-400 hover:underline">Host Tournament</a>
+                {% endif %}
+                <a href="/logout/" class="hover:text-red-400">Logout</a>
             {% else %}
-            <a href="/login/" class="hover:text-cyan-400">Login</a>
-            <a href="/register/" class="hover:text-yellow-400">Register</a>
+                <a href="/login/" class="hover:text-cyan-400">Login</a>
+                <a href="/register/" class="hover:text-yellow-400">Register</a>
             {% endif %}
+        </div>
 
+        <!-- HAMBURGER BUTTON (mobile only) -->
+        <button id="menuBtn" class="md:hidden flex flex-col gap-1.5 p-2" onclick="toggleMenu()">
+            <span class="block w-6 h-0.5 bg-white"></span>
+            <span class="block w-6 h-0.5 bg-white"></span>
+            <span class="block w-6 h-0.5 bg-white"></span>
+        </button>
+
+        <!-- MOBILE DROPDOWN MENU -->
+        <div id="mobileMenu"
+             class="hidden absolute top-full right-0 w-48 bg-gray-900 border border-gray-700 rounded-xl shadow-xl z-50 py-3 flex flex-col text-sm font-semibold">
+            <a href="/" class="px-5 py-3 hover:bg-gray-800 hover:text-cyan-400">🏠 Home</a>
+            {% if user.is_authenticated %}
+                {% if user.profile.is_creator %}
+                    <a href="/create-tournament/" class="px-5 py-3 hover:bg-gray-800 text-yellow-400">⚔️ Host Tournament</a>
+                {% endif %}
+                <a href="/logout/" class="px-5 py-3 hover:bg-gray-800 text-red-400">🚪 Logout</a>
+            {% else %}
+                <a href="/login/" class="px-5 py-3 hover:bg-gray-800 text-cyan-400">🔐 Login</a>
+                <a href="/register/" class="px-5 py-3 hover:bg-gray-800 text-yellow-400">📝 Register</a>
+            {% endif %}
         </div>
 
     </nav>
 
-    <!-- CONTENT WRAPPER -->
+    <!-- CONTENT -->
     <main class="max-w-7xl mx-auto px-4 md:px-6">
         {% block content %}{% endblock %}
     </main>
 
-</body>
+    <script>
+        function toggleMenu() {
+            const menu = document.getElementById('mobileMenu');
+            menu.classList.toggle('hidden');
+        }
+        // Close menu if clicked outside
+        document.addEventListener('click', function(e) {
+            const menu = document.getElementById('mobileMenu');
+            const btn = document.getElementById('menuBtn');
+            if (!menu.contains(e.target) && !btn.contains(e.target)) {
+                menu.classList.add('hidden');
+            }
+        });
+    </script>
 
+</body>
 </html>
