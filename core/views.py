@@ -100,16 +100,16 @@ def join_tournament(request, tournament_id):
 
 @login_required
 def create_tournament(request):
-
     if not request.user.profile.is_creator:
         return redirect('/')
 
     if request.method == "POST":
         name = request.POST['name']
         description = request.POST['description']
-        password = request.POST.get('password')
-        reward = request.POST.get('reward')
+        password = request.POST.get('password') or None
+        reward = request.POST.get('reward', '')
         start_time = request.POST.get('start_time')
+        proof_image = request.FILES.get('proof_image')
 
         Tournament.objects.create(
             name=name,
@@ -117,6 +117,7 @@ def create_tournament(request):
             password=password,
             reward=reward,
             start_time=start_time,
+            proof_image=proof_image,
             creator=request.user
         )
 
