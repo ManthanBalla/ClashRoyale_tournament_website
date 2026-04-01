@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="flex items-center justify-center py-8 px-4 min-h-[calc(100vh-65px)]">
+
+    <form method="POST" enctype="multipart/form-data"
+          class="bg-gray-900 p-6 rounded-xl w-full max-w-md shadow-lg border border-gray-700">
+        {% csrf_token %}
+
+        <h2 class="text-2xl text-yellow-400 mb-5 text-center font-bold">✏️ Edit Tournament</h2>
+
+        <!-- NAME -->
+        <label class="text-gray-400 text-sm mb-1 block">Tournament Name *</label>
+        <input type="text" name="name" value="{{ tournament.name }}"
+               required
+               class="w-full p-2.5 mb-3 bg-gray-800 border border-gray-700 rounded focus:outline-none focus:border-cyan-400 text-white text-sm">
+
+        <!-- DESCRIPTION -->
+        <label class="text-gray-400 text-sm mb-1 block">Description *</label>
+        <textarea name="description" rows="2" required
+                  class="w-full p-2.5 mb-3 bg-gray-800 border border-gray-700 rounded focus:outline-none focus:border-cyan-400 text-white text-sm resize-none">{{ tournament.description }}</textarea>
+
+        <!-- PASSWORD -->
+        <label class="text-gray-400 text-sm mb-1 block">Password <span class="text-gray-500">(optional)</span></label>
+        <input type="text" name="password" value="{{ tournament.password }}"
+               placeholder="Leave blank for open tournament"
+               class="w-full p-2.5 mb-3 bg-gray-800 border border-gray-700 rounded focus:outline-none focus:border-cyan-400 text-white text-sm">
+
+        <!-- REWARD -->
+        <label class="text-gray-400 text-sm mb-1 block">Reward <span class="text-gray-500">(optional)</span></label>
+        <input type="text" name="reward" value="{{ tournament.reward }}"
+               placeholder="e.g. 500 gems, Gift card"
+               class="w-full p-2.5 mb-3 bg-gray-800 border border-gray-700 rounded focus:outline-none focus:border-cyan-400 text-white text-sm">
+
+        <!-- START TIME -->
+        <label class="text-gray-400 text-sm mb-1 block">Start Time *</label>
+        <input type="datetime-local" name="start_time" required
+               value="{{ tournament.start_time|date:'Y-m-d' }}T{{ tournament.start_time|date:'H:i' }}"
+               class="w-full p-2.5 mb-3 bg-gray-800 border border-gray-700 rounded focus:outline-none focus:border-cyan-400 text-white text-sm">
+
+        <!-- PROOF IMAGE -->
+        <label class="text-gray-400 text-sm mb-1 block">Proof Image <span class="text-gray-500">(optional — upload to replace)</span></label>
+        <input type="file" name="proof_image" accept="image/*"
+               class="w-full p-2.5 mb-5 bg-gray-800 border border-gray-700 rounded text-gray-400 text-sm">
+
+        <!-- BUTTONS -->
+        <div class="flex gap-3">
+            <a href="/tournament/{{ tournament.id }}/"
+               class="w-1/2 text-center bg-gray-700 text-white py-2.5 rounded font-bold hover:bg-gray-600 transition text-base">
+                Cancel
+            </a>
+            <button type="submit"
+                    class="w-1/2 bg-yellow-400 text-black py-2.5 rounded font-bold hover:bg-yellow-300 transition text-base">
+                💾 Save
+            </button>
+        </div>
+
+    </form>
+
+</div>
+
+{% endblock %}

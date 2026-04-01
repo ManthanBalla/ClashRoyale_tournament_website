@@ -231,3 +231,39 @@ def tournament_detail(request, tournament_id):
         'show_password': show_password,
         'joined_tournaments': joined_tournaments
     })
+
+@login_required
+def delete_tournament(request, tournament_id):
+    tournament = get_object_or_404(Tournament, id=tournament_id)
+
+    if request.user != tournament.creator:
+        return redirect('/')
+
+    if request.method == "POST":
+        tournament.delete()
+        return redirect('/')
+
+    return redirect('/')
+
+
+@login_required
+def edit_tournament(request, tournament_id):
+    tournament = get_object_or_404(Tournament, id=tournament_id)
+
+    if request.user != tournament.creator:
+        return redirect('/')
+
+    if request.method == "POST":
+        tournament.name = request.POST['name']
+        tournament.description = request.POST['description']
+        tournament.password = request.POST.get('password') or None
+        tournament.reward = request.POST.get('reward', '')
+        tournament.start_time = request.POST.get('start_time')
+
+        if request.FILES.get('proof_image'):
+            tournament.proof_image = request.FILES.get('proof_image')
+
+        tournament.save()
+        return redirect(f'/tournament/{tournament.id}/')
+
+    return render(request, 'edit_tournament.html', {'tournament': tournament})
