@@ -2,63 +2,63 @@
 
 {% block content %}
 
-<div class="min-h-[90vh] flex flex-col items-center justify-center text-center">
+<div class="flex flex-col items-center justify-center text-center py-10">
 
     <!-- HERO -->
-    <div class="mb-16">
-
+    <div class="mb-12">
         <h1 class="text-5xl md:text-6xl font-extrabold">
             <span class="text-gray-300">COMPETE.</span><br>
             <span class="bg-gradient-to-r from-cyan-400 via-green-400 to-yellow-400 text-transparent bg-clip-text">
                 DOMINATE.
             </span>
         </h1>
-
         <p class="text-gray-400 mt-4 max-w-xl mx-auto">
             Join Clash Royale tournaments and prove you're the best.
         </p>
-
     </div>
 
     <!-- TOURNAMENT LIST -->
     <div class="w-full max-w-4xl">
 
-        <h2 class="text-2xl font-bold text-cyan-400 mb-6 text-left">
-            🏆 Active Tournaments
-        </h2>
+        <h2 class="text-2xl font-bold text-cyan-400 mb-6 text-left">🏆 Active Tournaments</h2>
 
         {% for item in tournament_data %}
-            <div class="bg-gray-900 p-5 rounded-xl mb-4 flex justify-between items-center hover:scale-[1.01] transition">
+        <div class="bg-gray-900 p-5 rounded-xl mb-4 hover:scale-[1.01] transition">
 
-                <div class="text-left">
+            <!-- TOP ROW: name + button -->
+            <div class="flex justify-between items-start gap-3">
+
+                <!-- LEFT: name + description + count -->
+                <div class="text-left flex-1 min-w-0">
                     <a href="/tournament/{{ item.tournament.id }}/"
-   class="text-lg font-bold text-white hover:text-cyan-400">
-    {{ item.tournament.name }}
-</a>
-                    <p class="text-gray-400 text-sm">
+                       class="text-lg font-bold text-white hover:text-cyan-400 block truncate">
+                        {{ item.tournament.name }}
+                    </a>
+                    <p class="text-gray-400 text-sm mt-1 line-clamp-2">
                         {{ item.tournament.description }}
                     </p>
-
-                    <!-- 👇 PLAYER COUNT -->
-                    <p class="text-green-400 text-sm mt-1">
+                    <p class="text-green-400 text-sm mt-2">
                         👥 {{ item.count }} players joined
                     </p>
                 </div>
 
-                <div>
+                <!-- RIGHT: Join/Joined button — fixed size, never wraps -->
+                <div class="flex-shrink-0 mt-1">
                     {% if item.tournament.id in joined_tournaments %}
-                        <span class="bg-green-500/20 text-green-400 px-4 py-2 rounded font-semibold border border-green-500">
+                        <span class="bg-green-500/20 text-green-400 px-4 py-2 rounded font-semibold border border-green-500 text-sm whitespace-nowrap block">
                             ✓ Joined
                         </span>
                     {% else %}
                         <a href="/join/{{ item.tournament.id }}/"
-                           class="bg-cyan-400 text-black px-4 py-2 rounded font-semibold hover:bg-cyan-300">
-                           Join
+                           class="bg-cyan-400 text-black px-4 py-2 rounded font-semibold hover:bg-cyan-300 text-sm whitespace-nowrap block text-center">
+                            Join
                         </a>
                     {% endif %}
                 </div>
 
             </div>
+
+        </div>
         {% empty %}
             <p class="text-gray-500">No tournaments yet.</p>
         {% endfor %}

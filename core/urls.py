@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import home, login_view, register_view, logout_view, profile_view, join_tournament, create_tournament, tournament_detail, generate_matches, submit_result, delete_tournament, edit_tournament
+from .views import home, login_view, register_view, logout_view, profile_view, join_tournament, create_tournament, tournament_detail, generate_matches, submit_result, delete_tournament, edit_tournament, creator_admin, promote_user, demote_user, ban_user, unban_user
 from django.contrib.auth import views as auth_views
 
 urlpatterns = [
@@ -17,7 +17,11 @@ urlpatterns = [
     path('submit-result/<int:match_id>/', submit_result, name='submit_result'),
     path('delete-tournament/<int:tournament_id>/', delete_tournament, name='delete_tournament'),
     path('edit-tournament/<int:tournament_id>/', edit_tournament, name='edit_tournament'),
-
+    path('creator-admin/', creator_admin, name='creator_admin'),
+    path('promote-user/<int:user_id>/', promote_user, name='promote_user'),
+    path('demote-user/<int:user_id>/', demote_user, name='demote_user'),
+    path('ban-user/<int:user_id>/', ban_user, name='ban_user'),
+    path('unban-user/<int:user_id>/', unban_user, name='unban_user'),
     # PASSWORD RESET
     path('password-reset/', auth_views.PasswordResetView.as_view(template_name='auth/password_reset.html'), name='password_reset'),
     path('password-reset/done/', auth_views.PasswordResetDoneView.as_view(template_name='auth/password_reset_done.html'), name='password_reset_done'),

@@ -7,8 +7,7 @@
     <title>Clash Arena</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        html,
-        body {
+        html, body {
             overflow: hidden;
             height: 100%;
         }
@@ -33,7 +32,7 @@
     </style>
 </head>
 
-<body class="text-white overflow-x-hidden overflow-y-auto">
+<body class="text-white overflow-x-hidden">
 
     <!-- NAVBAR -->
     <nav class="flex justify-between items-center px-4 md:px-8 py-4 border-b border-gray-800 relative">
@@ -41,17 +40,18 @@
         <!-- LOGO -->
         <h1 class="text-lg md:text-xl font-bold text-cyan-400">Clash Arena</h1>
 
-        <!-- DESKTOP LINKS (hidden on mobile) -->
+        <!-- DESKTOP LINKS -->
         <div class="hidden md:flex space-x-6 text-sm font-semibold items-center">
             <a href="/" class="hover:text-cyan-400">Home</a>
             {% if user.is_authenticated %}
-            {% if user.profile.is_creator %}
-            <a href="/create-tournament/" class="text-yellow-400 hover:underline">Host Tournament</a>
-            {% endif %}
-            <a href="/logout/" class="hover:text-red-400">Logout</a>
+                {% if user.profile.is_creator %}
+                    <a href="/create-tournament/" class="text-yellow-400 hover:underline">⚔️ Host Tournament</a>
+                    <a href="/creator-admin/" class="text-yellow-400 hover:underline">⚙️ Admin Panel</a>
+                {% endif %}
+                <a href="/logout/" class="hover:text-red-400">Logout</a>
             {% else %}
-            <a href="/login/" class="hover:text-cyan-400">Login</a>
-            <a href="/register/" class="hover:text-yellow-400">Register</a>
+                <a href="/login/" class="hover:text-cyan-400">Login</a>
+                <a href="/register/" class="hover:text-yellow-400">Register</a>
             {% endif %}
         </div>
 
@@ -64,16 +64,22 @@
 
         <!-- MOBILE DROPDOWN MENU -->
         <div id="mobileMenu"
-            class="hidden absolute top-full right-0 w-48 bg-gray-900 border border-gray-700 rounded-xl shadow-xl z-50 py-3 flex flex-col text-sm font-semibold">
-            <a href="/" class="px-5 py-3 hover:bg-gray-800 hover:text-cyan-400">🏠 Home</a>
+             class="hidden absolute top-full right-0 w-56 bg-gray-900 border border-gray-700 rounded-xl shadow-xl z-50 py-3 flex flex-col text-sm font-semibold">
+            <a href="/" class="px-5 py-3 hover:bg-gray-800 hover:text-cyan-400 block">🏠 Home</a>
             {% if user.is_authenticated %}
-            {% if user.profile.is_creator %}
-            <a href="/create-tournament/" class="px-5 py-3 hover:bg-gray-800 text-yellow-400">⚔️ Host Tournament</a>
-            {% endif %}
-            <a href="/logout/" class="px-5 py-3 hover:bg-gray-800 text-red-400">🚪 Logout</a>
+                {% if user.profile.is_creator %}
+                    <div class="border-t border-gray-700 mt-2 pt-2">
+                        <p class="px-5 py-1 text-gray-500 text-xs uppercase tracking-widest">Creator</p>
+                        <a href="/create-tournament/" class="px-5 py-3 hover:bg-gray-800 text-yellow-400 block">⚔️ Host Tournament</a>
+                        <a href="/creator-admin/" class="px-5 py-3 hover:bg-gray-800 text-yellow-400 block">⚙️ Admin Panel</a>
+                    </div>
+                {% endif %}
+                <div class="border-t border-gray-700 mt-2 pt-2">
+                    <a href="/logout/" class="px-5 py-3 hover:bg-gray-800 text-red-400 block">🚪 Logout</a>
+                </div>
             {% else %}
-            <a href="/login/" class="px-5 py-3 hover:bg-gray-800 text-cyan-400">🔐 Login</a>
-            <a href="/register/" class="px-5 py-3 hover:bg-gray-800 text-yellow-400">📝 Register</a>
+                <a href="/login/" class="px-5 py-3 hover:bg-gray-800 text-cyan-400 block">🔐 Login</a>
+                <a href="/register/" class="px-5 py-3 hover:bg-gray-800 text-yellow-400 block">📝 Register</a>
             {% endif %}
         </div>
 
@@ -89,8 +95,7 @@
             const menu = document.getElementById('mobileMenu');
             menu.classList.toggle('hidden');
         }
-        // Close menu if clicked outside
-        document.addEventListener('click', function (e) {
+        document.addEventListener('click', function(e) {
             const menu = document.getElementById('mobileMenu');
             const btn = document.getElementById('menuBtn');
             if (!menu.contains(e.target) && !btn.contains(e.target)) {
@@ -100,5 +105,4 @@
     </script>
 
 </body>
-
 </html>

@@ -267,3 +267,66 @@ def edit_tournament(request, tournament_id):
         return redirect(f'/tournament/{tournament.id}/')
 
     return render(request, 'edit_tournament.html', {'tournament': tournament})
+
+
+@login_required
+def creator_admin(request):
+    if not request.user.profile.is_creator:
+        return redirect('/')
+
+    tournaments = Tournament.objects.all().order_by('-created_at')
+    users = User.objects.all().order_by('-date_joined')
+
+    tournament_data = []
+    for t in tournaments:
+        count = Participant.objects.filter(tournament=t).count()
+        tournament_data.append({
+            'tournament': t,
+            'count': count
+        })
+
+    return render(request, 'admin_panel.html', {
+        'tournament_data': tournament_data,
+        'users': users
+    })
+
+
+@login_required
+def promote_user(request, user_id):
+    if not request.user.profile.is_creator:
+        return redirect('/')
+    u = get_object_or_404(User, id=user_id)
+    u.profile.is_creator = True
+    u.profile.save()
+    return redirect('/creator-admin/')
+
+
+@login_required
+def demote_user(request, user_id):
+    if not request.user.profile.is_creator:
+        return redirect('/')
+    u = get_object_or_404(User, id=user_id)
+    u.profile.is_creator = False
+    u.profile.save()
+    return redirect('/creator-admin/')
+
+
+@login_required
+def ban_user(request, user_id):
+    if not request.user.profile.is_creator:
+        return redirect('/')
+    u = get_object_or_404(User, id=user_id)
+    if u != request.user:
+        u.is_active = False
+        u.save()
+    return redirect('/creator-admin/')
+
+
+@login_required
+def unban_user(request, user_id):
+    if not request.user.profile.is_creator:
+        return redirect('/')
+    u = get_object_or_404(User, id=user_id)
+    u.is_active = True
+    u.save()
+    return redirect('/creator-admin/')

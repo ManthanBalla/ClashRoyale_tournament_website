@@ -9,11 +9,15 @@
     <a href="/" class="text-cyan-400 hover:underline mb-4 inline-block">← Back</a>
 
     <!-- HEADER -->
-    <div class="flex justify-between items-center mb-4">
-        <h1 class="text-3xl font-bold text-cyan-400">{{ tournament.name }}</h1>
+    <div class="mb-6">
 
-        <div class="flex gap-2">
-            <!-- HOW TO JOIN BUTTON -->
+        <!-- TOURNAMENT NAME -->
+        <h1 class="text-3xl font-bold text-cyan-400 mb-4">{{ tournament.name }}</h1>
+
+        <!-- BUTTONS ROW — wraps nicely on mobile -->
+        <div class="flex flex-wrap gap-2">
+
+            <!-- HOW TO JOIN -->
             <button onclick="openGuide()"
                 class="bg-cyan-400 text-black px-4 py-2 rounded-lg font-bold text-sm hover:bg-cyan-300 transition">
                 📘 How to Join
@@ -21,6 +25,7 @@
 
             <!-- EDIT & DELETE (creator only) -->
             {% if user.is_authenticated and user == tournament.creator %}
+
             <a href="/edit-tournament/{{ tournament.id }}/"
                class="bg-yellow-400 text-black px-4 py-2 rounded-lg font-bold text-sm hover:bg-yellow-300 transition">
                 ✏️ Edit
@@ -34,8 +39,11 @@
                     🗑️ Delete
                 </button>
             </form>
+
             {% endif %}
+
         </div>
+
     </div>
 
     <p class="text-gray-400 mb-6">{{ tournament.description }}</p>
