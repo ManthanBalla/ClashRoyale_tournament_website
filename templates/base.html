@@ -48,6 +48,7 @@
                     <a href="/create-tournament/" class="text-yellow-400 hover:underline">⚔️ Host Tournament</a>
                     <a href="/creator-admin/" class="text-yellow-400 hover:underline">⚙️ Admin Panel</a>
                 {% endif %}
+                <a href="/profile/" class="hover:text-green-400">👤 Profile</a>
                 <a href="/logout/" class="hover:text-red-400">Logout</a>
             {% else %}
                 <a href="/login/" class="hover:text-cyan-400">Login</a>
@@ -65,7 +66,9 @@
         <!-- MOBILE DROPDOWN MENU -->
         <div id="mobileMenu"
              class="hidden absolute top-full right-0 w-56 bg-gray-900 border border-gray-700 rounded-xl shadow-xl z-50 py-3 flex flex-col text-sm font-semibold">
+
             <a href="/" class="px-5 py-3 hover:bg-gray-800 hover:text-cyan-400 block">🏠 Home</a>
+
             {% if user.is_authenticated %}
                 {% if user.profile.is_creator %}
                     <div class="border-t border-gray-700 mt-2 pt-2">
@@ -75,12 +78,14 @@
                     </div>
                 {% endif %}
                 <div class="border-t border-gray-700 mt-2 pt-2">
+                    <a href="/profile/" class="px-5 py-3 hover:bg-gray-800 text-green-400 block">👤 Profile</a>
                     <a href="/logout/" class="px-5 py-3 hover:bg-gray-800 text-red-400 block">🚪 Logout</a>
                 </div>
             {% else %}
                 <a href="/login/" class="px-5 py-3 hover:bg-gray-800 text-cyan-400 block">🔐 Login</a>
                 <a href="/register/" class="px-5 py-3 hover:bg-gray-800 text-yellow-400 block">📝 Register</a>
             {% endif %}
+
         </div>
 
     </nav>

@@ -30,7 +30,7 @@
         {% for item in tournament_data %}
         <div class="p-4 border-b border-gray-700">
 
-            <!-- NAME + BADGES -->
+            <!-- NAME + BADGE -->
             <div class="flex items-start justify-between gap-2 mb-2">
                 <a href="/tournament/{{ item.tournament.id }}/"
                    class="font-bold text-white hover:text-cyan-400 text-sm leading-tight">
@@ -55,7 +55,7 @@
                 {% endif %}
             </div>
 
-            <!-- ACTION BUTTONS -->
+            <!-- ACTIONS -->
             <div class="flex gap-2">
                 <a href="/edit-tournament/{{ item.tournament.id }}/"
                    class="flex-1 text-center bg-yellow-400 text-black px-3 py-2 rounded font-bold text-xs hover:bg-yellow-300 transition">
@@ -80,11 +80,11 @@
 
     <!-- USERS -->
     <h2 class="text-lg font-bold text-yellow-400 mb-3">👥 All Users</h2>
-    <div class="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
+    <div class="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-8">
         {% for u in users %}
         <div class="p-4 border-b border-gray-700">
 
-            <!-- USER INFO ROW -->
+            <!-- USER INFO -->
             <div class="flex items-center justify-between mb-3">
                 <div>
                     <div class="flex items-center gap-2">
@@ -98,11 +98,12 @@
                         {% endif %}
                     </div>
                     <p class="text-gray-500 text-xs mt-0.5">{{ u.email }}</p>
-                    <p class="text-gray-600 text-xs">{{ u.date_joined|date:"d M Y" }}</p>
+                    <p class="text-gray-600 text-xs">Joined: {{ u.date_joined|date:"d M Y" }}</p>
+                    <p class="text-green-400 text-xs">💰 ₹{{ u.profile.reward_balance }}</p>
                 </div>
             </div>
 
-            <!-- ACTION BUTTONS -->
+            <!-- ACTIONS -->
             {% if u != request.user %}
             <div class="flex gap-2 flex-wrap">
                 {% if u.is_active %}
@@ -149,6 +150,57 @@
         </div>
         {% empty %}
         <p class="text-gray-500 p-5 text-sm">No users yet.</p>
+        {% endfor %}
+    </div>
+
+    <!-- WITHDRAWAL REQUESTS -->
+    <h2 class="text-lg font-bold text-cyan-400 mb-3">💸 Withdrawal Requests</h2>
+    <div class="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
+        {% for w in withdrawal_requests %}
+        <div class="p-4 border-b border-gray-700">
+
+            <!-- INFO -->
+            <div class="flex items-start justify-between gap-2 mb-3">
+                <div>
+                    <p class="font-bold text-white text-sm">{{ w.user.username }}</p>
+                    <p class="text-yellow-400 text-sm font-bold">₹{{ w.amount }}</p>
+                    <p class="text-gray-500 text-xs">UPI: {{ w.upi_id }}</p>
+                    <p class="text-gray-600 text-xs">{{ w.requested_at|date:"d M Y, H:i" }}</p>
+                </div>
+                {% if w.status == 'pending' %}
+                    <span class="text-yellow-400 text-xs border border-yellow-400/40 px-2 py-0.5 rounded-full flex-shrink-0">⏳ Pending</span>
+                {% elif w.status == 'approved' %}
+                    <span class="text-green-400 text-xs border border-green-400/40 px-2 py-0.5 rounded-full flex-shrink-0">✅ Approved</span>
+                {% else %}
+                    <span class="text-red-400 text-xs border border-red-400/40 px-2 py-0.5 rounded-full flex-shrink-0">❌ Rejected</span>
+                {% endif %}
+            </div>
+
+            <!-- APPROVE / REJECT -->
+            {% if w.status == 'pending' %}
+            <div class="flex gap-2">
+                <form method="POST" action="/approve-withdrawal/{{ w.id }}/" class="flex-1">
+                    {% csrf_token %}
+                    <button type="submit"
+                            class="w-full bg-green-500 text-white px-3 py-2 rounded font-bold text-xs hover:bg-green-400 transition">
+                        ✅ Approve
+                    </button>
+                </form>
+                <form method="POST" action="/reject-withdrawal/{{ w.id }}/"
+                      onsubmit="return confirm('Reject and refund ₹{{ w.amount }} to {{ w.user.username }}?')"
+                      class="flex-1">
+                    {% csrf_token %}
+                    <button type="submit"
+                            class="w-full bg-red-500 text-white px-3 py-2 rounded font-bold text-xs hover:bg-red-400 transition">
+                        ❌ Reject & Refund
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+
+        </div>
+        {% empty %}
+        <p class="text-gray-500 text-sm p-5">No withdrawal requests yet.</p>
         {% endfor %}
     </div>
 

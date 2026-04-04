@@ -1,5 +1,11 @@
 from django.urls import path
-from .views import home, login_view, register_view, logout_view, profile_view, join_tournament, create_tournament, tournament_detail, generate_matches, submit_result, delete_tournament, edit_tournament, creator_admin, promote_user, demote_user, ban_user, unban_user
+from .views import (
+    home, login_view, register_view, logout_view, profile_view,
+    join_tournament, create_tournament, tournament_detail,
+    generate_matches, submit_result, delete_tournament, edit_tournament,
+    creator_admin, promote_user, demote_user, ban_user, unban_user,
+    withdraw_view, approve_withdrawal, reject_withdrawal
+)
 from django.contrib.auth import views as auth_views
 
 urlpatterns = [
@@ -8,8 +14,8 @@ urlpatterns = [
     path('register/', register_view, name='register'),
     path('logout/', logout_view, name='logout'),
     path('profile/', profile_view, name='profile'),
+    path('withdraw/', withdraw_view, name='withdraw'),
 
-    # JOIN
     path('join/<int:tournament_id>/', join_tournament, name='join_tournament'),
     path('create-tournament/', create_tournament, name='create_tournament'),
     path('tournament/<int:tournament_id>/', tournament_detail, name='tournament_detail'),
@@ -17,12 +23,15 @@ urlpatterns = [
     path('submit-result/<int:match_id>/', submit_result, name='submit_result'),
     path('delete-tournament/<int:tournament_id>/', delete_tournament, name='delete_tournament'),
     path('edit-tournament/<int:tournament_id>/', edit_tournament, name='edit_tournament'),
+
     path('creator-admin/', creator_admin, name='creator_admin'),
     path('promote-user/<int:user_id>/', promote_user, name='promote_user'),
     path('demote-user/<int:user_id>/', demote_user, name='demote_user'),
     path('ban-user/<int:user_id>/', ban_user, name='ban_user'),
     path('unban-user/<int:user_id>/', unban_user, name='unban_user'),
-    # PASSWORD RESET
+    path('approve-withdrawal/<int:withdrawal_id>/', approve_withdrawal, name='approve_withdrawal'),
+    path('reject-withdrawal/<int:withdrawal_id>/', reject_withdrawal, name='reject_withdrawal'),
+
     path('password-reset/', auth_views.PasswordResetView.as_view(template_name='auth/password_reset.html'), name='password_reset'),
     path('password-reset/done/', auth_views.PasswordResetDoneView.as_view(template_name='auth/password_reset_done.html'), name='password_reset_done'),
     path('reset/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(template_name='auth/password_reset_confirm.html'), name='password_reset_confirm'),
