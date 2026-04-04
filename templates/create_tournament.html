@@ -4,11 +4,11 @@
 
 <div class="flex items-center justify-center py-8 px-4">
 
-    <form method="POST" enctype="multipart/form-data"
-          class="bg-gray-900 p-6 rounded-xl w-full max-w-md shadow-lg border border-gray-700">
+    <form method="POST" enctype="multipart/form-data" id="tournamentForm"
+          class="bg-gray-900 p-6 rounded-xl w-full max-w-lg shadow-lg border border-gray-700">
         {% csrf_token %}
 
-        <h2 class="text-2xl text-yellow-400 mb-5 text-center font-bold">⚔️ Host Tournament</h2>
+        <h2 class="text-2xl text-yellow-400 mb-2 text-center font-bold">⚔️ Host Tournament</h2>
 
         {% if error %}
         <div class="bg-red-500/10 border border-red-500/40 rounded-lg px-4 py-3 mb-4">
@@ -16,62 +16,190 @@
         </div>
         {% endif %}
 
-        <!-- NAME -->
+        <!-- PLAN USAGE (non-admin creators) -->
+        {% if not request.user.profile.is_admin %}
+        <div class="bg-gray-800 rounded-lg px-4 py-3 mb-4 border border-gray-700 text-xs text-gray-400 flex justify-between">
+            <span>Tournaments used this month</span>
+            <span class="text-yellow-400 font-bold">
+                {{ request.user.profile.tournaments_created_this_month }} / {{ request.user.profile.tournament_limit }}
+            </span>
+        </div>
+        {% endif %}
+
+        <!-- SECTION: BASIC INFO -->
+        <p class="text-gray-500 text-xs uppercase tracking-widest mb-3">📋 Basic Info</p>
+
         <label class="text-gray-400 text-sm mb-1 block">Tournament Name *</label>
         <input type="text" name="name" placeholder="e.g. Clash Kings Cup" required
                class="w-full p-2.5 mb-3 bg-gray-800 border border-gray-700 rounded focus:outline-none focus:border-cyan-400 text-white text-sm">
 
-        <!-- DESCRIPTION -->
         <label class="text-gray-400 text-sm mb-1 block">Description *</label>
         <textarea name="description" placeholder="Describe your tournament..."
                   rows="2" required
                   class="w-full p-2.5 mb-3 bg-gray-800 border border-gray-700 rounded focus:outline-none focus:border-cyan-400 text-white text-sm resize-none"></textarea>
 
-        <!-- RULES -->
         <label class="text-gray-400 text-sm mb-1 block">Rules <span class="text-gray-500">(optional)</span></label>
-        <textarea name="rules" placeholder="List your tournament rules here..."
+        <textarea name="rules" placeholder="1. No cheating&#10;2. Be respectful&#10;3. Join on time"
                   rows="3"
-                  class="w-full p-2.5 mb-3 bg-gray-800 border border-gray-700 rounded focus:outline-none focus:border-cyan-400 text-white text-sm resize-none"></textarea>
+                  class="w-full p-2.5 mb-4 bg-gray-800 border border-gray-700 rounded focus:outline-none focus:border-cyan-400 text-white text-sm resize-none"></textarea>
 
-        <!-- PASSWORD -->
+        <!-- SECTION: TOURNAMENT TYPE -->
+        <p class="text-gray-500 text-xs uppercase tracking-widest mb-3">🎮 Tournament Type</p>
+
+        <div class="grid grid-cols-2 gap-3 mb-4">
+            <label class="cursor-pointer">
+                <input type="radio" name="is_paid" value="free" checked
+                       onchange="switchType('free')" class="hidden" id="typeFree">
+                <div id="labelFree"
+                     class="border-2 border-cyan-400 bg-cyan-400/10 rounded-xl p-3 text-center transition">
+                    <p class="text-2xl mb-1">🆓</p>
+                    <p class="text-cyan-400 font-bold text-sm">Free</p>
+                    <p class="text-gray-400 text-xs">No entry fee</p>
+                </div>
+            </label>
+            <label class="cursor-pointer">
+                <input type="radio" name="is_paid" value="paid"
+                       onchange="switchType('paid')" class="hidden" id="typePaid">
+                <div id="labelPaid"
+                     class="border-2 border-gray-700 bg-gray-800 rounded-xl p-3 text-center transition">
+                    <p class="text-2xl mb-1">💰</p>
+                    <p class="text-gray-400 font-bold text-sm">Paid</p>
+                    <p class="text-gray-500 text-xs">Entry fee required</p>
+                </div>
+            </label>
+        </div>
+
+        <!-- FREE TOURNAMENT REWARD -->
+        <div id="freeSection">
+            <p class="text-gray-500 text-xs uppercase tracking-widest mb-3">🎁 Reward</p>
+
+            <label class="text-gray-400 text-sm mb-1 block">Reward Type</label>
+            <div class="grid grid-cols-3 gap-2 mb-3">
+                <label class="cursor-pointer">
+                    <input type="radio" name="reward_type" value="cash" class="hidden rewardType" onchange="selectRewardType(this)">
+                    <div class="reward-btn border border-gray-700 rounded-lg p-2 text-center text-xs hover:border-yellow-400 transition">
+                        <p>💵</p><p class="text-gray-400">Cash</p>
+                    </div>
+                </label>
+                <label class="cursor-pointer">
+                    <input type="radio" name="reward_type" value="gift_card" class="hidden rewardType" onchange="selectRewardType(this)">
+                    <div class="reward-btn border border-gray-700 rounded-lg p-2 text-center text-xs hover:border-yellow-400 transition">
+                        <p>🎁</p><p class="text-gray-400">Gift Card</p>
+                    </div>
+                </label>
+                <label class="cursor-pointer">
+                    <input type="radio" name="reward_type" value="ingame" class="hidden rewardType" checked onchange="selectRewardType(this)">
+                    <div class="reward-btn border border-yellow-400 bg-yellow-400/10 rounded-lg p-2 text-center text-xs transition">
+                        <p>🎮</p><p class="text-yellow-400">In-Game</p>
+                    </div>
+                </label>
+            </div>
+
+            <label class="text-gray-400 text-sm mb-1 block">Reward Details <span class="text-gray-500">(optional)</span></label>
+            <input type="text" name="reward" placeholder="e.g. 500 Gems, Google Play ₹500 code"
+                   class="w-full p-2.5 mb-4 bg-gray-800 border border-gray-700 rounded focus:outline-none focus:border-yellow-400 text-white text-sm">
+        </div>
+
+        <!-- PAID TOURNAMENT SECTION -->
+        <div id="paidSection" class="hidden">
+            <p class="text-gray-500 text-xs uppercase tracking-widest mb-3">💰 Paid Settings</p>
+
+            <label class="text-gray-400 text-sm mb-1 block">Entry Fee (₹) *</label>
+            <input type="number" name="entry_fee" id="entryFee" placeholder="e.g. 50" min="1"
+                   oninput="updatePrizePreview()"
+                   class="w-full p-2.5 mb-3 bg-gray-800 border border-gray-700 rounded focus:outline-none focus:border-yellow-400 text-white text-sm">
+
+            <!-- LIVE PRIZE POOL PREVIEW -->
+            <div class="bg-gradient-to-r from-yellow-400/10 to-green-400/10 border border-yellow-400/30 rounded-xl p-4 mb-4">
+                <p class="text-gray-400 text-xs mb-2 uppercase tracking-widest">Live Prize Pool Preview</p>
+                <div class="grid grid-cols-3 gap-2 text-center">
+                    <div>
+                        <p class="text-gray-500 text-xs">Min Players</p>
+                        <p id="previewMin" class="text-yellow-400 font-bold text-lg">₹0</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-500 text-xs">50 Players</p>
+                        <p id="preview50" class="text-green-400 font-bold text-lg">₹0</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-500 text-xs">Max Players</p>
+                        <p id="previewMax" class="text-cyan-400 font-bold text-lg">₹0</p>
+                    </div>
+                </div>
+                <p class="text-gray-500 text-xs text-center mt-2">Prize pool = Entry Fee × Players joined</p>
+            </div>
+
+            <!-- PAID DISCLAIMER -->
+            <div class="bg-red-500/10 border border-red-500/30 rounded-xl p-4 mb-4">
+                <p class="text-red-400 text-xs font-bold mb-1">⚠️ Paid Tournament Disclaimer</p>
+                <p class="text-gray-400 text-xs">Prize pool depends on number of players who join. If minimum players are not reached, all entry fees will be fully refunded to wallets.</p>
+            </div>
+        </div>
+
+        <!-- SECTION: SETTINGS -->
+        <p class="text-gray-500 text-xs uppercase tracking-widest mb-3">⚙️ Settings</p>
+
+        <div class="grid grid-cols-2 gap-3 mb-3">
+            <div>
+                <label class="text-gray-400 text-sm mb-1 block">Min Players *</label>
+                <input type="number" name="min_players" id="minPlayers" value="2" min="2" required
+                       oninput="updatePrizePreview()"
+                       class="w-full p-2.5 bg-gray-800 border border-gray-700 rounded focus:outline-none focus:border-cyan-400 text-white text-sm">
+            </div>
+            <div>
+                <label class="text-gray-400 text-sm mb-1 block">Max Players *</label>
+                <input type="number" name="max_players" id="maxPlayers" value="100" min="2" required
+                       oninput="updatePrizePreview()"
+                       class="w-full p-2.5 bg-gray-800 border border-gray-700 rounded focus:outline-none focus:border-cyan-400 text-white text-sm">
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3 mb-3">
+            <div>
+                <label class="text-gray-400 text-sm mb-1 block">Start Time *</label>
+                <input type="datetime-local" name="start_time" required
+                       class="w-full p-2.5 bg-gray-800 border border-gray-700 rounded focus:outline-none focus:border-cyan-400 text-white text-sm">
+            </div>
+            <div>
+                <label class="text-gray-400 text-sm mb-1 block">Join Deadline</label>
+                <input type="datetime-local" name="join_deadline"
+                       class="w-full p-2.5 bg-gray-800 border border-gray-700 rounded focus:outline-none focus:border-cyan-400 text-white text-sm">
+            </div>
+        </div>
+
         <label class="text-gray-400 text-sm mb-1 block">Password <span class="text-gray-500">(optional)</span></label>
         <input type="text" name="password" placeholder="Leave blank for open tournament"
                class="w-full p-2.5 mb-3 bg-gray-800 border border-gray-700 rounded focus:outline-none focus:border-cyan-400 text-white text-sm">
 
-        <!-- REWARD -->
-        <label class="text-gray-400 text-sm mb-1 block">Reward <span class="text-gray-500">(optional)</span></label>
-        <input type="text" name="reward" placeholder="e.g. 500 gems, Gift card"
-               class="w-full p-2.5 mb-3 bg-gray-800 border border-gray-700 rounded focus:outline-none focus:border-cyan-400 text-white text-sm">
-
-        <!-- START TIME -->
-        <label class="text-gray-400 text-sm mb-1 block">Start Time *</label>
-        <input type="datetime-local" name="start_time" required
-               class="w-full p-2.5 mb-3 bg-gray-800 border border-gray-700 rounded focus:outline-none focus:border-cyan-400 text-white text-sm">
-
-        <!-- MIN PLAYERS -->
-        <label class="text-gray-400 text-sm mb-1 block">Minimum Players *</label>
-        <input type="number" name="min_players" value="2" min="2" required
-               class="w-full p-2.5 mb-3 bg-gray-800 border border-gray-700 rounded focus:outline-none focus:border-cyan-400 text-white text-sm">
-
-        <!-- PAID TOURNAMENT TOGGLE -->
-        <div class="flex items-center gap-3 mb-3 p-3 bg-gray-800 rounded-lg border border-gray-700">
-            <input type="checkbox" name="is_paid" id="is_paid"
-                   onchange="toggleFee(this)"
-                   class="accent-yellow-400 w-4 h-4">
-            <label for="is_paid" class="text-gray-300 text-sm">💰 Paid Tournament</label>
-        </div>
-
-        <!-- ENTRY FEE (hidden by default) -->
-        <div id="feeSection" class="hidden">
-            <label class="text-gray-400 text-sm mb-1 block">Entry Fee (₹) *</label>
-            <input type="number" name="entry_fee" placeholder="e.g. 50" min="1"
-                   class="w-full p-2.5 mb-3 bg-gray-800 border border-gray-700 rounded focus:outline-none focus:border-yellow-400 text-white text-sm">
+        <!-- SHOW PARTICIPANTS TOGGLE -->
+        <div class="flex items-center justify-between p-3 bg-gray-800 rounded-lg border border-gray-700 mb-3">
+            <div>
+                <p class="text-gray-300 text-sm font-semibold">Show Participants List</p>
+                <p class="text-gray-500 text-xs">Players can see who joined</p>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" name="show_participants" checked class="sr-only peer">
+                <div class="w-11 h-6 bg-gray-600 peer-checked:bg-cyan-400 rounded-full transition peer-focus:outline-none"></div>
+                <div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition peer-checked:translate-x-5"></div>
+            </label>
         </div>
 
         <!-- PROOF IMAGE -->
         <label class="text-gray-400 text-sm mb-1 block">Proof Image <span class="text-gray-500">(optional)</span></label>
         <input type="file" name="proof_image" accept="image/*"
                class="w-full p-2.5 mb-5 bg-gray-800 border border-gray-700 rounded text-gray-400 text-sm">
+
+        <!-- PAID AGREE CHECKBOX -->
+        <div id="agreeSection" class="hidden mb-4">
+            <label class="flex items-start gap-3 cursor-pointer">
+                <input type="checkbox" name="creator_agreed" id="creatorAgreed" required
+                       class="mt-1 accent-yellow-400">
+                <span class="text-gray-400 text-xs">
+                    I agree that the prize pool is dynamic and depends on the number of players who join.
+                    If minimum players are not reached, all fees will be refunded automatically.
+                </span>
+            </label>
+        </div>
 
         <button type="submit"
                 class="w-full bg-yellow-400 text-black py-2.5 rounded font-bold hover:bg-yellow-300 transition text-base">
@@ -83,13 +211,50 @@
 </div>
 
 <script>
-function toggleFee(checkbox) {
-    const feeSection = document.getElementById('feeSection');
-    if (checkbox.checked) {
-        feeSection.classList.remove('hidden');
+function switchType(type) {
+    const freeSection = document.getElementById('freeSection');
+    const paidSection = document.getElementById('paidSection');
+    const agreeSection = document.getElementById('agreeSection');
+    const labelFree = document.getElementById('labelFree');
+    const labelPaid = document.getElementById('labelPaid');
+
+    if (type === 'paid') {
+        freeSection.classList.add('hidden');
+        paidSection.classList.remove('hidden');
+        agreeSection.classList.remove('hidden');
+        labelPaid.className = 'border-2 border-yellow-400 bg-yellow-400/10 rounded-xl p-3 text-center transition';
+        labelPaid.querySelector('p:nth-child(2)').className = 'text-yellow-400 font-bold text-sm';
+        labelFree.className = 'border-2 border-gray-700 bg-gray-800 rounded-xl p-3 text-center transition';
+        labelFree.querySelector('p:nth-child(2)').className = 'text-gray-400 font-bold text-sm';
     } else {
-        feeSection.classList.add('hidden');
+        freeSection.classList.remove('hidden');
+        paidSection.classList.add('hidden');
+        agreeSection.classList.add('hidden');
+        labelFree.className = 'border-2 border-cyan-400 bg-cyan-400/10 rounded-xl p-3 text-center transition';
+        labelFree.querySelector('p:nth-child(2)').className = 'text-cyan-400 font-bold text-sm';
+        labelPaid.className = 'border-2 border-gray-700 bg-gray-800 rounded-xl p-3 text-center transition';
+        labelPaid.querySelector('p:nth-child(2)').className = 'text-gray-400 font-bold text-sm';
     }
+}
+
+function updatePrizePreview() {
+    const fee = parseFloat(document.getElementById('entryFee').value) || 0;
+    const min = parseInt(document.getElementById('minPlayers').value) || 2;
+    const max = parseInt(document.getElementById('maxPlayers').value) || 100;
+
+    document.getElementById('previewMin').innerText = '₹' + (fee * min).toLocaleString('en-IN');
+    document.getElementById('preview50').innerText = '₹' + (fee * 50).toLocaleString('en-IN');
+    document.getElementById('previewMax').innerText = '₹' + (fee * max).toLocaleString('en-IN');
+}
+
+function selectRewardType(input) {
+    document.querySelectorAll('.reward-btn').forEach(btn => {
+        btn.className = 'reward-btn border border-gray-700 rounded-lg p-2 text-center text-xs hover:border-yellow-400 transition';
+        btn.querySelector('p:last-child').className = 'text-gray-400';
+    });
+    const selected = input.closest('label').querySelector('.reward-btn');
+    selected.className = 'reward-btn border border-yellow-400 bg-yellow-400/10 rounded-lg p-2 text-center text-xs transition';
+    selected.querySelector('p:last-child').className = 'text-yellow-400';
 }
 </script>
 

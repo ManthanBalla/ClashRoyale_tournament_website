@@ -5,18 +5,18 @@ from django.dispatch import receiver
 
 
 class Profile(models.Model):
+    PLAN_CHOICES = [
+        ('none', 'No Plan'),
+        ('1month', '1 Month'),
+        ('3month', '3 Months'),
+        ('1year', '1 Year'),
+    ]
+
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     is_creator = models.BooleanField(default=False)
     is_admin = models.BooleanField(default=False)
     upi_id = models.CharField(max_length=100, blank=True, null=True)
     reward_balance = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
-
-    # Creator membership
-    PLAN_CHOICES = [
-        ('none', 'No Plan'),
-        ('1month', '1 Month'),
-        ('3month', '3 Months'),
-    ]
     creator_plan = models.CharField(max_length=20, choices=PLAN_CHOICES, default='none')
     plan_expiry = models.DateTimeField(null=True, blank=True)
     tournaments_created_this_month = models.IntegerField(default=0)
@@ -37,15 +37,17 @@ class Profile(models.Model):
             return 5
         elif self.creator_plan == '3month':
             return 15
+        elif self.creator_plan == '1year':
+            return 9999
         return 0
 
     def can_create_tournament(self):
         if self.is_admin:
-            return True  # admin unlimited
+            return True
         if not self.is_creator:
-            return False  # regular players cannot
+            return False
         if not self.plan_active():
-            return False  # expired plan
+            return False
         return self.tournaments_created_this_month < self.tournament_limit()
 
     def __str__(self):
@@ -60,22 +62,34 @@ class Tournament(models.Model):
         ('cancelled', 'Cancelled'),
     ]
 
+    REWARD_TYPE_CHOICES = [
+        ('cash', 'Cash'),
+        ('gift_card', 'Gift Card'),
+        ('ingame', 'In-Game Item'),
+        ('other', 'Other'),
+    ]
+
     name = models.CharField(max_length=100)
     description = models.TextField()
     rules = models.TextField(blank=True, null=True)
     creator = models.ForeignKey(User, on_delete=models.CASCADE)
     password = models.CharField(max_length=50, blank=True, null=True)
+
     reward = models.CharField(max_length=100, blank=True)
+    reward_type = models.CharField(max_length=20, choices=REWARD_TYPE_CHOICES, default='other')
+
     start_time = models.DateTimeField()
+    join_deadline = models.DateTimeField(null=True, blank=True)
     proof_image = models.ImageField(upload_to='proofs/', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    # Paid tournament
     is_paid = models.BooleanField(default=False)
     entry_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     min_players = models.IntegerField(default=2)
+    max_players = models.IntegerField(default=100)
     prize_pool = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
 
+    show_participants = models.BooleanField(default=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='upcoming')
 
     def current_prize_pool(self):
@@ -142,6 +156,7 @@ class CreatorMembership(models.Model):
     PLAN_CHOICES = [
         ('1month', '1 Month - 5 Tournaments'),
         ('3month', '3 Months - 15 Tournaments'),
+        ('1year', '1 Year - Unlimited Tournaments'),
     ]
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     plan = models.CharField(max_length=20, choices=PLAN_CHOICES)
@@ -157,6 +172,7 @@ class CreatorMembership(models.Model):
 def create_profile(sender, instance, created, **kwargs):
     if created:
         Profile.objects.get_or_create(user=instance)
+
 
 @receiver(post_save, sender=User)
 def save_profile(sender, instance, **kwargs):

@@ -7,20 +7,19 @@
     <title>Clash Arena</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-// Convert all UTC times to user's local time automatically
-document.addEventListener("DOMContentLoaded", function () {
-    document.querySelectorAll('.local-time').forEach(function (el) {
-        const utc = el.getAttribute('data-utc');
-        if (utc) {
-            const date = new Date(utc);
-            el.innerText = date.toLocaleString(undefined, {
-                year: 'numeric', month: 'short', day: 'numeric',
-                hour: '2-digit', minute: '2-digit', hour12: true
+        document.addEventListener("DOMContentLoaded", function () {
+            document.querySelectorAll('.local-time').forEach(function (el) {
+                const utc = el.getAttribute('data-utc');
+                if (utc) {
+                    const date = new Date(utc);
+                    el.innerText = date.toLocaleString(undefined, {
+                        year: 'numeric', month: 'short', day: 'numeric',
+                        hour: '2-digit', minute: '2-digit', hour12: true
+                    });
+                }
             });
-        }
-    });
-});
-</script>
+        });
+    </script>
     <style>
         html, body {
             overflow: hidden;
@@ -59,9 +58,16 @@ document.addEventListener("DOMContentLoaded", function () {
         <div class="hidden md:flex space-x-6 text-sm font-semibold items-center">
             <a href="/" class="hover:text-cyan-400">Home</a>
             {% if user.is_authenticated %}
-                {% if user.profile.is_creator %}
+                {% if user.profile.is_admin %}
+                    <span class="text-red-400 font-bold">👑 Admin</span>
                     <a href="/create-tournament/" class="text-yellow-400 hover:underline">⚔️ Host Tournament</a>
-                    <a href="/creator-admin/" class="text-yellow-400 hover:underline">⚙️ Admin Panel</a>
+                    <a href="/creator-admin/" class="text-red-400 hover:underline">⚙️ Admin Panel</a>
+                {% elif user.profile.is_creator %}
+                    <span class="text-yellow-400 font-bold">🎮 Creator</span>
+                    <a href="/create-tournament/" class="text-yellow-400 hover:underline">⚔️ Host Tournament</a>
+                    <a href="/subscription/" class="text-cyan-400 hover:underline">💎 Subscription</a>
+                {% else %}
+                    <a href="/subscription/" class="text-cyan-400 hover:underline">💎 Become Creator</a>
                 {% endif %}
                 <a href="/profile/" class="hover:text-green-400">👤 Profile</a>
                 <a href="/logout/" class="hover:text-red-400">Logout</a>
@@ -85,11 +91,22 @@ document.addEventListener("DOMContentLoaded", function () {
             <a href="/" class="px-5 py-3 hover:bg-gray-800 hover:text-cyan-400 block">🏠 Home</a>
 
             {% if user.is_authenticated %}
-                {% if user.profile.is_creator %}
+                {% if user.profile.is_admin %}
                     <div class="border-t border-gray-700 mt-2 pt-2">
-                        <p class="px-5 py-1 text-gray-500 text-xs uppercase tracking-widest">Creator</p>
+                        <p class="px-5 py-1 text-red-400 text-xs uppercase tracking-widest font-bold">👑 Admin</p>
                         <a href="/create-tournament/" class="px-5 py-3 hover:bg-gray-800 text-yellow-400 block">⚔️ Host Tournament</a>
-                        <a href="/creator-admin/" class="px-5 py-3 hover:bg-gray-800 text-yellow-400 block">⚙️ Admin Panel</a>
+                        <a href="/creator-admin/" class="px-5 py-3 hover:bg-gray-800 text-red-400 block">⚙️ Admin Panel</a>
+                    </div>
+                {% elif user.profile.is_creator %}
+                    <div class="border-t border-gray-700 mt-2 pt-2">
+                        <p class="px-5 py-1 text-yellow-400 text-xs uppercase tracking-widest font-bold">🎮 Creator</p>
+                        <a href="/create-tournament/" class="px-5 py-3 hover:bg-gray-800 text-yellow-400 block">⚔️ Host Tournament</a>
+                        <a href="/subscription/" class="px-5 py-3 hover:bg-gray-800 text-cyan-400 block">💎 Buy Subscription</a>
+                    </div>
+                {% else %}
+                    <div class="border-t border-gray-700 mt-2 pt-2">
+                        <p class="px-5 py-1 text-gray-500 text-xs uppercase tracking-widest">Become a Creator</p>
+                        <a href="/subscription/" class="px-5 py-3 hover:bg-gray-800 text-cyan-400 block">💎 Buy Subscription</a>
                     </div>
                 {% endif %}
                 <div class="border-t border-gray-700 mt-2 pt-2">

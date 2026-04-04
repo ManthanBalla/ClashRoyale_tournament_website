@@ -158,12 +158,52 @@ def withdraw_view(request):
 
 
 @login_required
+def subscription_view(request):
+    profile = request.user.profile
+    memberships = CreatorMembership.objects.filter(
+        user=request.user
+    ).order_by('-started_at')
+
+    if request.method == "POST":
+        plan = request.POST.get('plan')
+        upi_ref = request.POST.get('upi_ref', '').strip()
+
+        if not upi_ref:
+            return render(request, 'subscription.html', {
+                'profile': profile,
+                'memberships': memberships,
+                'error': 'Please enter your UPI transaction reference number.'
+            })
+
+        # send email to admin for manual verification
+        try:
+            send_mail(
+                subject=f'🆕 Subscription Request - {request.user.username}',
+                message=f'User: {request.user.username}\nEmail: {request.user.email}\nPlan: {plan}\nUPI Ref: {upi_ref}\n\nPlease verify and grant membership.',
+                from_email=None,
+                recipient_list=['manthanballa08@gmail.com'],
+            )
+        except Exception:
+            pass
+
+        return render(request, 'subscription.html', {
+            'profile': profile,
+            'memberships': memberships,
+            'success': f'Your {plan} subscription request has been submitted! We will activate it within 24 hours after payment verification.'
+        })
+
+    return render(request, 'subscription.html', {
+        'profile': profile,
+        'memberships': memberships,
+    })
+
+
+@login_required
 def tournament_rules(request, tournament_id):
     tournament = get_object_or_404(Tournament, id=tournament_id)
     count = Participant.objects.filter(tournament=tournament).count()
     prize_pool = tournament.entry_fee * count if tournament.is_paid else None
 
-    # if already joined redirect to detail
     if Participant.objects.filter(user=request.user, tournament=tournament).exists():
         return redirect(f'/tournament/{tournament.id}/')
 
@@ -182,28 +222,33 @@ def join_tournament(request, tournament_id):
     if Participant.objects.filter(user=request.user, tournament=tournament).exists():
         return redirect('/')
 
-    # for paid tournaments show rules first
+    # check join deadline
+    if tournament.join_deadline and now > localtime(tournament.join_deadline):
+        return redirect('/?deadline=1')
+
+    # check max players
+    current_count = Participant.objects.filter(tournament=tournament).count()
+    if current_count >= tournament.max_players:
+        return redirect('/?full=1')
+
     if tournament.is_paid:
         if request.method == "POST":
             agreed = request.POST.get('agreed')
             if not agreed:
                 return redirect(f'/rules/{tournament.id}/')
 
-            # check balance
             profile = request.user.profile
             if profile.reward_balance < tournament.entry_fee:
                 return render(request, 'tournament_rules.html', {
                     'tournament': tournament,
-                    'count': Participant.objects.filter(tournament=tournament).count(),
-                    'prize_pool': tournament.entry_fee * Participant.objects.filter(tournament=tournament).count(),
+                    'count': current_count,
+                    'prize_pool': tournament.entry_fee * current_count,
                     'error': f'Insufficient balance. You need ₹{tournament.entry_fee} to join. Your balance is ₹{profile.reward_balance}.'
                 })
 
-            # deduct fee
             profile.reward_balance -= tournament.entry_fee
             profile.save()
 
-            # update prize pool
             tournament.prize_pool += tournament.entry_fee
             tournament.save()
 
@@ -249,7 +294,6 @@ def create_tournament(request):
     if not profile.is_admin and not profile.is_creator:
         return redirect('/')
 
-    # only non-admin creators have limits
     if not profile.is_admin and not profile.can_create_tournament():
         return render(request, 'create_tournament.html', {
             'error': 'You have reached your tournament limit or your plan has expired. Please upgrade your plan.'
@@ -261,27 +305,34 @@ def create_tournament(request):
         rules = request.POST.get('rules', '')
         password = request.POST.get('password') or None
         reward = request.POST.get('reward', '')
+        reward_type = request.POST.get('reward_type', 'other')
         start_time = request.POST.get('start_time')
+        join_deadline = request.POST.get('join_deadline') or None
         proof_image = request.FILES.get('proof_image')
-        is_paid = request.POST.get('is_paid') == 'on'
+        is_paid = request.POST.get('is_paid') == 'paid'
         entry_fee = request.POST.get('entry_fee', 0) or 0
         min_players = request.POST.get('min_players', 2) or 2
+        max_players = request.POST.get('max_players', 100) or 100
+        show_participants = request.POST.get('show_participants') == 'on'
 
-        t = Tournament.objects.create(
+        Tournament.objects.create(
             name=name,
             description=description,
             rules=rules,
             password=password,
             reward=reward,
+            reward_type=reward_type,
             start_time=start_time,
+            join_deadline=join_deadline,
             proof_image=proof_image,
             creator=request.user,
             is_paid=is_paid,
             entry_fee=entry_fee,
             min_players=min_players,
+            max_players=max_players,
+            show_participants=show_participants,
         )
 
-        # increment usage for non-admin creators
         if not profile.is_admin:
             profile.tournaments_created_this_month += 1
             profile.save()
@@ -299,13 +350,11 @@ def delete_tournament(request, tournament_id):
         return redirect('/')
 
     if request.method == "POST":
-        # refund all paid participants
         if tournament.is_paid:
             participants = Participant.objects.filter(tournament=tournament, fee_paid=True)
             for p in participants:
                 p.user.profile.reward_balance += tournament.entry_fee
                 p.user.profile.save()
-
         tournament.delete()
         return redirect('/')
 
@@ -326,7 +375,10 @@ def edit_tournament(request, tournament_id):
         tournament.password = request.POST.get('password') or None
         tournament.reward = request.POST.get('reward', '')
         tournament.start_time = request.POST.get('start_time')
+        tournament.join_deadline = request.POST.get('join_deadline') or None
         tournament.min_players = request.POST.get('min_players', 2) or 2
+        tournament.max_players = request.POST.get('max_players', 100) or 100
+        tournament.show_participants = request.POST.get('show_participants') == 'on'
         if request.FILES.get('proof_image'):
             tournament.proof_image = request.FILES.get('proof_image')
         tournament.save()
@@ -374,13 +426,11 @@ def cancel_tournament(request, tournament_id):
         return redirect('/')
 
     if request.method == "POST":
-        # refund all paid participants
         if tournament.is_paid:
             participants = Participant.objects.filter(tournament=tournament, fee_paid=True)
             for p in participants:
                 p.user.profile.reward_balance += tournament.entry_fee
                 p.user.profile.save()
-
         tournament.status = 'cancelled'
         tournament.save()
         return redirect('/')
@@ -395,9 +445,7 @@ def generate_matches(request, tournament_id):
         Participant.objects.filter(tournament=tournament).values_list('user', flat=True)
     )
 
-    # check minimum players
     if len(participants) < tournament.min_players:
-        # cancel and refund if paid
         if tournament.is_paid:
             for uid in participants:
                 u = User.objects.get(id=uid)
@@ -434,12 +482,10 @@ def submit_result(request, match_id):
         match.winner = winner
         match.save()
 
-        # check if all matches done — award prize
         tournament = match.tournament
         all_matches = Match.objects.filter(tournament=tournament)
         if all_matches.count() > 0 and all(m.winner for m in all_matches):
             if tournament.is_paid and tournament.status == 'ongoing':
-                # find overall winner (most wins)
                 from collections import Counter
                 wins = Counter(m.winner_id for m in all_matches if m.winner)
                 top_winner_id = wins.most_common(1)[0][0]
@@ -521,12 +567,9 @@ def send_reward_code(request, code_id):
         code = get_object_or_404(RewardCode, id=code_id)
         user_id = request.POST.get('user_id')
         user = get_object_or_404(User, id=user_id)
-
         code.assigned_to = user
         code.sent = True
         code.save()
-
-        # send email
         try:
             send_mail(
                 subject='🎁 Your Reward Code - Clash Arena',
@@ -536,7 +579,6 @@ def send_reward_code(request, code_id):
             )
         except Exception:
             pass
-
     return redirect('/creator-admin/')
 
 
@@ -550,8 +592,12 @@ def grant_membership(request, user_id):
 
         if plan == '1month':
             expiry = timezone.now() + timedelta(days=30)
-        else:
+        elif plan == '3month':
             expiry = timezone.now() + timedelta(days=90)
+        elif plan == '1year':
+            expiry = timezone.now() + timedelta(days=365)
+        else:
+            expiry = timezone.now() + timedelta(days=30)
 
         CreatorMembership.objects.create(
             user=u,

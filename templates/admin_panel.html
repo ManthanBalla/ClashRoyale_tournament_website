@@ -90,12 +90,14 @@
                     <div class="flex items-center gap-2">
                         <p class="font-bold text-white text-sm">{{ u.username }}</p>
                         {% if not u.is_active %}
-                            <span class="text-red-400 text-xs border border-red-400/40 px-2 py-0.5 rounded">Banned</span>
-                        {% elif u.profile.is_creator %}
-                            <span class="text-yellow-400 text-xs border border-yellow-400/40 px-2 py-0.5 rounded">Creator</span>
-                        {% else %}
-                            <span class="text-gray-400 text-xs border border-gray-600 px-2 py-0.5 rounded">Player</span>
-                        {% endif %}
+                        <span class="text-red-400 text-xs border border-red-400/40 px-2 py-0.5 rounded">Banned</span>
+                    {% elif u.profile.is_admin %}
+                        <span class="text-red-400 text-xs border border-red-400/40 px-2 py-0.5 rounded">👑 Admin</span>
+                    {% elif u.profile.is_creator %}
+                        <span class="text-yellow-400 text-xs border border-yellow-400/40 px-2 py-0.5 rounded">🎮 Creator</span>
+                    {% else %}
+                        <span class="text-gray-400 text-xs border border-gray-600 px-2 py-0.5 rounded">Player</span>
+                    {% endif %}
                     </div>
                     <p class="text-gray-500 text-xs mt-0.5">{{ u.email }}</p>
                     <p class="text-gray-600 text-xs">Joined: {{ u.date_joined|date:"d M Y" }}</p>

@@ -1,0 +1,302 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="max-w-2xl mx-auto px-4 py-8">
+
+    <div class="text-center mb-8">
+        <h1 class="text-3xl font-extrabold text-white mb-2">💎 Creator Membership</h1>
+        <p class="text-gray-400 text-sm">Host tournaments, earn money, build your community</p>
+    </div>
+
+    <!-- SUCCESS / ERROR -->
+    {% if success %}
+    <div class="bg-green-500/10 border border-green-500/40 rounded-xl px-4 py-4 mb-6">
+        <p class="text-green-400 text-sm text-center font-semibold">✅ {{ success }}</p>
+    </div>
+    {% endif %}
+
+    {% if error %}
+    <div class="bg-red-500/10 border border-red-500/40 rounded-xl px-4 py-4 mb-6">
+        <p class="text-red-400 text-sm text-center">⚠️ {{ error }}</p>
+    </div>
+    {% endif %}
+
+    <!-- CURRENT PLAN -->
+    {% if profile.plan_active %}
+    <div class="rounded-xl p-4 mb-8 text-center border"
+         style="background: linear-gradient(135deg, rgba(234,179,8,0.15), rgba(34,197,94,0.15)); border-color: rgba(234,179,8,0.4);">
+        <p class="text-yellow-400 font-bold">🎉 Active Plan: {{ profile.get_creator_plan_display }}</p>
+        <p class="text-gray-400 text-xs mt-1">Expires: <span class="local-time" data-utc="{{ profile.plan_expiry|date:'c' }}"></span></p>
+        <p class="text-gray-400 text-xs mt-1">
+            Tournaments used: <span class="text-cyan-400 font-bold">{{ profile.tournaments_created_this_month }} / {{ profile.tournament_limit }}</span>
+        </p>
+    </div>
+    {% endif %}
+
+    <!-- PLANS -->
+    <div class="grid grid-cols-1 gap-5 mb-8">
+
+        <!-- 1 MONTH PLAN -->
+        <div onclick="selectPlan('1month', '₹499')"
+             id="plan_1month"
+             class="plan-card cursor-pointer rounded-2xl p-5 transition-all duration-300 border-2"
+             style="background: linear-gradient(135deg, #0c1a2e 0%, #0a2540 50%, #061a30 100%); border-color: #1e40af;">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <p class="font-bold text-lg" style="color: #60a5fa;">⚡ Starter Plan</p>
+                    <p class="text-gray-400 text-sm">1 Month</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-2xl font-extrabold" style="color: #60a5fa;">₹499</p>
+                    <p class="text-gray-500 text-xs">one time</p>
+                </div>
+            </div>
+            <ul class="space-y-2 text-sm">
+                <li class="flex items-center gap-2 text-gray-300"><span style="color: #60a5fa;">✓</span> Host up to 5 tournaments</li>
+                <li class="flex items-center gap-2 text-gray-300"><span style="color: #60a5fa;">✓</span> Free & Paid tournaments</li>
+                <li class="flex items-center gap-2 text-gray-300"><span style="color: #60a5fa;">✓</span> Password protected access</li>
+                <li class="flex items-center gap-2 text-gray-300"><span style="color: #60a5fa;">✓</span> Basic analytics</li>
+            </ul>
+            <div class="mt-4 pt-3 border-t" style="border-color: rgba(96,165,250,0.2);">
+                <p class="text-xs text-center" style="color: #60a5fa;">Click to select this plan →</p>
+            </div>
+        </div>
+
+        <!-- 3 MONTH PLAN -->
+        <div onclick="selectPlan('3month', '₹999')"
+             id="plan_3month"
+             class="plan-card cursor-pointer rounded-2xl p-5 transition-all duration-300 border-2 relative"
+             style="background: linear-gradient(135deg, #1a1200 0%, #2d1f00 50%, #1a1200 100%); border-color: #d97706;">
+            <div class="absolute -top-3 left-5">
+                <span class="text-xs font-bold px-3 py-1 rounded-full text-black"
+                      style="background: linear-gradient(90deg, #f59e0b, #fbbf24);">
+                    🔥 POPULAR
+                </span>
+            </div>
+            <div class="flex justify-between items-start mb-4 mt-2">
+                <div>
+                    <p class="font-bold text-lg" style="color: #fbbf24;">🚀 Pro Plan</p>
+                    <p class="text-gray-400 text-sm">3 Months</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-2xl font-extrabold" style="color: #fbbf24;">₹999</p>
+                    <p class="text-gray-500 text-xs">₹333/month</p>
+                </div>
+            </div>
+            <ul class="space-y-2 text-sm">
+                <li class="flex items-center gap-2 text-gray-300"><span style="color: #fbbf24;">✓</span> Host up to 15 tournaments</li>
+                <li class="flex items-center gap-2 text-gray-300"><span style="color: #fbbf24;">✓</span> Free & Paid tournaments</li>
+                <li class="flex items-center gap-2 text-gray-300"><span style="color: #fbbf24;">✓</span> Priority support</li>
+                <li class="flex items-center gap-2 text-gray-300"><span style="color: #fbbf24;">✓</span> Custom tournament rules</li>
+                <li class="flex items-center gap-2 text-gray-300"><span style="color: #fbbf24;">✓</span> Advanced analytics</li>
+            </ul>
+            <div class="mt-4 pt-3 border-t" style="border-color: rgba(251,191,36,0.2);">
+                <p class="text-xs text-center" style="color: #fbbf24;">Click to select this plan →</p>
+            </div>
+        </div>
+
+        <!-- 1 YEAR PLAN -->
+        <div onclick="selectPlan('1year', '₹4000')"
+             id="plan_1year"
+             class="plan-card cursor-pointer rounded-2xl p-5 transition-all duration-300 border-2 relative"
+             style="background: linear-gradient(135deg, #1a0533 0%, #0f0f2d 40%, #0d2818 100%); border-color: #7c3aed;">
+            <div class="absolute -top-3 left-5">
+                <span class="text-xs font-bold px-3 py-1 rounded-full text-white"
+                      style="background: linear-gradient(90deg, #7c3aed, #2563eb, #059669);">
+                    👑 BEST VALUE
+                </span>
+            </div>
+
+            <!-- GLOW EFFECT -->
+            <div class="absolute inset-0 rounded-2xl opacity-30 pointer-events-none"
+                 style="background: linear-gradient(135deg, #7c3aed22, #2563eb22, #05966922);"></div>
+
+            <div class="relative">
+                <div class="flex justify-between items-start mb-4 mt-2">
+                    <div>
+                        <p class="font-extrabold text-xl"
+                           style="background: linear-gradient(90deg, #c084fc, #60a5fa, #34d399); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">
+                            👑 Elite Plan
+                        </p>
+                        <p class="text-gray-400 text-sm">1 Year — Unlimited</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-2xl font-extrabold"
+                           style="background: linear-gradient(90deg, #c084fc, #34d399); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">
+                            ₹4,000
+                        </p>
+                        <p class="text-gray-500 text-xs">₹333/month</p>
+                    </div>
+                </div>
+                <ul class="space-y-2 text-sm">
+                    <li class="flex items-center gap-2"><span style="color: #c084fc;">✓</span> <span class="text-white font-semibold">Unlimited tournaments</span></li>
+                    <li class="flex items-center gap-2 text-gray-300"><span style="color: #c084fc;">✓</span> Free & Paid tournaments</li>
+                    <li class="flex items-center gap-2 text-gray-300"><span style="color: #c084fc;">✓</span> VIP support 24/7</li>
+                    <li class="flex items-center gap-2 text-gray-300"><span style="color: #c084fc;">✓</span> Early access to new features</li>
+                    <li class="flex items-center gap-2 text-gray-300"><span style="color: #c084fc;">✓</span> Custom branding</li>
+                    <li class="flex items-center gap-2 text-gray-300"><span style="color: #c084fc;">✓</span> Revenue sharing eligible</li>
+                </ul>
+                <div class="mt-4 pt-3 border-t" style="border-color: rgba(192,132,252,0.2);">
+                    <p class="text-xs text-center" style="color: #c084fc;">Click to select this plan →</p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- PAYMENT FORM -->
+    <div id="paymentSection" class="hidden mb-8">
+        <div class="rounded-2xl p-6 border"
+             style="background: linear-gradient(135deg, #0a0a1a, #0a1a0a); border-color: rgba(99,102,241,0.4);">
+
+            <h2 class="text-lg font-bold text-white mb-5 text-center">💳 Complete Payment</h2>
+
+            <!-- SELECTED PLAN -->
+            <div class="rounded-xl p-4 mb-5 flex justify-between items-center border"
+                 style="background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1);">
+                <div>
+                    <p class="text-gray-400 text-xs">Selected Plan</p>
+                    <p id="selectedPlanName" class="text-white font-bold text-sm mt-0.5"></p>
+                </div>
+                <p id="selectedPlanPrice" class="text-yellow-400 font-extrabold text-2xl"></p>
+            </div>
+
+            <!-- UPI -->
+            <div class="rounded-xl p-4 mb-5 border"
+                 style="background: linear-gradient(135deg, rgba(6,182,212,0.1), rgba(59,130,246,0.1)); border-color: rgba(6,182,212,0.3);">
+                <p class="text-cyan-400 font-bold text-sm mb-2">📱 Pay via UPI</p>
+                <div class="bg-black/30 rounded-lg py-3 px-4 text-center mb-2">
+                    <p class="text-white font-mono text-base font-bold">manthanballa08@okicici</p>
+                </div>
+                <p class="text-gray-400 text-xs text-center">Send exact amount to this UPI ID</p>
+            </div>
+
+            <!-- STEPS -->
+            <div class="space-y-3 mb-5">
+                <div class="flex items-center gap-3 text-sm text-gray-300">
+                    <span class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 text-black"
+                          style="background: linear-gradient(135deg, #06b6d4, #3b82f6);">1</span>
+                    Pay the amount to the UPI ID above
+                </div>
+                <div class="flex items-center gap-3 text-sm text-gray-300">
+                    <span class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 text-black"
+                          style="background: linear-gradient(135deg, #06b6d4, #3b82f6);">2</span>
+                    Copy your UPI transaction reference number
+                </div>
+                <div class="flex items-center gap-3 text-sm text-gray-300">
+                    <span class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 text-black"
+                          style="background: linear-gradient(135deg, #06b6d4, #3b82f6);">3</span>
+                    Paste it below — we'll activate within 24hrs
+                </div>
+            </div>
+
+            <!-- FORM -->
+            <form method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="plan" id="planInput">
+
+                <label class="text-gray-400 text-sm mb-1 block">UPI Transaction Reference *</label>
+                <input type="text" name="upi_ref"
+                       placeholder="e.g. 123456789012"
+                       required
+                       class="w-full p-3 mb-4 rounded-xl text-white text-sm focus:outline-none"
+                       style="background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.15);">
+
+                <div class="rounded-xl px-4 py-3 mb-5 border"
+                     style="background: rgba(234,179,8,0.08); border-color: rgba(234,179,8,0.3);">
+                    <p class="text-yellow-400 text-xs">
+                        ⚠️ Your plan will be activated within 24 hours after payment verification. Make sure your UPI reference is correct.
+                    </p>
+                </div>
+
+                <button type="submit"
+                        class="w-full py-3 rounded-xl font-bold text-white text-base mb-3 transition hover:opacity-90"
+                        style="background: linear-gradient(90deg, #7c3aed, #2563eb, #059669);">
+                    🚀 Submit Payment Reference
+                </button>
+
+                <button type="button" onclick="cancelPlan()"
+                        class="w-full py-2.5 rounded-xl font-semibold text-gray-400 text-sm transition hover:text-white border"
+                        style="border-color: rgba(255,255,255,0.1); background: rgba(255,255,255,0.03);">
+                    ← Choose Different Plan
+                </button>
+
+            </form>
+        </div>
+    </div>
+
+    <!-- MEMBERSHIP HISTORY -->
+    {% if memberships %}
+    <h2 class="text-lg font-bold text-white mb-3">📋 Membership History</h2>
+    <div class="rounded-xl border overflow-hidden mb-8"
+         style="background: #0f0f1a; border-color: rgba(255,255,255,0.1);">
+        {% for m in memberships %}
+        <div class="flex items-center justify-between p-4 border-b"
+             style="border-color: rgba(255,255,255,0.07);">
+            <div>
+                <p class="font-bold text-white text-sm">{{ m.get_plan_display }}</p>
+                <p class="text-gray-500 text-xs">Started: {{ m.started_at|date:"d M Y" }}</p>
+                <p class="text-gray-500 text-xs">Expires: {{ m.expires_at|date:"d M Y" }}</p>
+            </div>
+            {% if m.is_active %}
+                <span class="text-green-400 text-xs border border-green-400/40 px-3 py-1 rounded-full">✅ Active</span>
+            {% else %}
+                <span class="text-red-400 text-xs border border-red-400/40 px-3 py-1 rounded-full">❌ Expired</span>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+</div>
+
+<script>
+const planNames = {
+    '1month': '⚡ Starter Plan — 1 Month',
+    '3month': '🚀 Pro Plan — 3 Months',
+    '1year': '👑 Elite Plan — 1 Year'
+};
+const planPrices = {
+    '1month': '₹499',
+    '3month': '₹999',
+    '1year': '₹4,000'
+};
+const planColors = {
+    '1month': '#1e40af',
+    '3month': '#d97706',
+    '1year': '#7c3aed'
+};
+
+function selectPlan(plan, price) {
+    document.querySelectorAll('.plan-card').forEach(card => {
+        card.style.transform = 'scale(1)';
+        card.style.boxShadow = 'none';
+    });
+
+    const selected = document.getElementById('plan_' + plan);
+    selected.style.borderColor = planColors[plan];
+    selected.style.transform = 'scale(1.02)';
+    selected.style.boxShadow = `0 0 20px ${planColors[plan]}44`;
+
+    document.getElementById('planInput').value = plan;
+    document.getElementById('selectedPlanName').innerText = planNames[plan];
+    document.getElementById('selectedPlanPrice').innerText = planPrices[plan];
+
+    const paySection = document.getElementById('paymentSection');
+    paySection.classList.remove('hidden');
+    setTimeout(() => {
+        paySection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+}
+
+function cancelPlan() {
+    document.getElementById('paymentSection').classList.add('hidden');
+    document.querySelectorAll('.plan-card').forEach(card => {
+        card.style.transform = 'scale(1)';
+        card.style.boxShadow = 'none';
+    });
+}
+</script>
+
+{% endblock %}
