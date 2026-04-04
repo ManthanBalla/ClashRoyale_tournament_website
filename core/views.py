@@ -63,8 +63,7 @@ def register_view(request):
             return render(request, 'auth/register.html', {'error': 'Email is required.'})
 
         user = User.objects.create_user(username=username, email=email, password=password)
-        login(request, user)
-        return redirect('/')
+        return redirect('/login/?registered=1')
 
     return render(request, 'auth/register.html')
 
@@ -441,20 +440,24 @@ def cancel_tournament(request, tournament_id):
 @login_required
 def generate_matches(request, tournament_id):
     tournament = get_object_or_404(Tournament, id=tournament_id)
+
+    if request.user != tournament.creator and not request.user.profile.is_admin:
+        return redirect('/')
+
     participants = list(
         Participant.objects.filter(tournament=tournament).values_list('user', flat=True)
     )
 
     if len(participants) < tournament.min_players:
+        # cancel and refund
         if tournament.is_paid:
             for uid in participants:
                 u = User.objects.get(id=uid)
                 u.profile.reward_balance += tournament.entry_fee
                 u.profile.save()
-            tournament.status = 'cancelled'
-            tournament.save()
-            return redirect(f'/tournament/{tournament.id}/?cancelled=1')
-        return redirect(f'/tournament/{tournament.id}/?notenough=1')
+        tournament.status = 'cancelled'
+        tournament.save()
+        return redirect(f'/tournament/{tournament.id}/?cancelled=1')
 
     random.shuffle(participants)
     Match.objects.filter(tournament=tournament).delete()
@@ -484,14 +487,35 @@ def submit_result(request, match_id):
 
         tournament = match.tournament
         all_matches = Match.objects.filter(tournament=tournament)
+
         if all_matches.count() > 0 and all(m.winner for m in all_matches):
             if tournament.is_paid and tournament.status == 'ongoing':
                 from collections import Counter
                 wins = Counter(m.winner_id for m in all_matches if m.winner)
                 top_winner_id = wins.most_common(1)[0][0]
                 top_winner = User.objects.get(id=top_winner_id)
-                top_winner.profile.reward_balance += tournament.prize_pool
+
+                total_players = Participant.objects.filter(tournament=tournament).count()
+                total_collection = tournament.entry_fee * total_players
+                prize_pool = total_collection * 70 / 100
+                remaining = total_collection * 30 / 100
+                creator_share = remaining * 60 / 100
+                admin_share = remaining * 40 / 100
+
+                # pay winner
+                top_winner.profile.reward_balance += prize_pool
                 top_winner.profile.save()
+
+                # pay creator
+                tournament.creator.profile.reward_balance += creator_share
+                tournament.creator.profile.save()
+
+                # pay admin
+                admin = User.objects.filter(profile__is_admin=True).first()
+                if admin:
+                    admin.profile.reward_balance += admin_share
+                    admin.profile.save()
+
                 tournament.status = 'completed'
                 tournament.save()
 
@@ -654,4 +678,44 @@ def unban_user(request, user_id):
     u = get_object_or_404(User, id=user_id)
     u.is_active = True
     u.save()
+    return redirect('/creator-admin/')
+
+
+@login_required
+def delete_user(request, user_id):
+    if not request.user.profile.is_admin:
+        return redirect('/')
+    u = get_object_or_404(User, id=user_id)
+    if u != request.user:
+        u.delete()
+    return redirect('/creator-admin/')
+
+
+@login_required
+def deactivate_membership(request, membership_id):
+    if not request.user.profile.is_admin:
+        return redirect('/')
+    membership = get_object_or_404(CreatorMembership, id=membership_id)
+    membership.is_active = False
+    membership.save()
+    # also reset profile plan
+    membership.user.profile.creator_plan = 'none'
+    membership.user.profile.plan_expiry = None
+    membership.user.profile.is_creator = False
+    membership.user.profile.save()
+    return redirect('/creator-admin/')
+
+
+@login_required
+def reactivate_membership(request, membership_id):
+    if not request.user.profile.is_admin:
+        return redirect('/')
+    membership = get_object_or_404(CreatorMembership, id=membership_id)
+    membership.is_active = True
+    membership.save()
+    # restore profile plan
+    membership.user.profile.creator_plan = membership.plan
+    membership.user.profile.plan_expiry = membership.expires_at
+    membership.user.profile.is_creator = True
+    membership.user.profile.save()
     return redirect('/creator-admin/')

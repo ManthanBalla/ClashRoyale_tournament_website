@@ -6,7 +6,8 @@ from .views import (
     creator_admin, promote_user, demote_user, ban_user, unban_user,
     withdraw_view, approve_withdrawal, reject_withdrawal,
     tournament_rules, cancel_tournament, add_reward_code,
-    send_reward_code, grant_membership, subscription_view
+    send_reward_code, grant_membership, subscription_view,
+    delete_user, deactivate_membership, reactivate_membership
 )
 from django.contrib.auth import views as auth_views
 
@@ -28,6 +29,9 @@ urlpatterns = [
     path('edit-tournament/<int:tournament_id>/', edit_tournament, name='edit_tournament'),
     path('cancel-tournament/<int:tournament_id>/', cancel_tournament, name='cancel_tournament'),
     path('subscription/', subscription_view, name='subscription'),
+    path('delete-user/<int:user_id>/', delete_user, name='delete_user'),
+    path('deactivate-membership/<int:membership_id>/', deactivate_membership, name='deactivate_membership'),
+    path('reactivate-membership/<int:membership_id>/', reactivate_membership, name='reactivate_membership'),
 
     path('creator-admin/', creator_admin, name='creator_admin'),
     path('promote-user/<int:user_id>/', promote_user, name='promote_user'),

@@ -8,16 +8,19 @@
 
     <!-- STATS ROW -->
     <div class="grid grid-cols-3 gap-3 mb-8">
-        <div class="bg-gray-900 rounded-xl p-4 border border-gray-700 text-center">
+        <div class="rounded-xl p-4 border border-gray-700 text-center"
+             style="background: linear-gradient(135deg, #0a1628, #0c2040);">
             <p class="text-2xl font-bold text-cyan-400">{{ tournament_data|length }}</p>
             <p class="text-gray-400 text-xs mt-1">Tournaments</p>
         </div>
-        <div class="bg-gray-900 rounded-xl p-4 border border-gray-700 text-center">
+        <div class="rounded-xl p-4 border border-gray-700 text-center"
+             style="background: linear-gradient(135deg, #0a1a0a, #0c2810);">
             <p class="text-2xl font-bold text-green-400">{{ users|length }}</p>
             <p class="text-gray-400 text-xs mt-1">Users</p>
         </div>
         <a href="/create-tournament/">
-            <div class="bg-gray-900 rounded-xl p-4 border border-yellow-400/40 text-center hover:border-yellow-400 transition">
+            <div class="rounded-xl p-4 border text-center hover:border-yellow-400 transition"
+                 style="background: linear-gradient(135deg, #1a1200, #2d1f00); border-color: rgba(234,179,8,0.3);">
                 <p class="text-2xl font-bold text-yellow-400">+</p>
                 <p class="text-gray-400 text-xs mt-1">New</p>
             </div>
@@ -26,36 +29,37 @@
 
     <!-- TOURNAMENTS -->
     <h2 class="text-lg font-bold text-cyan-400 mb-3">🏆 All Tournaments</h2>
-    <div class="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-8">
+    <div class="rounded-xl border border-gray-700 overflow-hidden mb-8 bg-gray-900">
         {% for item in tournament_data %}
-        <div class="p-4 border-b border-gray-700">
+        <div class="p-4 border-b border-gray-800">
 
-            <!-- NAME + BADGE -->
             <div class="flex items-start justify-between gap-2 mb-2">
                 <a href="/tournament/{{ item.tournament.id }}/"
-                   class="font-bold text-white hover:text-cyan-400 text-sm leading-tight">
+                   class="font-bold text-white hover:text-cyan-400 text-sm leading-tight flex-1">
                     {{ item.tournament.name }}
                 </a>
-                {% if item.tournament.password %}
-                    <span class="text-yellow-400 text-xs border border-yellow-400/40 px-2 py-0.5 rounded flex-shrink-0">🔒 Private</span>
-                {% else %}
-                    <span class="text-green-400 text-xs border border-green-400/40 px-2 py-0.5 rounded flex-shrink-0">🔓 Open</span>
+                {% if item.tournament.status == 'upcoming' %}
+                    <span class="text-blue-400 text-xs border border-blue-400/30 px-2 py-0.5 rounded-full flex-shrink-0">🕐 Upcoming</span>
+                {% elif item.tournament.status == 'ongoing' %}
+                    <span class="text-green-400 text-xs border border-green-400/30 px-2 py-0.5 rounded-full flex-shrink-0">🔴 Live</span>
+                {% elif item.tournament.status == 'completed' %}
+                    <span class="text-yellow-400 text-xs border border-yellow-400/30 px-2 py-0.5 rounded-full flex-shrink-0">🏆 Done</span>
+                {% elif item.tournament.status == 'cancelled' %}
+                    <span class="text-red-400 text-xs border border-red-400/30 px-2 py-0.5 rounded-full flex-shrink-0">❌ Cancelled</span>
                 {% endif %}
             </div>
 
-            <!-- META INFO -->
             <div class="flex flex-wrap gap-x-3 gap-y-1 mb-3">
                 <span class="text-gray-500 text-xs">👥 {{ item.count }} players</span>
                 <span class="text-gray-500 text-xs">🕐 {{ item.tournament.start_time|date:"d M Y, H:i" }}</span>
+                {% if item.tournament.is_paid %}
+                    <span class="text-yellow-400 text-xs">💰 ₹{{ item.tournament.entry_fee }} entry</span>
+                {% endif %}
                 {% if item.tournament.password %}
                     <span class="text-yellow-400 text-xs">🔑 {{ item.tournament.password }}</span>
                 {% endif %}
-                {% if item.tournament.reward %}
-                    <span class="text-gray-400 text-xs">🏅 {{ item.tournament.reward }}</span>
-                {% endif %}
             </div>
 
-            <!-- ACTIONS -->
             <div class="flex gap-2">
                 <a href="/edit-tournament/{{ item.tournament.id }}/"
                    class="flex-1 text-center bg-yellow-400 text-black px-3 py-2 rounded font-bold text-xs hover:bg-yellow-300 transition">
@@ -80,36 +84,46 @@
 
     <!-- USERS -->
     <h2 class="text-lg font-bold text-yellow-400 mb-3">👥 All Users</h2>
-    <div class="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-8">
+    <div class="rounded-xl border border-gray-700 overflow-hidden mb-8 bg-gray-900">
         {% for u in users %}
-        <div class="p-4 border-b border-gray-700">
+        <div class="p-4 border-b border-gray-800">
 
             <!-- USER INFO -->
-            <div class="flex items-center justify-between mb-3">
-                <div>
-                    <div class="flex items-center gap-2">
-                        <p class="font-bold text-white text-sm">{{ u.username }}</p>
-                        {% if not u.is_active %}
-                        <span class="text-red-400 text-xs border border-red-400/40 px-2 py-0.5 rounded">Banned</span>
+            <div class="mb-3">
+                <div class="flex items-center gap-2 mb-1 flex-wrap">
+                    <p class="font-bold text-white text-sm">{{ u.username }}</p>
+                    {% if not u.is_active %}
+                        <span class="text-red-400 text-xs border border-red-400/40 px-2 py-0.5 rounded-full">🚫 Banned</span>
                     {% elif u.profile.is_admin %}
-                        <span class="text-red-400 text-xs border border-red-400/40 px-2 py-0.5 rounded">👑 Admin</span>
+                        <span class="text-red-400 text-xs border border-red-400/40 px-2 py-0.5 rounded-full">👑 Admin</span>
                     {% elif u.profile.is_creator %}
-                        <span class="text-yellow-400 text-xs border border-yellow-400/40 px-2 py-0.5 rounded">🎮 Creator</span>
+                        <span class="text-yellow-400 text-xs border border-yellow-400/40 px-2 py-0.5 rounded-full">🎮 Creator</span>
                     {% else %}
-                        <span class="text-gray-400 text-xs border border-gray-600 px-2 py-0.5 rounded">Player</span>
+                        <span class="text-gray-400 text-xs border border-gray-600 px-2 py-0.5 rounded-full">Player</span>
                     {% endif %}
-                    </div>
-                    <p class="text-gray-500 text-xs mt-0.5">{{ u.email }}</p>
-                    <p class="text-gray-600 text-xs">Joined: {{ u.date_joined|date:"d M Y" }}</p>
-                    <p class="text-green-400 text-xs">💰 ₹{{ u.profile.reward_balance }}</p>
                 </div>
+                <p class="text-gray-500 text-xs">{{ u.email }}</p>
+                <p class="text-gray-600 text-xs">Joined: {{ u.date_joined|date:"d M Y" }}</p>
+                <p class="text-green-400 text-xs mt-1">💰 ₹{{ u.profile.reward_balance }}</p>
+                {% if u.profile.plan_active %}
+                    <p class="text-cyan-400 text-xs">📅 {{ u.profile.get_creator_plan_display }} — expires {{ u.profile.plan_expiry|date:"d M Y" }}</p>
+                {% endif %}
             </div>
 
-            <!-- ACTIONS -->
             {% if u != request.user %}
-            <div class="flex gap-2 flex-wrap">
+
+            <!-- ROW 1: ROLE ACTIONS -->
+            <div class="flex gap-2 mb-2">
                 {% if u.is_active %}
-                    {% if u.profile.is_creator %}
+                    {% if u.profile.is_admin %}
+                        <form method="POST" action="/demote-user/{{ u.id }}/" class="flex-1">
+                            {% csrf_token %}
+                            <button type="submit"
+                                    class="w-full bg-gray-700 text-white px-3 py-2 rounded font-bold text-xs hover:bg-gray-600 transition">
+                                👇 Remove Admin
+                            </button>
+                        </form>
+                    {% elif u.profile.is_creator %}
                         <form method="POST" action="/demote-user/{{ u.id }}/" class="flex-1">
                             {% csrf_token %}
                             <button type="submit"
@@ -122,16 +136,18 @@
                             {% csrf_token %}
                             <button type="submit"
                                     class="w-full bg-yellow-400 text-black px-3 py-2 rounded font-bold text-xs hover:bg-yellow-300 transition">
-                                ⭐ Make Creator
+                                ⭐ Make Admin
                             </button>
                         </form>
                     {% endif %}
+
+                    <!-- BAN -->
                     <form method="POST" action="/ban-user/{{ u.id }}/"
                           onsubmit="return confirm('Ban {{ u.username }}?')"
                           class="flex-1">
                         {% csrf_token %}
                         <button type="submit"
-                                class="w-full bg-red-500 text-white px-3 py-2 rounded font-bold text-xs hover:bg-red-400 transition">
+                                class="w-full bg-orange-500 text-white px-3 py-2 rounded font-bold text-xs hover:bg-orange-400 transition">
                             🚫 Ban
                         </button>
                     </form>
@@ -145,6 +161,17 @@
                     </form>
                 {% endif %}
             </div>
+
+            <!-- ROW 2: DELETE -->
+            <form method="POST" action="/delete-user/{{ u.id }}/"
+                  onsubmit="return confirm('PERMANENTLY delete {{ u.username }} and all their data?')">
+                {% csrf_token %}
+                <button type="submit"
+                        class="w-full bg-red-600 text-white px-3 py-2 rounded font-bold text-xs hover:bg-red-500 transition">
+                    🗑️ Delete User Permanently
+                </button>
+            </form>
+
             {% else %}
             <p class="text-gray-600 text-xs">( you )</p>
             {% endif %}
@@ -157,15 +184,13 @@
 
     <!-- WITHDRAWAL REQUESTS -->
     <h2 class="text-lg font-bold text-cyan-400 mb-3">💸 Withdrawal Requests</h2>
-    <div class="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
+    <div class="rounded-xl border border-gray-700 overflow-hidden mb-8 bg-gray-900">
         {% for w in withdrawal_requests %}
-        <div class="p-4 border-b border-gray-700">
-
-            <!-- INFO -->
+        <div class="p-4 border-b border-gray-800">
             <div class="flex items-start justify-between gap-2 mb-3">
                 <div>
                     <p class="font-bold text-white text-sm">{{ w.user.username }}</p>
-                    <p class="text-yellow-400 text-sm font-bold">₹{{ w.amount }}</p>
+                    <p class="text-yellow-400 font-bold">₹{{ w.amount }}</p>
                     <p class="text-gray-500 text-xs">UPI: {{ w.upi_id }}</p>
                     <p class="text-gray-600 text-xs">{{ w.requested_at|date:"d M Y, H:i" }}</p>
                 </div>
@@ -177,8 +202,6 @@
                     <span class="text-red-400 text-xs border border-red-400/40 px-2 py-0.5 rounded-full flex-shrink-0">❌ Rejected</span>
                 {% endif %}
             </div>
-
-            <!-- APPROVE / REJECT -->
             {% if w.status == 'pending' %}
             <div class="flex gap-2">
                 <form method="POST" action="/approve-withdrawal/{{ w.id }}/" class="flex-1">
@@ -189,7 +212,7 @@
                     </button>
                 </form>
                 <form method="POST" action="/reject-withdrawal/{{ w.id }}/"
-                      onsubmit="return confirm('Reject and refund ₹{{ w.amount }} to {{ w.user.username }}?')"
+                      onsubmit="return confirm('Reject and refund ₹{{ w.amount }}?')"
                       class="flex-1">
                     {% csrf_token %}
                     <button type="submit"
@@ -199,24 +222,19 @@
                 </form>
             </div>
             {% endif %}
-
         </div>
         {% empty %}
         <p class="text-gray-500 text-sm p-5">No withdrawal requests yet.</p>
         {% endfor %}
     </div>
 
-</div>
-<!-- REWARD CODES -->
-    <h2 class="text-lg font-bold text-green-400 mb-3 mt-8">🎁 Google Play Reward Codes</h2>
-
-    <!-- ADD CODE FORM -->
+    <!-- REWARD CODES -->
+    <h2 class="text-lg font-bold text-green-400 mb-3">🎁 Reward Codes</h2>
     <form method="POST" action="/add-reward-code/"
-          class="bg-gray-900 rounded-xl border border-gray-700 p-4 mb-4">
+          class="rounded-xl border border-gray-700 p-4 mb-4 bg-gray-900">
         {% csrf_token %}
         <div class="flex flex-col gap-2">
-            <input type="text" name="code" placeholder="Enter reward code"
-                   required
+            <input type="text" name="code" placeholder="Enter reward code" required
                    class="w-full p-2.5 bg-gray-800 border border-gray-700 rounded text-white text-sm focus:outline-none focus:border-green-400">
             <input type="text" name="description" placeholder="Description (optional)"
                    class="w-full p-2.5 bg-gray-800 border border-gray-700 rounded text-white text-sm focus:outline-none focus:border-green-400">
@@ -227,12 +245,12 @@
         </div>
     </form>
 
-    <div class="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-8">
+    <div class="rounded-xl border border-gray-700 overflow-hidden mb-8 bg-gray-900">
         {% for code in reward_codes %}
-        <div class="p-4 border-b border-gray-700">
+        <div class="p-4 border-b border-gray-800">
             <div class="flex items-start justify-between gap-2 mb-2">
-                <div>
-                    <p class="font-bold text-white text-sm font-mono">{{ code.code }}</p>
+                <div class="flex-1 min-w-0">
+                    <p class="font-bold text-white text-sm font-mono truncate">{{ code.code }}</p>
                     {% if code.description %}
                         <p class="text-gray-500 text-xs">{{ code.description }}</p>
                     {% endif %}
@@ -241,15 +259,13 @@
                     {% endif %}
                 </div>
                 {% if code.sent %}
-                    <span class="text-green-400 text-xs border border-green-400/40 px-2 py-0.5 rounded flex-shrink-0">✅ Sent</span>
+                    <span class="text-green-400 text-xs border border-green-400/40 px-2 py-0.5 rounded-full flex-shrink-0">✅ Sent</span>
                 {% else %}
-                    <span class="text-yellow-400 text-xs border border-yellow-400/40 px-2 py-0.5 rounded flex-shrink-0">⏳ Available</span>
+                    <span class="text-yellow-400 text-xs border border-yellow-400/40 px-2 py-0.5 rounded-full flex-shrink-0">Available</span>
                 {% endif %}
             </div>
-
             {% if not code.sent %}
-            <form method="POST" action="/send-reward-code/{{ code.id }}/"
-                  class="flex gap-2">
+            <form method="POST" action="/send-reward-code/{{ code.id }}/" class="flex gap-2">
                 {% csrf_token %}
                 <select name="user_id"
                         class="flex-1 p-2 bg-gray-800 border border-gray-700 rounded text-white text-xs focus:outline-none">
@@ -258,12 +274,11 @@
                     {% endfor %}
                 </select>
                 <button type="submit"
-                        class="bg-green-500 text-white px-3 py-2 rounded font-bold text-xs hover:bg-green-400 transition">
+                        class="bg-green-500 text-white px-3 py-2 rounded font-bold text-xs hover:bg-green-400 transition flex-shrink-0">
                     📧 Send
                 </button>
             </form>
             {% endif %}
-
         </div>
         {% empty %}
         <p class="text-gray-500 text-sm p-5">No reward codes yet.</p>
@@ -271,20 +286,44 @@
     </div>
 
     <!-- CREATOR MEMBERSHIPS -->
-    <h2 class="text-lg font-bold text-yellow-400 mb-3 mt-8">👑 Creator Memberships</h2>
-    <div class="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-8">
+    <h2 class="text-lg font-bold text-yellow-400 mb-3">👑 Creator Memberships</h2>
+    <div class="rounded-xl border border-gray-700 overflow-hidden mb-4 bg-gray-900">
         {% for m in memberships %}
-        <div class="p-4 border-b border-gray-700 flex items-center justify-between">
-            <div>
-                <p class="font-bold text-white text-sm">{{ m.user.username }}</p>
-                <p class="text-yellow-400 text-xs">{{ m.get_plan_display }}</p>
-                <p class="text-gray-500 text-xs">Expires: {{ m.expires_at|date:"d M Y" }}</p>
+        <div class="p-4 border-b border-gray-800">
+            <div class="flex items-start justify-between gap-2 mb-3">
+                <div>
+                    <p class="font-bold text-white text-sm">{{ m.user.username }}</p>
+                    <p class="text-yellow-400 text-xs">{{ m.get_plan_display }}</p>
+                    <p class="text-gray-500 text-xs">Started: {{ m.started_at|date:"d M Y" }}</p>
+                    <p class="text-gray-500 text-xs">Expires: {{ m.expires_at|date:"d M Y" }}</p>
+                </div>
+                {% if m.is_active %}
+                    <span class="text-green-400 text-xs border border-green-400/40 px-2 py-0.5 rounded-full flex-shrink-0">✅ Active</span>
+                {% else %}
+                    <span class="text-red-400 text-xs border border-red-400/40 px-2 py-0.5 rounded-full flex-shrink-0">❌ Inactive</span>
+                {% endif %}
             </div>
+
+            <!-- ACTIVATE / DEACTIVATE BUTTONS -->
             {% if m.is_active %}
-                <span class="text-green-400 text-xs border border-green-400/40 px-2 py-0.5 rounded">Active</span>
+            <form method="POST" action="/deactivate-membership/{{ m.id }}/"
+                  onsubmit="return confirm('Deactivate {{ m.user.username }} membership?')">
+                {% csrf_token %}
+                <button type="submit"
+                        class="w-full bg-red-500 text-white px-3 py-2 rounded font-bold text-xs hover:bg-red-400 transition">
+                    ❌ Deactivate Membership
+                </button>
+            </form>
             {% else %}
-                <span class="text-red-400 text-xs border border-red-400/40 px-2 py-0.5 rounded">Expired</span>
+            <form method="POST" action="/reactivate-membership/{{ m.id }}/">
+                {% csrf_token %}
+                <button type="submit"
+                        class="w-full bg-green-500 text-white px-3 py-2 rounded font-bold text-xs hover:bg-green-400 transition">
+                    ✅ Reactivate Membership
+                </button>
+            </form>
             {% endif %}
+
         </div>
         {% empty %}
         <p class="text-gray-500 text-sm p-5">No memberships yet.</p>
@@ -292,28 +331,29 @@
     </div>
 
     <!-- GRANT MEMBERSHIP -->
-    <h2 class="text-lg font-bold text-cyan-400 mb-3">➕ Grant Creator Membership</h2>
-    <div class="bg-gray-900 rounded-xl border border-gray-700 p-4 mb-8">
+    <h2 class="text-lg font-bold text-cyan-400 mb-3">➕ Grant Membership</h2>
+    <div class="rounded-xl border border-gray-700 overflow-hidden mb-8 bg-gray-900">
         {% for u in users %}
         {% if not u.profile.is_admin %}
-        <div class="flex items-center justify-between py-3 border-b border-gray-700">
-            <div>
+        <div class="p-4 border-b border-gray-800">
+            <div class="mb-3">
                 <p class="font-bold text-white text-sm">{{ u.username }}</p>
                 <p class="text-gray-500 text-xs">{{ u.email }}</p>
                 {% if u.profile.plan_active %}
-                    <p class="text-green-400 text-xs">✅ Plan active until {{ u.profile.plan_expiry|date:"d M Y" }}</p>
+                    <p class="text-green-400 text-xs mt-1">✅ Active until {{ u.profile.plan_expiry|date:"d M Y" }}</p>
                 {% endif %}
             </div>
             <form method="POST" action="/grant-membership/{{ u.id }}/"
-                  class="flex gap-2 items-center">
+                  class="flex gap-2">
                 {% csrf_token %}
                 <select name="plan"
-                        class="p-1.5 bg-gray-800 border border-gray-700 rounded text-white text-xs focus:outline-none">
+                        class="flex-1 p-2 bg-gray-800 border border-gray-700 rounded text-white text-xs focus:outline-none">
                     <option value="1month">1 Month (5 tournaments)</option>
                     <option value="3month">3 Months (15 tournaments)</option>
+                    <option value="1year">1 Year (Unlimited)</option>
                 </select>
                 <button type="submit"
-                        class="bg-yellow-400 text-black px-3 py-1.5 rounded font-bold text-xs hover:bg-yellow-300 transition">
+                        class="bg-yellow-400 text-black px-3 py-2 rounded font-bold text-xs hover:bg-yellow-300 transition flex-shrink-0">
                     Grant
                 </button>
             </form>
@@ -321,4 +361,7 @@
         {% endif %}
         {% endfor %}
     </div>
+
+</div>
+
 {% endblock %}
