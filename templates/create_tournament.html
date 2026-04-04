@@ -2,7 +2,7 @@
 
 {% block content %}
 
-<div class="flex items-center justify-center py-8 px-4 min-h-[calc(100vh-65px)]">
+<div class="flex items-center justify-center py-8 px-4">
 
     <form method="POST" enctype="multipart/form-data"
           class="bg-gray-900 p-6 rounded-xl w-full max-w-md shadow-lg border border-gray-700">
@@ -10,16 +10,27 @@
 
         <h2 class="text-2xl text-yellow-400 mb-5 text-center font-bold">⚔️ Host Tournament</h2>
 
+        {% if error %}
+        <div class="bg-red-500/10 border border-red-500/40 rounded-lg px-4 py-3 mb-4">
+            <p class="text-red-400 text-sm">⚠️ {{ error }}</p>
+        </div>
+        {% endif %}
+
         <!-- NAME -->
         <label class="text-gray-400 text-sm mb-1 block">Tournament Name *</label>
-        <input type="text" name="name" placeholder="e.g. Clash Kings Cup"
-               required
+        <input type="text" name="name" placeholder="e.g. Clash Kings Cup" required
                class="w-full p-2.5 mb-3 bg-gray-800 border border-gray-700 rounded focus:outline-none focus:border-cyan-400 text-white text-sm">
 
         <!-- DESCRIPTION -->
         <label class="text-gray-400 text-sm mb-1 block">Description *</label>
         <textarea name="description" placeholder="Describe your tournament..."
                   rows="2" required
+                  class="w-full p-2.5 mb-3 bg-gray-800 border border-gray-700 rounded focus:outline-none focus:border-cyan-400 text-white text-sm resize-none"></textarea>
+
+        <!-- RULES -->
+        <label class="text-gray-400 text-sm mb-1 block">Rules <span class="text-gray-500">(optional)</span></label>
+        <textarea name="rules" placeholder="List your tournament rules here..."
+                  rows="3"
                   class="w-full p-2.5 mb-3 bg-gray-800 border border-gray-700 rounded focus:outline-none focus:border-cyan-400 text-white text-sm resize-none"></textarea>
 
         <!-- PASSWORD -->
@@ -37,12 +48,31 @@
         <input type="datetime-local" name="start_time" required
                class="w-full p-2.5 mb-3 bg-gray-800 border border-gray-700 rounded focus:outline-none focus:border-cyan-400 text-white text-sm">
 
+        <!-- MIN PLAYERS -->
+        <label class="text-gray-400 text-sm mb-1 block">Minimum Players *</label>
+        <input type="number" name="min_players" value="2" min="2" required
+               class="w-full p-2.5 mb-3 bg-gray-800 border border-gray-700 rounded focus:outline-none focus:border-cyan-400 text-white text-sm">
+
+        <!-- PAID TOURNAMENT TOGGLE -->
+        <div class="flex items-center gap-3 mb-3 p-3 bg-gray-800 rounded-lg border border-gray-700">
+            <input type="checkbox" name="is_paid" id="is_paid"
+                   onchange="toggleFee(this)"
+                   class="accent-yellow-400 w-4 h-4">
+            <label for="is_paid" class="text-gray-300 text-sm">💰 Paid Tournament</label>
+        </div>
+
+        <!-- ENTRY FEE (hidden by default) -->
+        <div id="feeSection" class="hidden">
+            <label class="text-gray-400 text-sm mb-1 block">Entry Fee (₹) *</label>
+            <input type="number" name="entry_fee" placeholder="e.g. 50" min="1"
+                   class="w-full p-2.5 mb-3 bg-gray-800 border border-gray-700 rounded focus:outline-none focus:border-yellow-400 text-white text-sm">
+        </div>
+
         <!-- PROOF IMAGE -->
         <label class="text-gray-400 text-sm mb-1 block">Proof Image <span class="text-gray-500">(optional)</span></label>
         <input type="file" name="proof_image" accept="image/*"
                class="w-full p-2.5 mb-5 bg-gray-800 border border-gray-700 rounded text-gray-400 text-sm">
 
-        <!-- SUBMIT -->
         <button type="submit"
                 class="w-full bg-yellow-400 text-black py-2.5 rounded font-bold hover:bg-yellow-300 transition text-base">
             🚀 Create Tournament
@@ -51,5 +81,16 @@
     </form>
 
 </div>
+
+<script>
+function toggleFee(checkbox) {
+    const feeSection = document.getElementById('feeSection');
+    if (checkbox.checked) {
+        feeSection.classList.remove('hidden');
+    } else {
+        feeSection.classList.add('hidden');
+    }
+}
+</script>
 
 {% endblock %}

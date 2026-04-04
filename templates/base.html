@@ -6,6 +6,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Clash Arena</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+// Convert all UTC times to user's local time automatically
+document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll('.local-time').forEach(function (el) {
+        const utc = el.getAttribute('data-utc');
+        if (utc) {
+            const date = new Date(utc);
+            el.innerText = date.toLocaleString(undefined, {
+                year: 'numeric', month: 'short', day: 'numeric',
+                hour: '2-digit', minute: '2-digit', hour12: true
+            });
+        }
+    });
+});
+</script>
     <style>
         html, body {
             overflow: hidden;

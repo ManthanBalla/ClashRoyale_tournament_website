@@ -90,7 +90,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # International
 LANGUAGE_CODE = 'en-us'
 USE_I18N = True
-TIME_ZONE = 'Asia/Kolkata'
+TIME_ZONE = 'UTC'
 USE_TZ = True
 
 # Static files

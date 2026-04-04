@@ -55,7 +55,7 @@
 
     <!-- START TIME -->
     {% if tournament.start_time %}
-    <p class="text-gray-400 mb-3">🕐 Starts: {{ tournament.start_time }}</p>
+    <p class="text-gray-400 mb-3">🕐 Starts: <span class="local-time" data-utc="{{ tournament.start_time|date:'c' }}"></span></p>
     {% endif %}
 
     <!-- PASSWORD -->

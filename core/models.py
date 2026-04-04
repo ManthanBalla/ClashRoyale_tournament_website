@@ -1,30 +1,86 @@
 from django.db import models
-from django.utils import timezone
 from django.contrib.auth.models import User
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
 
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     is_creator = models.BooleanField(default=False)
+    is_admin = models.BooleanField(default=False)
     upi_id = models.CharField(max_length=100, blank=True, null=True)
     reward_balance = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
 
+    # Creator membership
+    PLAN_CHOICES = [
+        ('none', 'No Plan'),
+        ('1month', '1 Month'),
+        ('3month', '3 Months'),
+    ]
+    creator_plan = models.CharField(max_length=20, choices=PLAN_CHOICES, default='none')
+    plan_expiry = models.DateTimeField(null=True, blank=True)
+    tournaments_created_this_month = models.IntegerField(default=0)
+
     def is_complete(self):
         return bool(self.upi_id and self.user.first_name and self.user.email)
+
+    def plan_active(self):
+        from django.utils import timezone
+        if self.creator_plan == 'none':
+            return False
+        if self.plan_expiry and self.plan_expiry > timezone.now():
+            return True
+        return False
+
+    def tournament_limit(self):
+        if self.creator_plan == '1month':
+            return 5
+        elif self.creator_plan == '3month':
+            return 15
+        return 0
+
+    def can_create_tournament(self):
+        if self.is_admin:
+            return True  # admin unlimited
+        if not self.is_creator:
+            return False  # regular players cannot
+        if not self.plan_active():
+            return False  # expired plan
+        return self.tournaments_created_this_month < self.tournament_limit()
 
     def __str__(self):
         return self.user.username
 
 
 class Tournament(models.Model):
+    STATUS_CHOICES = [
+        ('upcoming', 'Upcoming'),
+        ('ongoing', 'Ongoing'),
+        ('completed', 'Completed'),
+        ('cancelled', 'Cancelled'),
+    ]
+
     name = models.CharField(max_length=100)
     description = models.TextField()
+    rules = models.TextField(blank=True, null=True)
     creator = models.ForeignKey(User, on_delete=models.CASCADE)
     password = models.CharField(max_length=50, blank=True, null=True)
     reward = models.CharField(max_length=100, blank=True)
     start_time = models.DateTimeField()
     proof_image = models.ImageField(upload_to='proofs/', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    # Paid tournament
+    is_paid = models.BooleanField(default=False)
+    entry_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    min_players = models.IntegerField(default=2)
+    prize_pool = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='upcoming')
+
+    def current_prize_pool(self):
+        count = self.participant_set.count()
+        return self.entry_fee * count
 
     def __str__(self):
         return self.name
@@ -34,6 +90,7 @@ class Participant(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     tournament = models.ForeignKey(Tournament, on_delete=models.CASCADE)
     joined_at = models.DateTimeField(auto_now_add=True)
+    fee_paid = models.BooleanField(default=False)
 
     class Meta:
         unique_together = ('user', 'tournament')
@@ -70,8 +127,31 @@ class WithdrawalRequest(models.Model):
         return f"{self.user.username} - ₹{self.amount} - {self.status}"
 
 
-from django.db.models.signals import post_save
-from django.dispatch import receiver
+class RewardCode(models.Model):
+    code = models.CharField(max_length=200)
+    description = models.CharField(max_length=200, blank=True)
+    assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    sent = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.code} - {'Sent' if self.sent else 'Available'}"
+
+
+class CreatorMembership(models.Model):
+    PLAN_CHOICES = [
+        ('1month', '1 Month - 5 Tournaments'),
+        ('3month', '3 Months - 15 Tournaments'),
+    ]
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    plan = models.CharField(max_length=20, choices=PLAN_CHOICES)
+    started_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"{self.user.username} - {self.plan}"
+
 
 @receiver(post_save, sender=User)
 def create_profile(sender, instance, created, **kwargs):

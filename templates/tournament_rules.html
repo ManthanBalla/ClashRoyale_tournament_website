@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="flex items-center justify-center px-4 py-8">
+
+    <div class="bg-gray-900 rounded-xl border border-gray-700 p-6 w-full max-w-md">
+
+        <h1 class="text-2xl font-bold text-cyan-400 mb-1 text-center">⚔️ {{ tournament.name }}</h1>
+        <p class="text-gray-400 text-sm text-center mb-6">Read carefully before joining</p>
+
+        {% if error %}
+        <div class="bg-red-500/10 border border-red-500/40 rounded-lg px-4 py-3 mb-4">
+            <p class="text-red-400 text-sm">⚠️ {{ error }}</p>
+        </div>
+        {% endif %}
+
+        <!-- ENTRY FEE & PRIZE POOL -->
+        <div class="grid grid-cols-2 gap-3 mb-6">
+            <div class="bg-gray-800 rounded-xl p-4 text-center border border-gray-700">
+                <p class="text-gray-400 text-xs mb-1">Entry Fee</p>
+                <p class="text-2xl font-bold text-red-400">₹{{ tournament.entry_fee }}</p>
+            </div>
+            <div class="bg-gray-800 rounded-xl p-4 text-center border border-gray-700">
+                <p class="text-gray-400 text-xs mb-1">Current Prize Pool</p>
+                <p class="text-2xl font-bold text-yellow-400">₹{{ prize_pool }}</p>
+            </div>
+        </div>
+
+        <!-- STATS -->
+        <div class="grid grid-cols-2 gap-3 mb-6">
+            <div class="bg-gray-800 rounded-xl p-3 text-center border border-gray-700">
+                <p class="text-gray-400 text-xs">Players Joined</p>
+                <p class="text-lg font-bold text-green-400">{{ count }}</p>
+            </div>
+            <div class="bg-gray-800 rounded-xl p-3 text-center border border-gray-700">
+                <p class="text-gray-400 text-xs">Min Players</p>
+                <p class="text-lg font-bold text-cyan-400">{{ tournament.min_players }}</p>
+            </div>
+        </div>
+
+        <!-- DESCRIPTION -->
+        <div class="bg-gray-800 rounded-xl p-4 mb-4 border border-gray-700">
+            <p class="text-gray-400 text-xs mb-2 uppercase tracking-widest">About</p>
+            <p class="text-gray-300 text-sm">{{ tournament.description }}</p>
+        </div>
+
+        <!-- RULES -->
+        {% if tournament.rules %}
+        <div class="bg-gray-800 rounded-xl p-4 mb-4 border border-gray-700">
+            <p class="text-gray-400 text-xs mb-2 uppercase tracking-widest">Rules</p>
+            <p class="text-gray-300 text-sm whitespace-pre-line">{{ tournament.rules }}</p>
+        </div>
+        {% endif %}
+
+        <!-- REWARD CLAIM PROCESS -->
+        <div class="bg-yellow-400/10 border border-yellow-400/30 rounded-xl p-4 mb-6">
+            <p class="text-yellow-400 text-xs mb-2 uppercase tracking-widest font-bold">How Rewards Work</p>
+            <ul class="text-gray-300 text-xs space-y-1">
+                <li>🏆 Winner gets the full prize pool added to their wallet</li>
+                <li>💸 You can withdraw from wallet to your UPI ID</li>
+                <li>⏳ Withdrawals are manually approved by admin within 24hrs</li>
+                <li>❌ If min players not reached, full refund to wallet</li>
+            </ul>
+        </div>
+
+        <!-- AGREE & JOIN FORM -->
+        <form method="POST" action="/join/{{ tournament.id }}/">
+            {% csrf_token %}
+            <input type="hidden" name="agreed" value="yes">
+
+            <div class="flex items-start gap-3 mb-5">
+                <input type="checkbox" id="agree" required
+                       class="mt-1 accent-cyan-400">
+                <label for="agree" class="text-gray-400 text-sm">
+                    I have read and agree to the rules. I understand the entry fee of
+                    <span class="text-red-400 font-bold">₹{{ tournament.entry_fee }}</span>
+                    will be deducted from my wallet balance.
+                </label>
+            </div>
+
+            <button type="submit"
+                    class="w-full bg-cyan-400 text-black py-3 rounded-lg font-bold hover:bg-cyan-300 transition">
+                ✅ Agree & Join — ₹{{ tournament.entry_fee }}
+            </button>
+
+            <a href="/"
+               class="block text-center text-gray-500 text-sm mt-4 hover:text-gray-400">
+                ← Back
+            </a>
+
+        </form>
+
+    </div>
+
+</div>
+
+{% endblock %}
