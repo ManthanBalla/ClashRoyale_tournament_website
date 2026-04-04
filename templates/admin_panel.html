@@ -2,146 +2,153 @@
 
 {% block content %}
 
-<div class="max-w-4xl mx-auto px-4 py-8">
+<div class="max-w-4xl mx-auto px-4 py-6">
 
-    <h1 class="text-3xl font-bold text-yellow-400 mb-8">⚙️ Creator Admin Panel</h1>
+    <h1 class="text-2xl font-bold text-yellow-400 mb-6">⚙️ Admin Panel</h1>
 
     <!-- STATS ROW -->
-    <div class="grid grid-cols-3 gap-4 mb-10">
-        <div class="bg-gray-900 rounded-xl p-5 border border-gray-700 text-center">
-            <p class="text-3xl font-bold text-cyan-400">{{ tournament_data|length }}</p>
-            <p class="text-gray-400 text-sm mt-1">Tournaments</p>
+    <div class="grid grid-cols-3 gap-3 mb-8">
+        <div class="bg-gray-900 rounded-xl p-4 border border-gray-700 text-center">
+            <p class="text-2xl font-bold text-cyan-400">{{ tournament_data|length }}</p>
+            <p class="text-gray-400 text-xs mt-1">Tournaments</p>
         </div>
-        <div class="bg-gray-900 rounded-xl p-5 border border-gray-700 text-center">
-            <p class="text-3xl font-bold text-green-400">{{ users|length }}</p>
-            <p class="text-gray-400 text-sm mt-1">Total Users</p>
+        <div class="bg-gray-900 rounded-xl p-4 border border-gray-700 text-center">
+            <p class="text-2xl font-bold text-green-400">{{ users|length }}</p>
+            <p class="text-gray-400 text-xs mt-1">Users</p>
         </div>
-        <div class="bg-gray-900 rounded-xl p-5 border border-gray-700 text-center">
-            <a href="/create-tournament/">
-                <p class="text-3xl font-bold text-yellow-400">+</p>
-                <p class="text-gray-400 text-sm mt-1">New Tournament</p>
-            </a>
-        </div>
+        <a href="/create-tournament/">
+            <div class="bg-gray-900 rounded-xl p-4 border border-yellow-400/40 text-center hover:border-yellow-400 transition">
+                <p class="text-2xl font-bold text-yellow-400">+</p>
+                <p class="text-gray-400 text-xs mt-1">New</p>
+            </div>
+        </a>
     </div>
 
     <!-- TOURNAMENTS -->
-    <h2 class="text-xl font-bold text-cyan-400 mb-4">🏆 All Tournaments</h2>
-    <div class="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-10">
+    <h2 class="text-lg font-bold text-cyan-400 mb-3">🏆 All Tournaments</h2>
+    <div class="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-8">
         {% for item in tournament_data %}
-        <div class="flex flex-col md:flex-row md:items-center justify-between p-4 border-b border-gray-700 gap-3">
-            <div class="flex-1 min-w-0">
+        <div class="p-4 border-b border-gray-700">
+
+            <!-- NAME + BADGES -->
+            <div class="flex items-start justify-between gap-2 mb-2">
                 <a href="/tournament/{{ item.tournament.id }}/"
-                   class="font-bold text-white hover:text-cyan-400 block truncate">
+                   class="font-bold text-white hover:text-cyan-400 text-sm leading-tight">
                     {{ item.tournament.name }}
                 </a>
-                <p class="text-gray-500 text-xs mt-1">
-                    👥 {{ item.count }} players &nbsp;|&nbsp;
-                    🕐 {{ item.tournament.start_time|date:"d M Y, H:i" }}
-                </p>
                 {% if item.tournament.password %}
-                    <p class="text-yellow-400 text-xs mt-1">🔒 Password: {{ item.tournament.password }}</p>
+                    <span class="text-yellow-400 text-xs border border-yellow-400/40 px-2 py-0.5 rounded flex-shrink-0">🔒 Private</span>
                 {% else %}
-                    <p class="text-green-400 text-xs mt-1">🔓 Open Tournament</p>
-                {% endif %}
-                {% if item.tournament.reward %}
-                    <p class="text-gray-400 text-xs mt-1">🏅 {{ item.tournament.reward }}</p>
+                    <span class="text-green-400 text-xs border border-green-400/40 px-2 py-0.5 rounded flex-shrink-0">🔓 Open</span>
                 {% endif %}
             </div>
-            <div class="flex gap-2 flex-shrink-0">
+
+            <!-- META INFO -->
+            <div class="flex flex-wrap gap-x-3 gap-y-1 mb-3">
+                <span class="text-gray-500 text-xs">👥 {{ item.count }} players</span>
+                <span class="text-gray-500 text-xs">🕐 {{ item.tournament.start_time|date:"d M Y, H:i" }}</span>
+                {% if item.tournament.password %}
+                    <span class="text-yellow-400 text-xs">🔑 {{ item.tournament.password }}</span>
+                {% endif %}
+                {% if item.tournament.reward %}
+                    <span class="text-gray-400 text-xs">🏅 {{ item.tournament.reward }}</span>
+                {% endif %}
+            </div>
+
+            <!-- ACTION BUTTONS -->
+            <div class="flex gap-2">
                 <a href="/edit-tournament/{{ item.tournament.id }}/"
-                   class="bg-yellow-400 text-black px-3 py-1.5 rounded font-bold text-xs hover:bg-yellow-300 transition">
+                   class="flex-1 text-center bg-yellow-400 text-black px-3 py-2 rounded font-bold text-xs hover:bg-yellow-300 transition">
                     ✏️ Edit
                 </a>
                 <form method="POST" action="/delete-tournament/{{ item.tournament.id }}/"
-                      onsubmit="return confirm('Delete {{ item.tournament.name }}?')">
+                      onsubmit="return confirm('Delete {{ item.tournament.name }}?')"
+                      class="flex-1">
                     {% csrf_token %}
                     <button type="submit"
-                            class="bg-red-500 text-white px-3 py-1.5 rounded font-bold text-xs hover:bg-red-400 transition">
+                            class="w-full bg-red-500 text-white px-3 py-2 rounded font-bold text-xs hover:bg-red-400 transition">
                         🗑️ Delete
                     </button>
                 </form>
             </div>
+
         </div>
         {% empty %}
-        <p class="text-gray-500 p-5">No tournaments yet.</p>
+        <p class="text-gray-500 p-5 text-sm">No tournaments yet.</p>
         {% endfor %}
     </div>
 
     <!-- USERS -->
-    <h2 class="text-xl font-bold text-yellow-400 mb-4">👥 All Users</h2>
+    <h2 class="text-lg font-bold text-yellow-400 mb-3">👥 All Users</h2>
     <div class="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
         {% for u in users %}
-        <div class="flex flex-col md:flex-row md:items-center justify-between p-4 border-b border-gray-700 gap-3">
+        <div class="p-4 border-b border-gray-700">
 
-            <!-- USER INFO -->
-            <div>
-                <div class="flex items-center gap-2">
-                    <p class="font-bold text-white">{{ u.username }}</p>
-                    {% if not u.is_active %}
-                        <span class="text-red-400 text-xs border border-red-400 px-2 py-0.5 rounded">Banned</span>
-                    {% elif u.profile.is_creator %}
-                        <span class="text-yellow-400 text-xs border border-yellow-400 px-2 py-0.5 rounded">Creator</span>
-                    {% else %}
-                        <span class="text-gray-400 text-xs border border-gray-600 px-2 py-0.5 rounded">Player</span>
-                    {% endif %}
+            <!-- USER INFO ROW -->
+            <div class="flex items-center justify-between mb-3">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <p class="font-bold text-white text-sm">{{ u.username }}</p>
+                        {% if not u.is_active %}
+                            <span class="text-red-400 text-xs border border-red-400/40 px-2 py-0.5 rounded">Banned</span>
+                        {% elif u.profile.is_creator %}
+                            <span class="text-yellow-400 text-xs border border-yellow-400/40 px-2 py-0.5 rounded">Creator</span>
+                        {% else %}
+                            <span class="text-gray-400 text-xs border border-gray-600 px-2 py-0.5 rounded">Player</span>
+                        {% endif %}
+                    </div>
+                    <p class="text-gray-500 text-xs mt-0.5">{{ u.email }}</p>
+                    <p class="text-gray-600 text-xs">{{ u.date_joined|date:"d M Y" }}</p>
                 </div>
-                <p class="text-gray-500 text-xs mt-0.5">{{ u.email }}</p>
-                <p class="text-gray-600 text-xs">Joined: {{ u.date_joined|date:"d M Y" }}</p>
             </div>
 
-            <!-- ACTIONS — skip yourself -->
+            <!-- ACTION BUTTONS -->
             {% if u != request.user %}
             <div class="flex gap-2 flex-wrap">
-
                 {% if u.is_active %}
-                    <!-- PROMOTE / DEMOTE -->
                     {% if u.profile.is_creator %}
-                        <form method="POST" action="/demote-user/{{ u.id }}/">
+                        <form method="POST" action="/demote-user/{{ u.id }}/" class="flex-1">
                             {% csrf_token %}
                             <button type="submit"
-                                    class="bg-gray-700 text-white px-3 py-1.5 rounded font-bold text-xs hover:bg-gray-600 transition">
+                                    class="w-full bg-gray-700 text-white px-3 py-2 rounded font-bold text-xs hover:bg-gray-600 transition">
                                 👇 Make Player
                             </button>
                         </form>
                     {% else %}
-                        <form method="POST" action="/promote-user/{{ u.id }}/">
+                        <form method="POST" action="/promote-user/{{ u.id }}/" class="flex-1">
                             {% csrf_token %}
                             <button type="submit"
-                                    class="bg-yellow-400 text-black px-3 py-1.5 rounded font-bold text-xs hover:bg-yellow-300 transition">
+                                    class="w-full bg-yellow-400 text-black px-3 py-2 rounded font-bold text-xs hover:bg-yellow-300 transition">
                                 ⭐ Make Creator
                             </button>
                         </form>
                     {% endif %}
-
-                    <!-- BAN -->
                     <form method="POST" action="/ban-user/{{ u.id }}/"
-                          onsubmit="return confirm('Ban {{ u.username }}?')">
+                          onsubmit="return confirm('Ban {{ u.username }}?')"
+                          class="flex-1">
                         {% csrf_token %}
                         <button type="submit"
-                                class="bg-red-500 text-white px-3 py-1.5 rounded font-bold text-xs hover:bg-red-400 transition">
+                                class="w-full bg-red-500 text-white px-3 py-2 rounded font-bold text-xs hover:bg-red-400 transition">
                             🚫 Ban
                         </button>
                     </form>
-
                 {% else %}
-                    <!-- UNBAN -->
-                    <form method="POST" action="/unban-user/{{ u.id }}/">
+                    <form method="POST" action="/unban-user/{{ u.id }}/" class="flex-1">
                         {% csrf_token %}
                         <button type="submit"
-                                class="bg-green-500 text-white px-3 py-1.5 rounded font-bold text-xs hover:bg-green-400 transition">
+                                class="w-full bg-green-500 text-white px-3 py-2 rounded font-bold text-xs hover:bg-green-400 transition">
                             ✅ Unban
                         </button>
                     </form>
                 {% endif %}
-
             </div>
             {% else %}
-            <span class="text-gray-600 text-xs">( you )</span>
+            <p class="text-gray-600 text-xs">( you )</p>
             {% endif %}
 
         </div>
         {% empty %}
-        <p class="text-gray-500 p-5">No users yet.</p>
+        <p class="text-gray-500 p-5 text-sm">No users yet.</p>
         {% endfor %}
     </div>
 

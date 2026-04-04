@@ -6,6 +6,11 @@ from django.contrib.auth.models import User
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     is_creator = models.BooleanField(default=False)
+    upi_id = models.CharField(max_length=100, blank=True, null=True)
+    reward_balance = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+
+    def is_complete(self):
+        return bool(self.upi_id and self.user.first_name and self.user.email)
 
     def __str__(self):
         return self.user.username
@@ -15,14 +20,10 @@ class Tournament(models.Model):
     name = models.CharField(max_length=100)
     description = models.TextField()
     creator = models.ForeignKey(User, on_delete=models.CASCADE)
-
     password = models.CharField(max_length=50, blank=True, null=True)
     reward = models.CharField(max_length=100, blank=True)
-
     start_time = models.DateTimeField()
-
     proof_image = models.ImageField(upload_to='proofs/', blank=True, null=True)
-
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -46,9 +47,24 @@ class Match(models.Model):
     player1 = models.ForeignKey(User, on_delete=models.CASCADE, related_name='player1')
     player2 = models.ForeignKey(User, on_delete=models.CASCADE, related_name='player2')
     winner = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='winner')
-
     round_number = models.IntegerField(default=1)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"{self.player1} vs {self.player2}"
+
+
+class WithdrawalRequest(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    ]
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    upi_id = models.CharField(max_length=100)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    requested_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.username} - ₹{self.amount} - {self.status}"

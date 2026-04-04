@@ -53,7 +53,13 @@ def register_view(request):
         password = request.POST['password']
 
         if User.objects.filter(username=username).exists():
-            return render(request, 'auth/register.html', {'error': 'Username already exists'})
+            return render(request, 'auth/register.html', {'error': 'Username already taken'})
+
+        if User.objects.filter(email=email).exists():
+            return render(request, 'auth/register.html', {'error': 'An account with this email already exists'})
+
+        if not email:
+            return render(request, 'auth/register.html', {'error': 'Email is required'})
 
         user = User.objects.create_user(username=username, email=email, password=password)
         login(request, user)
