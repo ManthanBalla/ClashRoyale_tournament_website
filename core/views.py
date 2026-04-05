@@ -9,7 +9,7 @@ from datetime import timedelta
 from decimal import Decimal
 import random
 
-from .models import Tournament, Participant, Match, Profile, WithdrawalRequest, RewardCode, CreatorMembership, Transaction
+from .models import Tournament, Participant, Match, Profile, WithdrawalRequest, RewardCode, CreatorMembership, Transaction, Notification
 
 
 # ─── HELPERS ───────────────────────────────────────────────────────────────
@@ -36,6 +36,24 @@ def debit_wallet(user, amount, reason, description=''):
     add_transaction(user, 'debit', reason, amount, description)
 
 
+def send_notification(user, notification_type, title, message, tournament=None):
+    Notification.objects.create(
+        user=user,
+        notification_type=notification_type,
+        title=title,
+        message=message,
+        tournament=tournament
+    )
+
+
+def notify_all_participants(tournament, notification_type, title, message):
+    participants = Participant.objects.filter(tournament=tournament)
+    for p in participants:
+        send_notification(p.user, notification_type, title, message, tournament)
+    # also notify creator
+    send_notification(tournament.creator, notification_type, title, message, tournament)
+
+
 # ─── AUTH ──────────────────────────────────────────────────────────────────
 
 def home(request):
@@ -55,9 +73,16 @@ def home(request):
             'prize_pool': t.entry_fee * count if t.is_paid else None
         })
 
+    unread_count = 0
+    if request.user.is_authenticated:
+        unread_count = Notification.objects.filter(
+            user=request.user, is_read=False
+        ).count()
+
     return render(request, 'home.html', {
         'tournament_data': tournament_data,
-        'joined_tournaments': joined_tournaments
+        'joined_tournaments': joined_tournaments,
+        'unread_count': unread_count,
     })
 
 
@@ -100,6 +125,36 @@ def register_view(request):
 def logout_view(request):
     logout(request)
     return redirect('/')
+
+
+# ─── NOTIFICATIONS ─────────────────────────────────────────────────────────
+
+@login_required
+def notifications_view(request):
+    notifications = Notification.objects.filter(
+        user=request.user
+    ).order_by('-created_at')[:50]
+
+    # mark all as read
+    Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
+
+    return render(request, 'notifications.html', {
+        'notifications': notifications
+    })
+
+
+@login_required
+def mark_notification_read(request, notification_id):
+    n = get_object_or_404(Notification, id=notification_id, user=request.user)
+    n.is_read = True
+    n.save()
+    return redirect('/notifications/')
+
+
+def get_unread_count(user):
+    if user.is_authenticated:
+        return Notification.objects.filter(user=user, is_read=False).count()
+    return 0
 
 
 # ─── PROFILE ───────────────────────────────────────────────────────────────
@@ -351,7 +406,7 @@ def create_tournament(request):
 
     if not profile.is_admin and not profile.can_create_tournament():
         return render(request, 'create_tournament.html', {
-            'error': 'You have reached your tournament limit or your plan has expired. Please upgrade your plan.'
+            'error': 'You have reached your tournament limit or your plan has expired.'
         })
 
     if request.method == "POST":
@@ -362,6 +417,7 @@ def create_tournament(request):
         reward = request.POST.get('reward', '')
         reward_type = request.POST.get('reward_type', 'other')
         start_time = request.POST.get('start_time')
+        end_time = request.POST.get('end_time') or None
         join_deadline = request.POST.get('join_deadline') or None
         proof_image = request.FILES.get('proof_image')
         is_paid = request.POST.get('is_paid') == 'paid'
@@ -378,6 +434,7 @@ def create_tournament(request):
             reward=reward,
             reward_type=reward_type,
             start_time=start_time,
+            end_time=end_time,
             join_deadline=join_deadline,
             proof_image=proof_image,
             creator=request.user,
@@ -412,7 +469,7 @@ def delete_tournament(request, tournament_id):
                     p.user,
                     tournament.entry_fee,
                     'tournament_refund',
-                    f'♻️ Refund — {tournament.name} deleted by organizer'
+                    f'♻️ Refund — {tournament.name} deleted'
                 )
         tournament.delete()
         return redirect('/')
@@ -434,6 +491,7 @@ def edit_tournament(request, tournament_id):
         tournament.password = request.POST.get('password') or None
         tournament.reward = request.POST.get('reward', '')
         tournament.start_time = request.POST.get('start_time')
+        tournament.end_time = request.POST.get('end_time') or None
         tournament.join_deadline = request.POST.get('join_deadline') or None
         tournament.min_players = request.POST.get('min_players', 2) or 2
         tournament.max_players = request.POST.get('max_players', 100) or 100
@@ -459,10 +517,14 @@ def tournament_detail(request, tournament_id):
             show_password = True
 
     joined_tournaments = []
+    is_participant = False
     if request.user.is_authenticated:
         joined_tournaments = Participant.objects.filter(
             user=request.user
         ).values_list('tournament_id', flat=True)
+        is_participant = Participant.objects.filter(
+            user=request.user, tournament=tournament
+        ).exists()
 
     prize_pool = tournament.entry_fee * count if tournament.is_paid else None
 
@@ -473,8 +535,37 @@ def tournament_detail(request, tournament_id):
         'show_password': show_password,
         'joined_tournaments': joined_tournaments,
         'count': count,
-        'prize_pool': prize_pool
+        'prize_pool': prize_pool,
+        'is_participant': is_participant,
     })
+
+
+@login_required
+def upload_results(request, tournament_id):
+    tournament = get_object_or_404(Tournament, id=tournament_id)
+
+    if request.user != tournament.creator and not request.user.profile.is_admin:
+        return redirect('/')
+
+    if request.method == "POST":
+        if request.FILES.get('result_screenshot'):
+            tournament.result_screenshot = request.FILES.get('result_screenshot')
+        if request.FILES.get('reward_screenshot'):
+            tournament.reward_screenshot = request.FILES.get('reward_screenshot')
+        tournament.status = 'completed'
+        tournament.save()
+
+        # notify all participants
+        notify_all_participants(
+            tournament,
+            'result_uploaded',
+            f'🏆 Results are up — {tournament.name}',
+            f'The results for {tournament.name} have been uploaded! Check the leaderboard and reward proof.'
+        )
+
+        return redirect(f'/tournament/{tournament.id}/')
+
+    return render(request, 'upload_results.html', {'tournament': tournament})
 
 
 @login_required
@@ -495,6 +586,14 @@ def cancel_tournament(request, tournament_id):
                     'tournament_refund',
                     f'♻️ Refund — {tournament.name} cancelled: {reason}'
                 )
+
+        notify_all_participants(
+            tournament,
+            'tournament_cancel',
+            f'❌ Tournament Cancelled — {tournament.name}',
+            f'Reason: {reason}' + (f'\n♻️ ₹{tournament.entry_fee} has been refunded to your wallet.' if tournament.is_paid else '')
+        )
+
         tournament.status = 'cancelled'
         tournament.cancel_reason = reason
         tournament.save()
@@ -522,11 +621,21 @@ def generate_matches(request, tournament_id):
                     u,
                     tournament.entry_fee,
                     'tournament_refund',
-                    f'♻️ Refund — {tournament.name} cancelled (minimum players not reached)'
+                    f'♻️ Refund — {tournament.name} cancelled (min players not reached)'
                 )
+
         tournament.status = 'cancelled'
         tournament.cancel_reason = f'Minimum {tournament.min_players} players required but only {len(participants)} joined.'
         tournament.save()
+
+        notify_all_participants(
+            tournament,
+            'tournament_cancel',
+            f'❌ Tournament Cancelled — {tournament.name}',
+            f'Not enough players joined. Minimum {tournament.min_players} required but only {len(participants)} joined.' +
+            (f'\n♻️ ₹{tournament.entry_fee} has been refunded to your wallet.' if tournament.is_paid else '')
+        )
+
         return redirect(f'/tournament/{tournament.id}/?cancelled=1')
 
     random.shuffle(participants)
@@ -543,6 +652,14 @@ def generate_matches(request, tournament_id):
 
     tournament.status = 'ongoing'
     tournament.save()
+
+    notify_all_participants(
+        tournament,
+        'tournament_start',
+        f'🔴 Tournament Started — {tournament.name}',
+        f'{tournament.name} is now live! Check your match and play now.'
+    )
+
     return redirect(f'/tournament/{tournament.id}/')
 
 
@@ -576,28 +693,29 @@ def submit_result(request, match_id):
                 creator_share = (remaining * Decimal('0.60')).quantize(Decimal('0.01'))
                 admin_share = remaining - creator_share
 
-                credit_wallet(
-                    top_winner, prize_pool,
-                    'tournament_win',
-                    f'🏆 Prize — Won {tournament.name}'
-                )
-
-                credit_wallet(
-                    tournament.creator, creator_share,
-                    'creator_share',
-                    f'🎮 Creator earnings — {tournament.name}'
-                )
+                credit_wallet(top_winner, prize_pool, 'tournament_win', f'🏆 Prize — Won {tournament.name}')
+                credit_wallet(tournament.creator, creator_share, 'creator_share', f'🎮 Creator earnings — {tournament.name}')
 
                 admin = User.objects.filter(profile__is_admin=True).first()
                 if admin:
-                    credit_wallet(
-                        admin, admin_share,
-                        'admin_share',
-                        f'⚙️ Platform fee — {tournament.name}'
-                    )
+                    credit_wallet(admin, admin_share, 'admin_share', f'⚙️ Platform fee — {tournament.name}')
+
+                send_notification(
+                    top_winner, 'wallet_credit',
+                    f'💰 ₹{prize_pool} Prize Added!',
+                    f'Congratulations! You won {tournament.name}. ₹{prize_pool} has been added to your wallet.',
+                    tournament
+                )
 
                 tournament.status = 'completed'
                 tournament.save()
+
+                notify_all_participants(
+                    tournament,
+                    'tournament_end',
+                    f'🏆 Tournament Ended — {tournament.name}',
+                    f'{tournament.name} has ended! Winner: {top_winner.username}. Check results now.'
+                )
 
     return redirect(f'/tournament/{match.tournament.id}/')
 
@@ -619,10 +737,7 @@ def creator_admin(request):
     tournament_data = []
     for t in tournaments:
         count = Participant.objects.filter(tournament=t).count()
-        tournament_data.append({
-            'tournament': t,
-            'count': count
-        })
+        tournament_data.append({'tournament': t, 'count': count})
 
     return render(request, 'admin_panel.html', {
         'tournament_data': tournament_data,
@@ -644,11 +759,8 @@ def topup_wallet(request, user_id):
         try:
             amount = Decimal(str(amount))
             if amount > 0:
-                credit_wallet(
-                    u, amount,
-                    'admin_topup',
-                    f'💰 ₹{amount} added to your wallet by Admin'
-                )
+                credit_wallet(u, amount, 'admin_topup', f'💰 ₹{amount} added to your wallet by Admin')
+                send_notification(u, 'wallet_credit', f'💰 Wallet Top Up — ₹{amount}', f'₹{amount} has been added to your wallet by Admin.')
         except Exception:
             pass
     return redirect('/creator-admin/')
@@ -661,6 +773,7 @@ def approve_withdrawal(request, withdrawal_id):
     w = get_object_or_404(WithdrawalRequest, id=withdrawal_id)
     w.status = 'approved'
     w.save()
+    send_notification(w.user, 'wallet_credit', f'✅ Withdrawal Approved — ₹{w.amount}', f'Your withdrawal of ₹{w.amount} has been approved and sent to {w.upi_id}.')
     return redirect('/creator-admin/')
 
 
@@ -669,11 +782,8 @@ def reject_withdrawal(request, withdrawal_id):
     if not request.user.profile.is_admin:
         return redirect('/')
     w = get_object_or_404(WithdrawalRequest, id=withdrawal_id)
-    credit_wallet(
-        w.user, w.amount,
-        'withdrawal_refund',
-        f'♻️ Withdrawal rejected — ₹{w.amount} refunded to your wallet'
-    )
+    credit_wallet(w.user, w.amount, 'withdrawal_refund', f'♻️ Withdrawal rejected — ₹{w.amount} refunded')
+    send_notification(w.user, 'wallet_credit', f'♻️ Withdrawal Rejected — ₹{w.amount} Refunded', f'Your withdrawal was rejected. ₹{w.amount} has been refunded to your wallet.')
     w.status = 'rejected'
     w.save()
     return redirect('/creator-admin/')
@@ -710,6 +820,7 @@ def send_reward_code(request, code_id):
             )
         except Exception:
             pass
+        send_notification(user, 'general', '🎁 Reward Code Received!', f'You received a reward code: {code.code}. Check your email for details.')
     return redirect('/creator-admin/')
 
 
@@ -730,16 +841,14 @@ def grant_membership(request, user_id):
         else:
             expiry = timezone.now() + timedelta(days=30)
 
-        CreatorMembership.objects.create(
-            user=u,
-            plan=plan,
-            expires_at=expiry
-        )
+        CreatorMembership.objects.create(user=u, plan=plan, expires_at=expiry)
         u.profile.is_creator = True
         u.profile.creator_plan = plan
         u.profile.plan_expiry = expiry
         u.profile.tournaments_created_this_month = 0
         u.profile.save()
+
+        send_notification(u, 'general', '👑 Creator Membership Activated!', f'Your {plan} creator membership has been activated. You can now host tournaments!')
 
     return redirect('/creator-admin/')
 

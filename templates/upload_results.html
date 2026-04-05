@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="flex items-center justify-center px-4 py-8">
+
+    <div class="w-full max-w-md">
+
+        <div class="rounded-2xl p-6 border mb-6"
+             style="background: linear-gradient(135deg, #0a1628, #0c2040); border-color: rgba(96,165,250,0.4);">
+
+            <h1 class="text-2xl font-bold text-cyan-400 mb-1 text-center">📸 Upload Results</h1>
+            <p class="text-gray-400 text-sm text-center mb-6">{{ tournament.name }}</p>
+
+            <form method="POST" enctype="multipart/form-data">
+                {% csrf_token %}
+
+                <!-- RESULT SCREENSHOT -->
+                <div class="rounded-xl p-4 mb-4 border"
+                     style="background: rgba(0,0,0,0.3); border-color: rgba(96,165,250,0.2);">
+                    <p class="text-cyan-400 font-bold text-sm mb-1">🏆 Leaderboard Screenshot</p>
+                    <p class="text-gray-500 text-xs mb-3">Upload the Clash Royale tournament result screenshot showing the leaderboard/winner</p>
+                    <input type="file" name="result_screenshot" accept="image/*"
+                           class="w-full p-2.5 bg-gray-800 border border-gray-700 rounded text-gray-400 text-sm">
+                </div>
+
+                <!-- REWARD SCREENSHOT -->
+                <div class="rounded-xl p-4 mb-6 border"
+                     style="background: rgba(0,0,0,0.3); border-color: rgba(52,211,153,0.2);">
+                    <p class="text-green-400 font-bold text-sm mb-1">🎁 Reward Proof Screenshot</p>
+                    <p class="text-gray-500 text-xs mb-3">Upload proof that the winner has received their reward</p>
+                    <input type="file" name="reward_screenshot" accept="image/*"
+                           class="w-full p-2.5 bg-gray-800 border border-gray-700 rounded text-gray-400 text-sm">
+                </div>
+
+                <div class="rounded-lg px-4 py-3 mb-5 border"
+                     style="background: rgba(234,179,8,0.08); border-color: rgba(234,179,8,0.3);">
+                    <p class="text-yellow-400 text-xs">
+                        ⚠️ Uploading results will mark this tournament as <strong>Completed</strong> and notify all participants.
+                    </p>
+                </div>
+
+                <button type="submit"
+                        class="w-full py-3 rounded-xl font-bold text-white text-base transition hover:opacity-90"
+                        style="background: linear-gradient(90deg, #06b6d4, #3b82f6, #8b5cf6);">
+                    📸 Upload & Complete Tournament
+                </button>
+
+                <a href="/tournament/{{ tournament.id }}/"
+                   class="block text-center text-gray-500 text-sm mt-4 hover:text-gray-400">
+                    ← Back to Tournament
+                </a>
+
+            </form>
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}

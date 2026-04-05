@@ -77,8 +77,11 @@ class Tournament(models.Model):
     reward = models.CharField(max_length=100, blank=True)
     reward_type = models.CharField(max_length=20, choices=REWARD_TYPE_CHOICES, default='other')
     start_time = models.DateTimeField()
+    end_time = models.DateTimeField(null=True, blank=True)
     join_deadline = models.DateTimeField(null=True, blank=True)
     proof_image = models.ImageField(upload_to='proofs/', blank=True, null=True)
+    result_screenshot = models.ImageField(upload_to='results/', blank=True, null=True)
+    reward_screenshot = models.ImageField(upload_to='rewards/', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     is_paid = models.BooleanField(default=False)
     entry_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
@@ -170,7 +173,6 @@ class Transaction(models.Model):
         ('credit', 'Credit'),
         ('debit', 'Debit'),
     ]
-
     REASON_CHOICES = [
         ('tournament_join', 'Tournament Join'),
         ('tournament_refund', 'Tournament Refund'),
@@ -181,7 +183,6 @@ class Transaction(models.Model):
         ('withdrawal_refund', 'Withdrawal Refund'),
         ('admin_topup', 'Admin Top Up'),
     ]
-
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='transactions')
     transaction_type = models.CharField(max_length=10, choices=TYPE_CHOICES)
     reason = models.CharField(max_length=30, choices=REASON_CHOICES)
@@ -190,7 +191,28 @@ class Transaction(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.user.username} - {self.transaction_type} - ₹{self.amount} - {self.reason}"
+        return f"{self.user.username} - {self.transaction_type} - ₹{self.amount}"
+
+
+class Notification(models.Model):
+    TYPE_CHOICES = [
+        ('tournament_start', 'Tournament Started'),
+        ('tournament_end', 'Tournament Ended'),
+        ('tournament_cancel', 'Tournament Cancelled'),
+        ('result_uploaded', 'Result Uploaded'),
+        ('wallet_credit', 'Wallet Credit'),
+        ('general', 'General'),
+    ]
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
+    notification_type = models.CharField(max_length=30, choices=TYPE_CHOICES, default='general')
+    title = models.CharField(max_length=200)
+    message = models.TextField()
+    tournament = models.ForeignKey(Tournament, on_delete=models.CASCADE, null=True, blank=True)
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.username} - {self.title}"
 
 
 @receiver(post_save, sender=User)

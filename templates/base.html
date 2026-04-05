@@ -21,34 +21,34 @@
         });
     </script>
     <style>
-        html, body {
-            overflow: hidden;
-            height: 100%;
-        }
-
+        html, body { overflow: hidden; height: 100%; }
         body {
             background-color: #020617;
             background-image:
-                linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+                linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
             background-size: 40px 40px;
         }
-
         main {
             height: calc(100vh - 65px);
             overflow-y: auto;
             scrollbar-width: none;
         }
+        main::-webkit-scrollbar { display: none; }
 
-        main::-webkit-scrollbar {
-            display: none;
+        @keyframes bellShake {
+            0%, 100% { transform: rotate(0deg); }
+            20% { transform: rotate(-15deg); }
+            40% { transform: rotate(15deg); }
+            60% { transform: rotate(-10deg); }
+            80% { transform: rotate(10deg); }
         }
+        .bell-shake { animation: bellShake 0.6s ease infinite; }
     </style>
 </head>
 
 <body class="text-white overflow-x-hidden">
 
-    <!-- NAVBAR -->
     <nav class="flex justify-between items-center px-4 md:px-8 py-4 border-b border-gray-800 relative">
 
         <!-- LOGO -->
@@ -60,12 +60,12 @@
             {% if user.is_authenticated %}
                 {% if user.profile.is_admin %}
                     <span class="text-red-400 font-bold">👑 Admin</span>
-                    <a href="/create-tournament/" class="text-yellow-400 hover:underline">⚔️ Host Tournament</a>
-                    <a href="/creator-admin/" class="text-red-400 hover:underline">⚙️ Admin Panel</a>
+                    <a href="/create-tournament/" class="text-yellow-400 hover:underline">⚔️ Host</a>
+                    <a href="/creator-admin/" class="text-red-400 hover:underline">⚙️ Panel</a>
                 {% elif user.profile.is_creator %}
                     <span class="text-yellow-400 font-bold">🎮 Creator</span>
-                    <a href="/create-tournament/" class="text-yellow-400 hover:underline">⚔️ Host Tournament</a>
-                    <a href="/subscription/" class="text-cyan-400 hover:underline">💎 Subscription</a>
+                    <a href="/create-tournament/" class="text-yellow-400 hover:underline">⚔️ Host</a>
+                    <a href="/subscription/" class="text-cyan-400 hover:underline">💎 Plan</a>
                 {% else %}
                     <a href="/subscription/" class="text-cyan-400 hover:underline">💎 Become Creator</a>
                 {% endif %}
@@ -77,14 +77,30 @@
             {% endif %}
         </div>
 
-        <!-- HAMBURGER BUTTON (mobile only) -->
-        <button id="menuBtn" class="md:hidden flex flex-col gap-1.5 p-2" onclick="toggleMenu()">
-            <span class="block w-6 h-0.5 bg-white"></span>
-            <span class="block w-6 h-0.5 bg-white"></span>
-            <span class="block w-6 h-0.5 bg-white"></span>
-        </button>
+        <!-- RIGHT SIDE: BELL + HAMBURGER -->
+        <div class="flex items-center gap-2">
 
-        <!-- MOBILE DROPDOWN MENU -->
+            {% if user.is_authenticated %}
+            <a href="/notifications/" class="relative p-2">
+                <span class="text-xl {% if unread_count > 0 %}bell-shake{% endif %}">🔔</span>
+                {% if unread_count > 0 %}
+                <span class="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
+                    {{ unread_count }}
+                </span>
+                {% endif %}
+            </a>
+            {% endif %}
+
+            <!-- HAMBURGER (mobile only) -->
+            <button id="menuBtn" class="md:hidden flex flex-col gap-1.5 p-2" onclick="toggleMenu()">
+                <span class="block w-6 h-0.5 bg-white"></span>
+                <span class="block w-6 h-0.5 bg-white"></span>
+                <span class="block w-6 h-0.5 bg-white"></span>
+            </button>
+
+        </div>
+
+        <!-- MOBILE DROPDOWN -->
         <div id="mobileMenu"
              class="hidden absolute top-full right-0 w-56 bg-gray-900 border border-gray-700 rounded-xl shadow-xl z-50 py-3 flex flex-col text-sm font-semibold">
 
@@ -105,11 +121,17 @@
                     </div>
                 {% else %}
                     <div class="border-t border-gray-700 mt-2 pt-2">
-                        <p class="px-5 py-1 text-gray-500 text-xs uppercase tracking-widest">Become a Creator</p>
+                        <p class="px-5 py-1 text-gray-500 text-xs uppercase tracking-widest">Become Creator</p>
                         <a href="/subscription/" class="px-5 py-3 hover:bg-gray-800 text-cyan-400 block">💎 Buy Subscription</a>
                     </div>
                 {% endif %}
                 <div class="border-t border-gray-700 mt-2 pt-2">
+                    <a href="/notifications/" class="px-5 py-3 hover:bg-gray-800 text-yellow-400 block">
+                        🔔 Notifications
+                        {% if unread_count > 0 %}
+                        <span class="ml-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">{{ unread_count }}</span>
+                        {% endif %}
+                    </a>
                     <a href="/profile/" class="px-5 py-3 hover:bg-gray-800 text-green-400 block">👤 Profile</a>
                     <a href="/logout/" class="px-5 py-3 hover:bg-gray-800 text-red-400 block">🚪 Logout</a>
                 </div>
@@ -119,18 +141,15 @@
             {% endif %}
 
         </div>
-
     </nav>
 
-    <!-- CONTENT -->
     <main class="max-w-7xl mx-auto px-4 md:px-6">
         {% block content %}{% endblock %}
     </main>
 
     <script>
         function toggleMenu() {
-            const menu = document.getElementById('mobileMenu');
-            menu.classList.toggle('hidden');
+            document.getElementById('mobileMenu').classList.toggle('hidden');
         }
         document.addEventListener('click', function(e) {
             const menu = document.getElementById('mobileMenu');
