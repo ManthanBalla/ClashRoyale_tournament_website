@@ -6,10 +6,37 @@ from django.utils import timezone
 from django.utils.timezone import localtime
 from django.core.mail import send_mail
 from datetime import timedelta
+from decimal import Decimal
 import random
 
-from .models import Tournament, Participant, Match, Profile, WithdrawalRequest, RewardCode, CreatorMembership
+from .models import Tournament, Participant, Match, Profile, WithdrawalRequest, RewardCode, CreatorMembership, Transaction
 
+
+# ─── HELPERS ───────────────────────────────────────────────────────────────
+
+def add_transaction(user, transaction_type, reason, amount, description=''):
+    Transaction.objects.create(
+        user=user,
+        transaction_type=transaction_type,
+        reason=reason,
+        amount=amount,
+        description=description
+    )
+
+
+def credit_wallet(user, amount, reason, description=''):
+    user.profile.reward_balance += Decimal(str(amount))
+    user.profile.save()
+    add_transaction(user, 'credit', reason, amount, description)
+
+
+def debit_wallet(user, amount, reason, description=''):
+    user.profile.reward_balance -= Decimal(str(amount))
+    user.profile.save()
+    add_transaction(user, 'debit', reason, amount, description)
+
+
+# ─── AUTH ──────────────────────────────────────────────────────────────────
 
 def home(request):
     tournaments = Tournament.objects.exclude(status='cancelled').order_by('-created_at')
@@ -54,15 +81,17 @@ def register_view(request):
         password = request.POST['password']
 
         if User.objects.filter(username=username).exists():
-            return render(request, 'auth/register.html', {'error': 'Username already taken. Please choose a different username.'})
-
+            return render(request, 'auth/register.html', {
+                'error': 'Username already taken. Please choose a different username.'
+            })
         if User.objects.filter(email=email).exists():
-            return render(request, 'auth/register.html', {'error': 'An account with this email already exists.'})
-
+            return render(request, 'auth/register.html', {
+                'error': 'An account with this email already exists.'
+            })
         if not email:
             return render(request, 'auth/register.html', {'error': 'Email is required.'})
 
-        user = User.objects.create_user(username=username, email=email, password=password)
+        User.objects.create_user(username=username, email=email, password=password)
         return redirect('/login/?registered=1')
 
     return render(request, 'auth/register.html')
@@ -73,6 +102,8 @@ def logout_view(request):
     return redirect('/')
 
 
+# ─── PROFILE ───────────────────────────────────────────────────────────────
+
 @login_required
 def profile_view(request):
     profile = request.user.profile
@@ -82,6 +113,14 @@ def profile_view(request):
     memberships = CreatorMembership.objects.filter(
         user=request.user
     ).order_by('-started_at')
+    transactions = Transaction.objects.filter(
+        user=request.user
+    ).order_by('-created_at')[:30]
+
+    recent_topup = Transaction.objects.filter(
+        user=request.user,
+        reason='admin_topup'
+    ).order_by('-created_at').first()
 
     if request.method == "POST":
         first_name = request.POST.get('first_name', '').strip()
@@ -94,6 +133,8 @@ def profile_view(request):
                     'profile': profile,
                     'withdrawal_requests': withdrawal_requests,
                     'memberships': memberships,
+                    'transactions': transactions,
+                    'recent_topup': recent_topup,
                     'error': 'This email is already used by another account.'
                 })
 
@@ -107,6 +148,8 @@ def profile_view(request):
             'profile': profile,
             'withdrawal_requests': withdrawal_requests,
             'memberships': memberships,
+            'transactions': transactions,
+            'recent_topup': recent_topup,
             'success': 'Profile updated successfully!'
         })
 
@@ -114,8 +157,12 @@ def profile_view(request):
         'profile': profile,
         'withdrawal_requests': withdrawal_requests,
         'memberships': memberships,
+        'transactions': transactions,
+        'recent_topup': recent_topup,
     })
 
+
+# ─── WITHDRAW ──────────────────────────────────────────────────────────────
 
 @login_required
 def withdraw_view(request):
@@ -127,8 +174,8 @@ def withdraw_view(request):
     if request.method == "POST":
         amount = request.POST.get('amount')
         try:
-            amount = float(amount)
-        except (TypeError, ValueError):
+            amount = Decimal(str(amount))
+        except Exception:
             return render(request, 'withdraw.html', {
                 'error': 'Invalid amount.', 'profile': profile
             })
@@ -138,7 +185,7 @@ def withdraw_view(request):
                 'error': 'Amount must be greater than 0.', 'profile': profile
             })
 
-        if amount > float(profile.reward_balance):
+        if amount > profile.reward_balance:
             return render(request, 'withdraw.html', {
                 'error': f'Insufficient balance. Your balance is ₹{profile.reward_balance}.',
                 'profile': profile
@@ -149,12 +196,16 @@ def withdraw_view(request):
             amount=amount,
             upi_id=profile.upi_id
         )
-        profile.reward_balance -= amount
-        profile.save()
+        debit_wallet(
+            request.user, amount, 'withdrawal',
+            f'💸 Withdrawal request of ₹{amount} to {profile.upi_id}'
+        )
         return redirect('/profile/?withdrawn=1')
 
     return render(request, 'withdraw.html', {'profile': profile})
 
+
+# ─── SUBSCRIPTION ──────────────────────────────────────────────────────────
 
 @login_required
 def subscription_view(request):
@@ -174,7 +225,6 @@ def subscription_view(request):
                 'error': 'Please enter your UPI transaction reference number.'
             })
 
-        # send email to admin for manual verification
         try:
             send_mail(
                 subject=f'🆕 Subscription Request - {request.user.username}',
@@ -196,6 +246,8 @@ def subscription_view(request):
         'memberships': memberships,
     })
 
+
+# ─── TOURNAMENT ────────────────────────────────────────────────────────────
 
 @login_required
 def tournament_rules(request, tournament_id):
@@ -219,13 +271,14 @@ def join_tournament(request, tournament_id):
     now = localtime()
 
     if Participant.objects.filter(user=request.user, tournament=tournament).exists():
+        return redirect(f'/tournament/{tournament.id}/')
+
+    if tournament.status != 'upcoming':
         return redirect('/')
 
-    # check join deadline
     if tournament.join_deadline and now > localtime(tournament.join_deadline):
         return redirect('/?deadline=1')
 
-    # check max players
     current_count = Participant.objects.filter(tournament=tournament).count()
     if current_count >= tournament.max_players:
         return redirect('/?full=1')
@@ -245,8 +298,12 @@ def join_tournament(request, tournament_id):
                     'error': f'Insufficient balance. You need ₹{tournament.entry_fee} to join. Your balance is ₹{profile.reward_balance}.'
                 })
 
-            profile.reward_balance -= tournament.entry_fee
-            profile.save()
+            debit_wallet(
+                request.user,
+                tournament.entry_fee,
+                'tournament_join',
+                f'🎮 Entry fee for {tournament.name}'
+            )
 
             tournament.prize_pool += tournament.entry_fee
             tournament.save()
@@ -260,7 +317,6 @@ def join_tournament(request, tournament_id):
 
         return redirect(f'/rules/{tournament.id}/')
 
-    # free tournament
     show_password = False
     if tournament.start_time:
         if now >= tournament.start_time - timedelta(minutes=10):
@@ -276,14 +332,14 @@ def join_tournament(request, tournament_id):
                     'show_password': show_password
                 })
             Participant.objects.create(user=request.user, tournament=tournament)
-            return redirect('/')
+            return redirect(f'/tournament/{tournament.id}/')
         return render(request, 'enter_password.html', {
             'tournament': tournament,
             'show_password': show_password
         })
 
     Participant.objects.create(user=request.user, tournament=tournament)
-    return redirect('/')
+    return redirect(f'/tournament/{tournament.id}/')
 
 
 @login_required
@@ -352,8 +408,12 @@ def delete_tournament(request, tournament_id):
         if tournament.is_paid:
             participants = Participant.objects.filter(tournament=tournament, fee_paid=True)
             for p in participants:
-                p.user.profile.reward_balance += tournament.entry_fee
-                p.user.profile.save()
+                credit_wallet(
+                    p.user,
+                    tournament.entry_fee,
+                    'tournament_refund',
+                    f'♻️ Refund — {tournament.name} deleted by organizer'
+                )
         tournament.delete()
         return redirect('/')
 
@@ -425,12 +485,18 @@ def cancel_tournament(request, tournament_id):
         return redirect('/')
 
     if request.method == "POST":
+        reason = request.POST.get('cancel_reason', 'Cancelled by organizer')
         if tournament.is_paid:
             participants = Participant.objects.filter(tournament=tournament, fee_paid=True)
             for p in participants:
-                p.user.profile.reward_balance += tournament.entry_fee
-                p.user.profile.save()
+                credit_wallet(
+                    p.user,
+                    tournament.entry_fee,
+                    'tournament_refund',
+                    f'♻️ Refund — {tournament.name} cancelled: {reason}'
+                )
         tournament.status = 'cancelled'
+        tournament.cancel_reason = reason
         tournament.save()
         return redirect('/')
 
@@ -449,13 +515,17 @@ def generate_matches(request, tournament_id):
     )
 
     if len(participants) < tournament.min_players:
-        # cancel and refund
         if tournament.is_paid:
             for uid in participants:
                 u = User.objects.get(id=uid)
-                u.profile.reward_balance += tournament.entry_fee
-                u.profile.save()
+                credit_wallet(
+                    u,
+                    tournament.entry_fee,
+                    'tournament_refund',
+                    f'♻️ Refund — {tournament.name} cancelled (minimum players not reached)'
+                )
         tournament.status = 'cancelled'
+        tournament.cancel_reason = f'Minimum {tournament.min_players} players required but only {len(participants)} joined.'
         tournament.save()
         return redirect(f'/tournament/{tournament.id}/?cancelled=1')
 
@@ -479,6 +549,10 @@ def generate_matches(request, tournament_id):
 @login_required
 def submit_result(request, match_id):
     match = get_object_or_404(Match, id=match_id)
+
+    if request.user != match.tournament.creator and not request.user.profile.is_admin:
+        return redirect('/')
+
     if request.method == "POST":
         winner_id = request.POST.get('winner')
         winner = User.objects.get(id=winner_id)
@@ -497,30 +571,38 @@ def submit_result(request, match_id):
 
                 total_players = Participant.objects.filter(tournament=tournament).count()
                 total_collection = tournament.entry_fee * total_players
-                prize_pool = total_collection * 70 / 100
-                remaining = total_collection * 30 / 100
-                creator_share = remaining * 60 / 100
-                admin_share = remaining * 40 / 100
+                prize_pool = (total_collection * Decimal('0.70')).quantize(Decimal('0.01'))
+                remaining = total_collection - prize_pool
+                creator_share = (remaining * Decimal('0.60')).quantize(Decimal('0.01'))
+                admin_share = remaining - creator_share
 
-                # pay winner
-                top_winner.profile.reward_balance += prize_pool
-                top_winner.profile.save()
+                credit_wallet(
+                    top_winner, prize_pool,
+                    'tournament_win',
+                    f'🏆 Prize — Won {tournament.name}'
+                )
 
-                # pay creator
-                tournament.creator.profile.reward_balance += creator_share
-                tournament.creator.profile.save()
+                credit_wallet(
+                    tournament.creator, creator_share,
+                    'creator_share',
+                    f'🎮 Creator earnings — {tournament.name}'
+                )
 
-                # pay admin
                 admin = User.objects.filter(profile__is_admin=True).first()
                 if admin:
-                    admin.profile.reward_balance += admin_share
-                    admin.profile.save()
+                    credit_wallet(
+                        admin, admin_share,
+                        'admin_share',
+                        f'⚙️ Platform fee — {tournament.name}'
+                    )
 
                 tournament.status = 'completed'
                 tournament.save()
 
     return redirect(f'/tournament/{match.tournament.id}/')
 
+
+# ─── ADMIN ─────────────────────────────────────────────────────────────────
 
 @login_required
 def creator_admin(request):
@@ -532,6 +614,7 @@ def creator_admin(request):
     withdrawal_requests = WithdrawalRequest.objects.all().order_by('-requested_at')
     reward_codes = RewardCode.objects.all().order_by('-created_at')
     memberships = CreatorMembership.objects.all().order_by('-started_at')
+    all_transactions = Transaction.objects.all().order_by('-created_at')[:50]
 
     tournament_data = []
     for t in tournaments:
@@ -547,7 +630,28 @@ def creator_admin(request):
         'withdrawal_requests': withdrawal_requests,
         'reward_codes': reward_codes,
         'memberships': memberships,
+        'all_transactions': all_transactions,
     })
+
+
+@login_required
+def topup_wallet(request, user_id):
+    if not request.user.profile.is_admin:
+        return redirect('/')
+    if request.method == "POST":
+        u = get_object_or_404(User, id=user_id)
+        amount = request.POST.get('amount')
+        try:
+            amount = Decimal(str(amount))
+            if amount > 0:
+                credit_wallet(
+                    u, amount,
+                    'admin_topup',
+                    f'💰 ₹{amount} added to your wallet by Admin'
+                )
+        except Exception:
+            pass
+    return redirect('/creator-admin/')
 
 
 @login_required
@@ -565,8 +669,11 @@ def reject_withdrawal(request, withdrawal_id):
     if not request.user.profile.is_admin:
         return redirect('/')
     w = get_object_or_404(WithdrawalRequest, id=withdrawal_id)
-    w.user.profile.reward_balance += w.amount
-    w.user.profile.save()
+    credit_wallet(
+        w.user, w.amount,
+        'withdrawal_refund',
+        f'♻️ Withdrawal rejected — ₹{w.amount} refunded to your wallet'
+    )
     w.status = 'rejected'
     w.save()
     return redirect('/creator-admin/')
@@ -628,7 +735,6 @@ def grant_membership(request, user_id):
             plan=plan,
             expires_at=expiry
         )
-
         u.profile.is_creator = True
         u.profile.creator_plan = plan
         u.profile.plan_expiry = expiry
@@ -698,7 +804,6 @@ def deactivate_membership(request, membership_id):
     membership = get_object_or_404(CreatorMembership, id=membership_id)
     membership.is_active = False
     membership.save()
-    # also reset profile plan
     membership.user.profile.creator_plan = 'none'
     membership.user.profile.plan_expiry = None
     membership.user.profile.is_creator = False
@@ -713,7 +818,6 @@ def reactivate_membership(request, membership_id):
     membership = get_object_or_404(CreatorMembership, id=membership_id)
     membership.is_active = True
     membership.save()
-    # restore profile plan
     membership.user.profile.creator_plan = membership.plan
     membership.user.profile.plan_expiry = membership.expires_at
     membership.user.profile.is_creator = True

@@ -54,6 +54,7 @@
                 <span class="text-gray-500 text-xs">🕐 {{ item.tournament.start_time|date:"d M Y, H:i" }}</span>
                 {% if item.tournament.is_paid %}
                     <span class="text-yellow-400 text-xs">💰 ₹{{ item.tournament.entry_fee }} entry</span>
+                    <span class="text-green-400 text-xs">🏆 Pool: ₹{{ item.tournament.prize_pool }}</span>
                 {% endif %}
                 {% if item.tournament.password %}
                     <span class="text-yellow-400 text-xs">🔑 {{ item.tournament.password }}</span>
@@ -112,7 +113,20 @@
 
             {% if u != request.user %}
 
-            <!-- ROW 1: ROLE ACTIONS -->
+            <!-- TOP UP WALLET -->
+            <form method="POST" action="/topup-wallet/{{ u.id }}/"
+                  class="flex gap-2 mb-2">
+                {% csrf_token %}
+                <input type="number" name="amount" placeholder="₹ Add to wallet"
+                       min="1" required
+                       class="flex-1 p-2 bg-gray-800 border border-gray-700 rounded text-white text-xs focus:outline-none focus:border-green-400">
+                <button type="submit"
+                        class="bg-green-500 text-white px-3 py-2 rounded font-bold text-xs hover:bg-green-400 transition flex-shrink-0">
+                    💰 Add
+                </button>
+            </form>
+
+            <!-- ROLE ACTIONS -->
             <div class="flex gap-2 mb-2">
                 {% if u.is_active %}
                     {% if u.profile.is_admin %}
@@ -140,8 +154,6 @@
                             </button>
                         </form>
                     {% endif %}
-
-                    <!-- BAN -->
                     <form method="POST" action="/ban-user/{{ u.id }}/"
                           onsubmit="return confirm('Ban {{ u.username }}?')"
                           class="flex-1">
@@ -162,7 +174,7 @@
                 {% endif %}
             </div>
 
-            <!-- ROW 2: DELETE -->
+            <!-- DELETE USER -->
             <form method="POST" action="/delete-user/{{ u.id }}/"
                   onsubmit="return confirm('PERMANENTLY delete {{ u.username }} and all their data?')">
                 {% csrf_token %}
@@ -212,7 +224,7 @@
                     </button>
                 </form>
                 <form method="POST" action="/reject-withdrawal/{{ w.id }}/"
-                      onsubmit="return confirm('Reject and refund ₹{{ w.amount }}?')"
+                      onsubmit="return confirm('Reject and refund ₹{{ w.amount }} to {{ w.user.username }}?')"
                       class="flex-1">
                     {% csrf_token %}
                     <button type="submit"
@@ -303,8 +315,6 @@
                     <span class="text-red-400 text-xs border border-red-400/40 px-2 py-0.5 rounded-full flex-shrink-0">❌ Inactive</span>
                 {% endif %}
             </div>
-
-            <!-- ACTIVATE / DEACTIVATE BUTTONS -->
             {% if m.is_active %}
             <form method="POST" action="/deactivate-membership/{{ m.id }}/"
                   onsubmit="return confirm('Deactivate {{ m.user.username }} membership?')">
@@ -323,7 +333,6 @@
                 </button>
             </form>
             {% endif %}
-
         </div>
         {% empty %}
         <p class="text-gray-500 text-sm p-5">No memberships yet.</p>
@@ -331,7 +340,7 @@
     </div>
 
     <!-- GRANT MEMBERSHIP -->
-    <h2 class="text-lg font-bold text-cyan-400 mb-3">➕ Grant Membership</h2>
+    <h2 class="text-lg font-bold text-cyan-400 mb-3 mt-8">➕ Grant Membership</h2>
     <div class="rounded-xl border border-gray-700 overflow-hidden mb-8 bg-gray-900">
         {% for u in users %}
         {% if not u.profile.is_admin %}
@@ -341,24 +350,48 @@
                 <p class="text-gray-500 text-xs">{{ u.email }}</p>
                 {% if u.profile.plan_active %}
                     <p class="text-green-400 text-xs mt-1">✅ Active until {{ u.profile.plan_expiry|date:"d M Y" }}</p>
+                {% else %}
+                    <p class="text-red-400 text-xs mt-1">❌ No active plan</p>
                 {% endif %}
             </div>
             <form method="POST" action="/grant-membership/{{ u.id }}/"
-                  class="flex gap-2">
+                  class="flex flex-col gap-2">
                 {% csrf_token %}
                 <select name="plan"
-                        class="flex-1 p-2 bg-gray-800 border border-gray-700 rounded text-white text-xs focus:outline-none">
-                    <option value="1month">1 Month (5 tournaments)</option>
-                    <option value="3month">3 Months (15 tournaments)</option>
-                    <option value="1year">1 Year (Unlimited)</option>
+                        class="w-full p-2.5 bg-gray-800 border border-gray-700 rounded text-white text-sm focus:outline-none">
+                    <option value="1month">⚡ 1 Month — 30 Tournaments</option>
+                    <option value="3month">🚀 3 Months — 90 Tournaments</option>
+                    <option value="1year">👑 1 Year — Unlimited</option>
                 </select>
                 <button type="submit"
-                        class="bg-yellow-400 text-black px-3 py-2 rounded font-bold text-xs hover:bg-yellow-300 transition flex-shrink-0">
-                    Grant
+                        class="w-full bg-yellow-400 text-black py-2.5 rounded font-bold text-sm hover:bg-yellow-300 transition">
+                    🎁 Grant Membership
                 </button>
             </form>
         </div>
         {% endif %}
+        {% endfor %}
+    </div>
+
+    <!-- ALL TRANSACTIONS -->
+    <h2 class="text-lg font-bold text-green-400 mb-3">📊 Recent Transactions</h2>
+    <div class="rounded-xl border border-gray-700 overflow-hidden mb-8 bg-gray-900">
+        {% for t in all_transactions %}
+        <div class="flex items-center justify-between p-4 border-b border-gray-800 gap-2">
+            <div class="flex-1 min-w-0">
+                <p class="text-white text-xs font-semibold truncate">
+                    {{ t.user.username }} — {{ t.description }}
+                </p>
+                <p class="text-gray-600 text-xs">{{ t.created_at|date:"d M Y, H:i" }}</p>
+            </div>
+            {% if t.transaction_type == 'credit' %}
+                <span class="text-green-400 font-bold text-sm flex-shrink-0">+₹{{ t.amount }}</span>
+            {% else %}
+                <span class="text-red-400 font-bold text-sm flex-shrink-0">-₹{{ t.amount }}</span>
+            {% endif %}
+        </div>
+        {% empty %}
+        <p class="text-gray-500 text-sm p-5">No transactions yet.</p>
         {% endfor %}
     </div>
 

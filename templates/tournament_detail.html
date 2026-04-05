@@ -13,7 +13,6 @@
         <div class="flex items-start justify-between gap-2 mb-3">
             <div>
                 <h1 class="text-2xl font-bold text-cyan-400">{{ tournament.name }}</h1>
-                <!-- STATUS BADGE -->
                 <div class="mt-1">
                     {% if tournament.status == 'upcoming' %}
                         <span class="text-xs px-3 py-1 rounded-full font-bold border"
@@ -46,22 +45,29 @@
                 class="bg-cyan-400 text-black px-4 py-2 rounded-lg font-bold text-sm hover:bg-cyan-300 transition">
                 📘 How to Join
             </button>
+
             {% if user.is_authenticated and user == tournament.creator or user.is_authenticated and user.profile.is_admin %}
                 <a href="/edit-tournament/{{ tournament.id }}/"
                    class="bg-yellow-400 text-black px-4 py-2 rounded-lg font-bold text-sm hover:bg-yellow-300 transition">
                     ✏️ Edit
                 </a>
+
                 {% if tournament.status == 'upcoming' %}
-                <a href="/generate-matches/{{ tournament.id }}/"
-                   class="bg-green-500 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-green-400 transition">
-                    ⚔️ Start
-                </a>
+                <form method="POST" action="/cancel-tournament/{{ tournament.id }}/" id="cancelForm">
+                    {% csrf_token %}
+                    <input type="hidden" name="cancel_reason" id="cancelReasonInput" value="">
+                    <button type="button" onclick="showCancelBox()"
+                            class="bg-orange-500 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-orange-400 transition">
+                        ❌ Cancel Tournament
+                    </button>
+                </form>
                 {% endif %}
+
                 <form method="POST" action="/delete-tournament/{{ tournament.id }}/"
-                      onsubmit="return confirm('Delete this tournament?')">
+                      onsubmit="return confirm('Delete this tournament? This cannot be undone.')">
                     {% csrf_token %}
                     <button type="submit"
-                            class="bg-red-500 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-red-400 transition">
+                            class="bg-red-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-red-500 transition">
                         🗑️ Delete
                     </button>
                 </form>
@@ -69,20 +75,47 @@
         </div>
     </div>
 
-    <!-- CANCELLED NOTICE -->
-    {% if request.GET.cancelled %}
-    <div class="rounded-xl p-4 mb-5 border"
-         style="background: rgba(248,113,113,0.1); border-color: rgba(248,113,113,0.4);">
-        <p class="text-red-400 font-bold text-sm">❌ Tournament cancelled — minimum players not reached.</p>
-        <p class="text-gray-400 text-xs mt-1">All entry fees have been refunded to players' wallets.</p>
+    <!-- CANCELLED NOTICE — GAMING THEME -->
+    {% if tournament.status == 'cancelled' %}
+    <div class="rounded-xl p-5 mb-5 relative overflow-hidden border"
+         style="background: linear-gradient(135deg, #1a0000 0%, #2d0a0a 50%, #1a0000 100%); border-color: rgba(248,113,113,0.5);">
+        <div class="absolute inset-0 pointer-events-none opacity-30"
+             style="background: linear-gradient(135deg, #ef444433, #dc262633);"></div>
+        <div class="relative">
+            <div class="flex items-center gap-3 mb-3">
+                <span class="text-3xl">❌</span>
+                <div>
+                    <p class="text-red-400 font-extrabold text-lg">Tournament Cancelled</p>
+                    <p class="text-gray-400 text-xs">{{ tournament.name }}</p>
+                </div>
+            </div>
+            {% if tournament.cancel_reason %}
+            <div class="rounded-lg p-3 mb-3 border"
+                 style="background: rgba(0,0,0,0.5); border-color: rgba(248,113,113,0.3);">
+                <p class="text-gray-400 text-xs uppercase tracking-widest mb-1">Reason</p>
+                <p class="text-red-300 text-sm">{{ tournament.cancel_reason }}</p>
+            </div>
+            {% endif %}
+            {% if tournament.is_paid %}
+            <div class="rounded-lg p-3 border"
+                 style="background: rgba(52,211,153,0.08); border-color: rgba(52,211,153,0.3);">
+                <p class="text-green-400 text-sm font-bold">
+                    ♻️ Full refund of ₹{{ tournament.entry_fee }} has been added to your wallet
+                </p>
+                <p class="text-gray-400 text-xs mt-1">Check your transaction history in your profile</p>
+            </div>
+            {% endif %}
+        </div>
     </div>
     {% endif %}
 
-    {% if request.GET.notenough %}
-    <div class="rounded-xl p-4 mb-5 border"
-         style="background: rgba(248,113,113,0.1); border-color: rgba(248,113,113,0.4);">
-        <p class="text-red-400 font-bold text-sm">⚠️ Not enough players to start.</p>
-        <p class="text-gray-400 text-xs mt-1">Minimum {{ tournament.min_players }} players required.</p>
+    {% if request.GET.cancelled %}
+    <div class="rounded-xl p-5 mb-5 relative overflow-hidden border"
+         style="background: linear-gradient(135deg, #1a0000, #2d0a0a); border-color: rgba(248,113,113,0.4);">
+        <p class="text-red-400 font-bold">❌ Not enough players — tournament cancelled.</p>
+        {% if tournament.is_paid %}
+        <p class="text-green-400 text-sm mt-2">♻️ ₹{{ tournament.entry_fee }} refunded to all players' wallets.</p>
+        {% endif %}
     </div>
     {% endif %}
 
@@ -94,52 +127,42 @@
         <p class="text-yellow-400 font-bold text-sm mb-3">💰 Paid Tournament</p>
 
         <div class="grid grid-cols-2 gap-3 mb-4">
-            <div class="rounded-lg p-3 text-center"
-                 style="background: rgba(0,0,0,0.3);">
+            <div class="rounded-lg p-3 text-center" style="background: rgba(0,0,0,0.3);">
                 <p class="text-gray-400 text-xs">Entry Fee</p>
                 <p class="text-red-400 font-extrabold text-xl">₹{{ tournament.entry_fee }}</p>
             </div>
-            <div class="rounded-lg p-3 text-center"
-                 style="background: rgba(0,0,0,0.3);">
+            <div class="rounded-lg p-3 text-center" style="background: rgba(0,0,0,0.3);">
                 <p class="text-gray-400 text-xs">Live Prize Pool</p>
                 <p class="text-green-400 font-extrabold text-xl">₹{{ prize_pool }}</p>
             </div>
         </div>
 
         <div class="grid grid-cols-3 gap-2 mb-4">
-            <div class="rounded-lg p-2 text-center"
-                 style="background: rgba(0,0,0,0.3);">
+            <div class="rounded-lg p-2 text-center" style="background: rgba(0,0,0,0.3);">
                 <p class="text-gray-500 text-xs">Joined</p>
                 <p class="text-cyan-400 font-bold">{{ count }} / {{ tournament.max_players }}</p>
             </div>
-            <div class="rounded-lg p-2 text-center"
-                 style="background: rgba(0,0,0,0.3);">
+            <div class="rounded-lg p-2 text-center" style="background: rgba(0,0,0,0.3);">
                 <p class="text-gray-500 text-xs">Min Required</p>
                 <p class="text-yellow-400 font-bold">{{ tournament.min_players }}</p>
             </div>
-            <div class="rounded-lg p-2 text-center"
-                 style="background: rgba(0,0,0,0.3);">
+            <div class="rounded-lg p-2 text-center" style="background: rgba(0,0,0,0.3);">
                 <p class="text-gray-500 text-xs">Winner Gets</p>
                 <p class="text-green-400 font-bold">70%</p>
             </div>
         </div>
 
-        <!-- MONEY DISTRIBUTION -->
-        <div class="rounded-lg p-3 mb-3"
-             style="background: rgba(0,0,0,0.3);">
-            <p class="text-gray-400 text-xs mb-2 uppercase tracking-widest">Money Distribution</p>
+        <!-- PRIZE INFO — no creator/platform fee shown -->
+        <div class="rounded-lg p-3 mb-3" style="background: rgba(0,0,0,0.3);">
+            <p class="text-gray-400 text-xs mb-2 uppercase tracking-widest">Prize Info</p>
             <div class="space-y-1.5">
                 <div class="flex justify-between text-xs">
-                    <span class="text-gray-300">🏆 Winner Prize (70%)</span>
+                    <span class="text-gray-300">🏆 Winner Prize</span>
                     <span class="text-green-400 font-bold">₹{{ prize_pool }}</span>
                 </div>
                 <div class="flex justify-between text-xs">
-                    <span class="text-gray-300">🎮 Creator Share (21%)</span>
-                    <span class="text-yellow-400 font-bold">₹{% if prize_pool %}{{ tournament.entry_fee|floatformat:0 }}{% endif %}</span>
-                </div>
-                <div class="flex justify-between text-xs">
-                    <span class="text-gray-300">⚙️ Platform Fee (9%)</span>
-                    <span class="text-cyan-400 font-bold">auto</span>
+                    <span class="text-gray-300">📊 Prize = 70% of total collection</span>
+                    <span class="text-gray-500">Dynamic</span>
                 </div>
             </div>
         </div>
@@ -148,8 +171,8 @@
         <div class="rounded-lg p-3 border"
              style="background: rgba(248,113,113,0.08); border-color: rgba(248,113,113,0.3);">
             <p class="text-red-400 text-xs">
-                ⚠️ Tournament will only start if minimum <strong>{{ tournament.min_players }} players</strong> join.
-                Otherwise full refund will be issued to all participants.
+                ⚠️ Tournament starts only if minimum <strong>{{ tournament.min_players }} players</strong> join.
+                Otherwise full refund will be issued automatically.
             </p>
         </div>
 
@@ -159,17 +182,15 @@
     <!-- BASIC INFO -->
     <div class="rounded-xl p-4 mb-5 border border-gray-800 bg-gray-900">
         <p class="text-gray-300 text-sm mb-3">{{ tournament.description }}</p>
-
         {% if tournament.reward and not tournament.is_paid %}
         <p class="text-yellow-400 text-sm mb-2">🏆 Reward: {{ tournament.reward }}</p>
         {% endif %}
-
         <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
             {% if tournament.start_time %}
             <span>🕐 Starts: <span class="local-time text-gray-300" data-utc="{{ tournament.start_time|date:'c' }}"></span></span>
             {% endif %}
             {% if tournament.join_deadline %}
-            <span>⏰ Deadline: <span class="local-time text-gray-300" data-utc="{{ tournament.join_deadline|date:'c' }}"></span></span>
+            <span>⏰ Join by: <span class="local-time text-gray-300" data-utc="{{ tournament.join_deadline|date:'c' }}"></span></span>
             {% endif %}
         </div>
     </div>
@@ -185,15 +206,15 @@
     <!-- PASSWORD -->
     {% if tournament.password and tournament.id not in joined_tournaments %}
         {% if show_password %}
-            <div class="rounded-xl p-4 mb-5 border"
-                 style="background: rgba(52,211,153,0.08); border-color: rgba(52,211,153,0.3);">
-                <p class="text-green-400 font-bold text-sm">🔓 Tournament Password: <span class="font-mono text-white">{{ tournament.password }}</span></p>
-            </div>
+        <div class="rounded-xl p-4 mb-5 border"
+             style="background: rgba(52,211,153,0.08); border-color: rgba(52,211,153,0.3);">
+            <p class="text-green-400 font-bold text-sm">🔓 Password: <span class="font-mono text-white">{{ tournament.password }}</span></p>
+        </div>
         {% else %}
-            <div class="rounded-xl p-4 mb-5 border"
-                 style="background: rgba(234,179,8,0.08); border-color: rgba(234,179,8,0.3);">
-                <p class="text-yellow-400 text-sm">🔒 Password unlocks 10 minutes before start</p>
-            </div>
+        <div class="rounded-xl p-4 mb-5 border"
+             style="background: rgba(234,179,8,0.08); border-color: rgba(234,179,8,0.3);">
+            <p class="text-yellow-400 text-sm">🔒 Password unlocks 10 minutes before start</p>
+        </div>
         {% endif %}
     {% endif %}
 
@@ -204,15 +225,13 @@
         <div class="p-4 border-b border-gray-800">
             <div class="flex items-center justify-between gap-2">
                 <span class="text-white font-semibold text-sm flex-1 text-center">{{ match.player1.username }}</span>
-                <span class="text-gray-500 text-xs font-bold">VS</span>
+                <span class="text-gray-500 text-xs font-bold px-2">VS</span>
                 <span class="text-white font-semibold text-sm flex-1 text-center">{{ match.player2.username }}</span>
             </div>
-
             {% if match.winner %}
                 <p class="text-green-400 text-xs text-center mt-2">🏆 Winner: {{ match.winner.username }}</p>
             {% elif user.is_authenticated and user.profile.is_admin or user.is_authenticated and user == tournament.creator %}
-                <form method="POST" action="/submit-result/{{ match.id }}/"
-                      class="flex gap-2 mt-3">
+                <form method="POST" action="/submit-result/{{ match.id }}/" class="flex gap-2 mt-3">
                     {% csrf_token %}
                     <select name="winner"
                             class="flex-1 p-2 bg-gray-800 border border-gray-700 rounded text-white text-xs focus:outline-none">
@@ -221,7 +240,7 @@
                     </select>
                     <button type="submit"
                             class="bg-green-500 text-white px-3 py-2 rounded font-bold text-xs hover:bg-green-400 transition">
-                        Set Winner
+                        ✅ Set Winner
                     </button>
                 </form>
             {% endif %}
@@ -247,25 +266,19 @@
         {% endfor %}
     </div>
     {% else %}
-    <div class="bg-gray-900 rounded-xl border border-gray-800 p-4 mb-5">
-        <p class="text-gray-500 text-sm text-center">👁️ Participant list is hidden for this tournament</p>
-        <p class="text-cyan-400 text-sm text-center font-bold mt-1">{{ count }} players joined</p>
+    <div class="bg-gray-900 rounded-xl border border-gray-800 p-4 mb-5 text-center">
+        <p class="text-gray-500 text-sm">👁️ Participant list is hidden</p>
+        <p class="text-cyan-400 font-bold mt-1">{{ count }} players joined</p>
     </div>
     {% endif %}
 
 </div>
 
 <!-- HOW TO JOIN MODAL -->
-<div id="guideModal"
-     class="fixed inset-0 bg-black/70 items-center justify-center z-50 px-4"
-     style="display:none;">
+<div id="guideModal" class="fixed inset-0 bg-black/70 items-center justify-center z-50 px-4" style="display:none;">
     <div class="bg-gray-900 rounded-2xl w-full max-w-sm p-5 relative border border-gray-700">
-
-        <button onclick="closeGuide()"
-            class="absolute top-3 right-4 text-gray-400 text-xl hover:text-white">✖</button>
-
+        <button onclick="closeGuide()" class="absolute top-3 right-4 text-gray-400 text-xl hover:text-white">✖</button>
         <h2 class="text-xl text-cyan-400 mb-2 text-center font-bold">How to Join</h2>
-
         <div class="flex items-center justify-center gap-3 mb-4">
             <span class="text-yellow-400 font-semibold text-sm">{{ tournament.name }}</span>
             <button onclick="copyName()" id="copyBtn"
@@ -273,19 +286,15 @@
                 📋 Copy Name
             </button>
         </div>
-
         <div class="w-full bg-black rounded-xl overflow-hidden mb-4 border border-gray-700">
             <img id="slideImage" class="w-full h-auto max-h-52 object-contain">
         </div>
-
         <p id="slideText" class="text-gray-300 text-sm text-center mb-4"></p>
-
         <div class="flex justify-between items-center">
             <button onclick="prevSlide()" class="bg-gray-800 px-4 py-2 rounded hover:bg-gray-700">←</button>
             <span class="text-gray-400 text-sm">Step <span id="stepNum">1</span> / 3</span>
             <button onclick="nextSlide()" class="bg-gray-800 px-4 py-2 rounded hover:bg-gray-700">→</button>
         </div>
-
     </div>
 </div>
 
@@ -311,17 +320,19 @@ function updateSlide() {
 }
 function nextSlide() { current = (current + 1) % slides.length; updateSlide(); }
 function prevSlide() { current = (current - 1 + slides.length) % slides.length; updateSlide(); }
-function openGuide() {
-    current = 0;
-    updateSlide();
-    document.getElementById("guideModal").style.display = "flex";
-}
-function closeGuide() {
-    document.getElementById("guideModal").style.display = "none";
-}
+function openGuide() { current = 0; updateSlide(); document.getElementById("guideModal").style.display = "flex"; }
+function closeGuide() { document.getElementById("guideModal").style.display = "none"; }
 document.getElementById("guideModal").addEventListener("click", function(e) {
     if (e.target === this) closeGuide();
 });
+
+function showCancelBox() {
+    const reason = prompt('Enter reason for cancellation (players will see this):');
+    if (reason !== null && reason.trim() !== '') {
+        document.getElementById('cancelReasonInput').value = reason;
+        document.getElementById('cancelForm').submit();
+    }
+}
 </script>
 
 {% endblock %}

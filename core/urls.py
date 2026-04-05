@@ -7,7 +7,8 @@ from .views import (
     withdraw_view, approve_withdrawal, reject_withdrawal,
     tournament_rules, cancel_tournament, add_reward_code,
     send_reward_code, grant_membership, subscription_view,
-    delete_user, deactivate_membership, reactivate_membership
+    delete_user, deactivate_membership, reactivate_membership,
+    topup_wallet
 )
 from django.contrib.auth import views as auth_views
 
@@ -18,6 +19,7 @@ urlpatterns = [
     path('logout/', logout_view, name='logout'),
     path('profile/', profile_view, name='profile'),
     path('withdraw/', withdraw_view, name='withdraw'),
+    path('subscription/', subscription_view, name='subscription'),
 
     path('join/<int:tournament_id>/', join_tournament, name='join_tournament'),
     path('rules/<int:tournament_id>/', tournament_rules, name='tournament_rules'),
@@ -28,21 +30,21 @@ urlpatterns = [
     path('delete-tournament/<int:tournament_id>/', delete_tournament, name='delete_tournament'),
     path('edit-tournament/<int:tournament_id>/', edit_tournament, name='edit_tournament'),
     path('cancel-tournament/<int:tournament_id>/', cancel_tournament, name='cancel_tournament'),
-    path('subscription/', subscription_view, name='subscription'),
-    path('delete-user/<int:user_id>/', delete_user, name='delete_user'),
-    path('deactivate-membership/<int:membership_id>/', deactivate_membership, name='deactivate_membership'),
-    path('reactivate-membership/<int:membership_id>/', reactivate_membership, name='reactivate_membership'),
 
     path('creator-admin/', creator_admin, name='creator_admin'),
     path('promote-user/<int:user_id>/', promote_user, name='promote_user'),
     path('demote-user/<int:user_id>/', demote_user, name='demote_user'),
     path('ban-user/<int:user_id>/', ban_user, name='ban_user'),
     path('unban-user/<int:user_id>/', unban_user, name='unban_user'),
+    path('delete-user/<int:user_id>/', delete_user, name='delete_user'),
+    path('topup-wallet/<int:user_id>/', topup_wallet, name='topup_wallet'),
     path('approve-withdrawal/<int:withdrawal_id>/', approve_withdrawal, name='approve_withdrawal'),
     path('reject-withdrawal/<int:withdrawal_id>/', reject_withdrawal, name='reject_withdrawal'),
     path('add-reward-code/', add_reward_code, name='add_reward_code'),
     path('send-reward-code/<int:code_id>/', send_reward_code, name='send_reward_code'),
     path('grant-membership/<int:user_id>/', grant_membership, name='grant_membership'),
+    path('deactivate-membership/<int:membership_id>/', deactivate_membership, name='deactivate_membership'),
+    path('reactivate-membership/<int:membership_id>/', reactivate_membership, name='reactivate_membership'),
 
     path('password-reset/', auth_views.PasswordResetView.as_view(template_name='auth/password_reset.html'), name='password_reset'),
     path('password-reset/done/', auth_views.PasswordResetDoneView.as_view(template_name='auth/password_reset_done.html'), name='password_reset_done'),

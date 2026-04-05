@@ -74,23 +74,20 @@ class Tournament(models.Model):
     rules = models.TextField(blank=True, null=True)
     creator = models.ForeignKey(User, on_delete=models.CASCADE)
     password = models.CharField(max_length=50, blank=True, null=True)
-
     reward = models.CharField(max_length=100, blank=True)
     reward_type = models.CharField(max_length=20, choices=REWARD_TYPE_CHOICES, default='other')
-
     start_time = models.DateTimeField()
     join_deadline = models.DateTimeField(null=True, blank=True)
     proof_image = models.ImageField(upload_to='proofs/', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
-
     is_paid = models.BooleanField(default=False)
     entry_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     min_players = models.IntegerField(default=2)
     max_players = models.IntegerField(default=100)
     prize_pool = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
-
     show_participants = models.BooleanField(default=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='upcoming')
+    cancel_reason = models.TextField(blank=True, null=True)
 
     def current_prize_pool(self):
         count = self.participant_set.count()
@@ -166,6 +163,34 @@ class CreatorMembership(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.plan}"
+
+
+class Transaction(models.Model):
+    TYPE_CHOICES = [
+        ('credit', 'Credit'),
+        ('debit', 'Debit'),
+    ]
+
+    REASON_CHOICES = [
+        ('tournament_join', 'Tournament Join'),
+        ('tournament_refund', 'Tournament Refund'),
+        ('tournament_win', 'Tournament Win'),
+        ('creator_share', 'Creator Share'),
+        ('admin_share', 'Admin Share'),
+        ('withdrawal', 'Withdrawal'),
+        ('withdrawal_refund', 'Withdrawal Refund'),
+        ('admin_topup', 'Admin Top Up'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='transactions')
+    transaction_type = models.CharField(max_length=10, choices=TYPE_CHOICES)
+    reason = models.CharField(max_length=30, choices=REASON_CHOICES)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    description = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.username} - {self.transaction_type} - ₹{self.amount} - {self.reason}"
 
 
 @receiver(post_save, sender=User)
