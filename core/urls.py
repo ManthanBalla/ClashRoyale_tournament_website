@@ -8,7 +8,7 @@ from .views import (
     tournament_rules, cancel_tournament, add_reward_code,
     send_reward_code, grant_membership, subscription_view,
     delete_user, deactivate_membership, reactivate_membership,
-    topup_wallet, notifications_api, mark_notifications_read
+    topup_wallet
 )
 from django.contrib.auth import views as auth_views
 
@@ -45,9 +45,6 @@ urlpatterns = [
     path('grant-membership/<int:user_id>/', grant_membership, name='grant_membership'),
     path('deactivate-membership/<int:membership_id>/', deactivate_membership, name='deactivate_membership'),
     path('reactivate-membership/<int:membership_id>/', reactivate_membership, name='reactivate_membership'),
-
-    path('api/notifications/', notifications_api, name='notifications_api'),
-    path('api/mark-notifications-read/', mark_notifications_read, name='mark_notifications_read'),
 
     path('password-reset/', auth_views.PasswordResetView.as_view(template_name='auth/password_reset.html'), name='password_reset'),
     path('password-reset/done/', auth_views.PasswordResetDoneView.as_view(template_name='auth/password_reset_done.html'), name='password_reset_done'),

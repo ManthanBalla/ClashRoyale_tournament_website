@@ -205,23 +205,3 @@ def save_profile(sender, instance, **kwargs):
         instance.profile.save()
     except Profile.DoesNotExist:
         Profile.objects.create(user=instance)
-
-class Notification(models.Model):
-    TYPE_CHOICES = [
-        ('live', 'Live'),
-        ('cancelled', 'Cancelled'),
-        ('completed', 'Completed'),
-        ('upcoming', 'Upcoming'),
-    ]
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
-    tournament = models.ForeignKey(Tournament, on_delete=models.CASCADE)
-    message = models.CharField(max_length=255)
-    notif_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='upcoming')
-    is_read = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ['-created_at']
-
-    def __str__(self):
-        return f"{self.user.username} — {self.message}"
