@@ -70,6 +70,18 @@
                     <a href="/subscription/" class="text-cyan-400 hover:underline">💎 Become Creator</a>
                 {% endif %}
                 <a href="/profile/" class="hover:text-green-400">👤 Profile</a>
+
+                <!-- BELL (desktop) -->
+                <div class="relative" id="bellWrapper">
+                    <button onclick="toggleBell()" class="relative focus:outline-none">
+                        <span class="text-xl">🔔</span>
+                        <span id="bellBadge"
+                              class="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-4 h-4 flex items-center justify-center hidden">
+                            0
+                        </span>
+                    </button>
+                </div>
+
                 <a href="/logout/" class="hover:text-red-400">Logout</a>
             {% else %}
                 <a href="/login/" class="hover:text-cyan-400">Login</a>
@@ -111,6 +123,11 @@
                 {% endif %}
                 <div class="border-t border-gray-700 mt-2 pt-2">
                     <a href="/profile/" class="px-5 py-3 hover:bg-gray-800 text-green-400 block">👤 Profile</a>
+                    <!-- BELL (mobile) -->
+                    <button onclick="toggleBell()" class="w-full text-left px-5 py-3 hover:bg-gray-800 text-yellow-400 flex items-center gap-2">
+                        🔔 Notifications
+                        <span id="mobileBellBadge" class="bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full hidden">0</span>
+                    </button>
                     <a href="/logout/" class="px-5 py-3 hover:bg-gray-800 text-red-400 block">🚪 Logout</a>
                 </div>
             {% else %}
@@ -122,23 +139,114 @@
 
     </nav>
 
+    <!-- NOTIFICATION DROPDOWN PANEL -->
+    {% if user.is_authenticated %}
+    <div id="bellDropdown"
+         class="hidden fixed top-16 right-4 w-80 max-h-96 overflow-y-auto bg-gray-900 border border-gray-700 rounded-xl shadow-2xl z-50 flex flex-col">
+        <div class="flex items-center justify-between px-4 py-3 border-b border-gray-700 sticky top-0 bg-gray-900">
+            <p class="text-white font-bold text-sm">🔔 Notifications</p>
+            <button onclick="markAllRead()" class="text-cyan-400 text-xs hover:underline">Mark all read</button>
+        </div>
+        <div id="bellList" class="flex flex-col">
+            <p class="text-gray-500 text-sm text-center py-6">Loading...</p>
+        </div>
+    </div>
+
+    <!-- Hidden inputs to pass Django values safely into JS (fixes VS Code linter errors) -->
+    <input type="hidden" id="csrfTokenValue" value="{{ csrf_token }}">
+    <input type="hidden" id="userIsAuthenticated" value="true">
+    {% endif %}
+
     <!-- CONTENT -->
     <main class="max-w-7xl mx-auto px-4 md:px-6">
         {% block content %}{% endblock %}
     </main>
 
     <script>
+        // ── Menu ──────────────────────────────────────────────────────────
         function toggleMenu() {
-            const menu = document.getElementById('mobileMenu');
-            menu.classList.toggle('hidden');
+            document.getElementById('mobileMenu').classList.toggle('hidden');
         }
-        document.addEventListener('click', function(e) {
-            const menu = document.getElementById('mobileMenu');
-            const btn = document.getElementById('menuBtn');
-            if (!menu.contains(e.target) && !btn.contains(e.target)) {
+
+        document.addEventListener('click', function (e) {
+            var menu = document.getElementById('mobileMenu');
+            var btn  = document.getElementById('menuBtn');
+            if (menu && btn && !menu.contains(e.target) && !btn.contains(e.target)) {
                 menu.classList.add('hidden');
             }
+            var bell        = document.getElementById('bellDropdown');
+            var bellWrapper = document.getElementById('bellWrapper');
+            if (bell && !bell.contains(e.target) && bellWrapper && !bellWrapper.contains(e.target)) {
+                bell.classList.add('hidden');
+            }
         });
+
+        // ── Notifications (only runs when user is logged in) ──────────────
+        var authEl = document.getElementById('userIsAuthenticated');
+        if (authEl) {
+            var NOTIF_COLORS = {
+                'live':      'border-l-4 border-green-500 bg-green-500/10',
+                'cancelled': 'border-l-4 border-red-500 bg-red-500/10',
+                'completed': 'border-l-4 border-yellow-400 bg-yellow-400/10',
+                'upcoming':  'border-l-4 border-cyan-400 bg-cyan-400/10'
+            };
+
+            function toggleBell() {
+                var dropdown = document.getElementById('bellDropdown');
+                var isHidden = dropdown.classList.contains('hidden');
+                dropdown.classList.toggle('hidden');
+                if (isHidden) { loadNotifications(); }
+            }
+
+            function loadNotifications() {
+                fetch('/api/notifications/')
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        var badge       = document.getElementById('bellBadge');
+                        var mobileBadge = document.getElementById('mobileBellBadge');
+                        if (data.unread > 0) {
+                            var label = data.unread > 9 ? '9+' : String(data.unread);
+                            badge.textContent = label;
+                            badge.classList.remove('hidden');
+                            if (mobileBadge) { mobileBadge.textContent = label; mobileBadge.classList.remove('hidden'); }
+                        } else {
+                            badge.classList.add('hidden');
+                            if (mobileBadge) { mobileBadge.classList.add('hidden'); }
+                        }
+
+                        var list = document.getElementById('bellList');
+                        if (!data.notifications.length) {
+                            list.innerHTML = '<p class="text-gray-500 text-sm text-center py-8">No notifications yet 🎮</p>';
+                            return;
+                        }
+                        list.innerHTML = data.notifications.map(function (n) {
+                            var color = NOTIF_COLORS[n.type] || 'border-l-4 border-gray-600 bg-gray-800';
+                            var dot   = !n.is_read
+                                ? '<span class="w-2 h-2 rounded-full bg-cyan-400 flex-shrink-0 mt-1.5"></span>'
+                                : '';
+                            return '<a href="/tournament/' + n.tournament_id + '/" '
+                                + 'class="flex gap-3 items-start px-4 py-3 border-b border-gray-800 hover:bg-gray-800 transition ' + color + '">'
+                                + '<div class="flex-1 min-w-0">'
+                                + '<p class="text-white text-xs leading-snug">' + n.message + '</p>'
+                                + '<p class="text-gray-500 text-xs mt-1">' + n.created_at + '</p>'
+                                + '</div>' + dot + '</a>';
+                        }).join('');
+                    })
+                    .catch(function () {});
+            }
+
+            function markAllRead() {
+                var csrf = document.getElementById('csrfTokenValue').value;
+                fetch('/api/mark-notifications-read/', {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': csrf }
+                }).then(function () { loadNotifications(); });
+            }
+
+            // Load on page open + poll every 30 seconds
+            loadNotifications();
+            setInterval(loadNotifications, 30000);
+        }
     </script>
 
 </body>

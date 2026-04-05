@@ -2,14 +2,16 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
+from django.db import transaction as db_transaction
 from django.utils import timezone
 from django.utils.timezone import localtime
 from django.core.mail import send_mail
 from datetime import timedelta
 from decimal import Decimal
+from collections import Counter
 import random
 
-from .models import Tournament, Participant, Match, Profile, WithdrawalRequest, RewardCode, CreatorMembership, Transaction
+from .models import Tournament, Participant, Match, Profile, WithdrawalRequest, RewardCode, CreatorMembership, Transaction, Notification
 
 
 # ─── HELPERS ───────────────────────────────────────────────────────────────
@@ -36,9 +38,42 @@ def debit_wallet(user, amount, reason, description=''):
     add_transaction(user, 'debit', reason, amount, description)
 
 
+# ─── AUTO STATUS UPDATE ────────────────────────────────────────────────────
+
+def auto_update_tournament_status():
+    """
+    Called on every page load.
+    Automatically marks upcoming tournaments as 'ongoing' once start_time passes.
+    Also creates notifications for all joined participants + creator.
+    """
+    now = localtime()
+    # Find all upcoming tournaments whose start_time has passed
+    due = Tournament.objects.filter(status='upcoming', start_time__lte=now)
+    for t in due:
+        t.status = 'ongoing'
+        t.save(update_fields=['status'])
+        # Notify every participant + creator
+        recipients = set(
+            Participant.objects.filter(tournament=t).values_list('user_id', flat=True)
+        )
+        recipients.add(t.creator_id)
+        for uid in recipients:
+            already = Notification.objects.filter(
+                user_id=uid, tournament=t, notif_type='live'
+            ).exists()
+            if not already:
+                Notification.objects.create(
+                    user_id=uid,
+                    tournament=t,
+                    message=f'🔴 {t.name} is now LIVE!',
+                    notif_type='live'
+                )
+
+
 # ─── AUTH ──────────────────────────────────────────────────────────────────
 
 def home(request):
+    auto_update_tournament_status()
     tournaments = Tournament.objects.exclude(status='cancelled').order_by('-created_at')
     joined_tournaments = []
     if request.user.is_authenticated:
@@ -447,11 +482,21 @@ def edit_tournament(request, tournament_id):
 
 
 def tournament_detail(request, tournament_id):
+    auto_update_tournament_status()
     tournament = get_object_or_404(Tournament, id=tournament_id)
-    participants = Participant.objects.filter(tournament=tournament)
+    all_participants = Participant.objects.filter(tournament=tournament)
     matches = Match.objects.filter(tournament=tournament)
     now = localtime()
-    count = participants.count()
+    count = all_participants.count()
+
+    # Only expose participant list if creator/admin is viewing OR show_participants is enabled
+    is_privileged = (
+        request.user.is_authenticated and (
+            request.user == tournament.creator or
+            (hasattr(request.user, "profile") and request.user.profile.is_admin)
+        )
+    )
+    participants = all_participants if (tournament.show_participants or is_privileged) else None
 
     show_password = False
     if tournament.start_time:
@@ -498,6 +543,17 @@ def cancel_tournament(request, tournament_id):
         tournament.status = 'cancelled'
         tournament.cancel_reason = reason
         tournament.save()
+
+        # Notify all participants + creator
+        recipients = set(
+            Participant.objects.filter(tournament=tournament).values_list('user_id', flat=True)
+        )
+        recipients.add(tournament.creator_id)
+        for uid in recipients:
+            Notification.objects.get_or_create(
+                user_id=uid, tournament=tournament, notif_type='cancelled',
+                defaults={'message': f'❌ {tournament.name} has been cancelled. Reason: {reason}'}
+            )
         return redirect('/')
 
     return redirect('/')
@@ -559,35 +615,50 @@ def submit_result(request, match_id):
         match.winner = winner
         match.save()
 
-        tournament = match.tournament
-        all_matches = Match.objects.filter(tournament=tournament)
+        # ── Race-condition fix: lock the tournament row before checking completion ──
+        with db_transaction.atomic():
+            tournament = Tournament.objects.select_for_update().get(id=match.tournament.id)
 
-        if all_matches.count() > 0 and all(m.winner for m in all_matches):
-            if tournament.is_paid and tournament.status == 'ongoing':
-                from collections import Counter
-                wins = Counter(m.winner_id for m in all_matches if m.winner)
-                top_winner_id = wins.most_common(1)[0][0]
-                top_winner = User.objects.get(id=top_winner_id)
+            # Only pay out if ALL matches have a winner AND tournament is still 'ongoing'
+            # (select_for_update ensures only one request can enter this block at a time)
+            all_matches = list(Match.objects.filter(tournament=tournament))
+            all_decided = len(all_matches) > 0 and all(m.winner_id for m in all_matches)
+
+            if all_decided and tournament.is_paid and tournament.status == 'ongoing':
+                wins = Counter(m.winner_id for m in all_matches)
+                top_win_count = wins.most_common(1)[0][1]
+                tied_ids = [uid for uid, cnt in wins.items() if cnt == top_win_count]
+
+                if len(tied_ids) == 1:
+                    # Clear winner
+                    top_winner = User.objects.get(id=tied_ids[0])
+                else:
+                    # Tie-break: pick the participant who joined the tournament earliest
+                    earliest = (
+                        Participant.objects
+                        .filter(tournament=tournament, user_id__in=tied_ids)
+                        .order_by('joined_at')
+                        .first()
+                    )
+                    top_winner = earliest.user
 
                 total_players = Participant.objects.filter(tournament=tournament).count()
                 total_collection = tournament.entry_fee * total_players
-                prize_pool = (total_collection * Decimal('0.70')).quantize(Decimal('0.01'))
-                remaining = total_collection - prize_pool
+                prize_pool_amount = (total_collection * Decimal('0.70')).quantize(Decimal('0.01'))
+                remaining = total_collection - prize_pool_amount
                 creator_share = (remaining * Decimal('0.60')).quantize(Decimal('0.01'))
                 admin_share = remaining - creator_share
 
                 credit_wallet(
-                    top_winner, prize_pool,
+                    top_winner, prize_pool_amount,
                     'tournament_win',
                     f'🏆 Prize — Won {tournament.name}'
                 )
-
                 credit_wallet(
                     tournament.creator, creator_share,
                     'creator_share',
                     f'🎮 Creator earnings — {tournament.name}'
                 )
-
                 admin = User.objects.filter(profile__is_admin=True).first()
                 if admin:
                     credit_wallet(
@@ -596,8 +667,20 @@ def submit_result(request, match_id):
                         f'⚙️ Platform fee — {tournament.name}'
                     )
 
+                # Mark completed INSIDE the atomic block so concurrent requests see it
                 tournament.status = 'completed'
                 tournament.save()
+
+                # Notify all participants + creator
+                recips = set(
+                    Participant.objects.filter(tournament=tournament).values_list('user_id', flat=True)
+                )
+                recips.add(tournament.creator_id)
+                for uid in recips:
+                    Notification.objects.get_or_create(
+                        user_id=uid, tournament=tournament, notif_type='completed',
+                        defaults={'message': f'🏆 {tournament.name} is completed! Winner: {top_winner.username}'}
+                    )
 
     return redirect(f'/tournament/{match.tournament.id}/')
 
@@ -746,7 +829,7 @@ def grant_membership(request, user_id):
 
 @login_required
 def promote_user(request, user_id):
-    if not request.user.profile.is_admin:
+    if not request.user.profile.is_admin or request.method != 'POST':
         return redirect('/')
     u = get_object_or_404(User, id=user_id)
     u.profile.is_admin = True
@@ -757,7 +840,7 @@ def promote_user(request, user_id):
 
 @login_required
 def demote_user(request, user_id):
-    if not request.user.profile.is_admin:
+    if not request.user.profile.is_admin or request.method != 'POST':
         return redirect('/')
     u = get_object_or_404(User, id=user_id)
     u.profile.is_admin = False
@@ -768,7 +851,7 @@ def demote_user(request, user_id):
 
 @login_required
 def ban_user(request, user_id):
-    if not request.user.profile.is_admin:
+    if not request.user.profile.is_admin or request.method != 'POST':
         return redirect('/')
     u = get_object_or_404(User, id=user_id)
     if u != request.user:
@@ -779,7 +862,7 @@ def ban_user(request, user_id):
 
 @login_required
 def unban_user(request, user_id):
-    if not request.user.profile.is_admin:
+    if not request.user.profile.is_admin or request.method != 'POST':
         return redirect('/')
     u = get_object_or_404(User, id=user_id)
     u.is_active = True
@@ -789,7 +872,7 @@ def unban_user(request, user_id):
 
 @login_required
 def delete_user(request, user_id):
-    if not request.user.profile.is_admin:
+    if not request.user.profile.is_admin or request.method != 'POST':
         return redirect('/')
     u = get_object_or_404(User, id=user_id)
     if u != request.user:
@@ -823,3 +906,28 @@ def reactivate_membership(request, membership_id):
     membership.user.profile.is_creator = True
     membership.user.profile.save()
     return redirect('/creator-admin/')
+
+# ─── NOTIFICATIONS ──────────────────────────────────────────────────────────
+
+from django.http import JsonResponse
+
+@login_required
+def notifications_api(request):
+    notifs = Notification.objects.filter(user=request.user).order_by('-created_at')[:20]
+    data = [{
+        'id': n.id,
+        'message': n.message,
+        'type': n.notif_type,
+        'is_read': n.is_read,
+        'tournament_id': n.tournament_id,
+        'created_at': n.created_at.strftime('%d %b, %I:%M %p'),
+    } for n in notifs]
+    unread = Notification.objects.filter(user=request.user, is_read=False).count()
+    return JsonResponse({'notifications': data, 'unread': unread})
+
+
+@login_required
+def mark_notifications_read(request):
+    if request.method == 'POST':
+        Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
+    return JsonResponse({'status': 'ok'})
