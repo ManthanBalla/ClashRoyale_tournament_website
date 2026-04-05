@@ -34,9 +34,9 @@ class Profile(models.Model):
 
     def tournament_limit(self):
         if self.creator_plan == '1month':
-            return 5
+            return 30
         elif self.creator_plan == '3month':
-            return 15
+            return 90
         elif self.creator_plan == '1year':
             return 9999
         return 0
@@ -154,8 +154,8 @@ class RewardCode(models.Model):
 
 class CreatorMembership(models.Model):
     PLAN_CHOICES = [
-        ('1month', '1 Month - 5 Tournaments'),
-        ('3month', '3 Months - 15 Tournaments'),
+        ('1month', '1 Month - 30 Tournaments'),
+        ('3month', '3 Months - 90 Tournaments'),
         ('1year', '1 Year - Unlimited Tournaments'),
     ]
     user = models.ForeignKey(User, on_delete=models.CASCADE)

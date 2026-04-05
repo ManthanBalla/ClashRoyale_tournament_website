@@ -6,162 +6,464 @@
 <div class="max-w-4xl mx-auto px-4 py-6">
 
     <!-- BACK -->
-    <a href="/" class="text-cyan-400 mb-4 inline-block text-sm">← Back</a>
+    <a href="/" class="text-cyan-400 hover:underline mb-4 inline-block text-sm">← Back</a>
 
     <!-- HEADER -->
-    <h1 class="text-2xl font-bold text-cyan-400 mb-3">{{ tournament.name }}</h1>
+    <div class="mb-5">
+        <h1 class="text-2xl font-bold text-cyan-400 mb-2">{{ tournament.name }}</h1>
 
-    <!-- STATUS -->
-    {% if tournament.status == 'upcoming' %}
-        <p class="text-blue-400">🕐 Upcoming</p>
-    {% elif tournament.status == 'ongoing' %}
-        <p class="text-green-400">🔴 Live</p>
-    {% elif tournament.status == 'completed' %}
-        <p class="text-yellow-400">🏆 Completed</p>
-    {% elif tournament.status == 'cancelled' %}
-        <p class="text-red-400">❌ Cancelled</p>
+        <!-- STATUS BADGE -->
+        <div class="mb-3">
+            {% if tournament.status == 'upcoming' %}
+                <span class="text-xs px-3 py-1 rounded-full font-bold border"
+                      style="color:#60a5fa; border-color:rgba(96,165,250,0.4); background:rgba(96,165,250,0.1);">
+                    🕐 Upcoming
+                </span>
+            {% elif tournament.status == 'ongoing' %}
+                <span class="text-xs px-3 py-1 rounded-full font-bold border animate-pulse"
+                      style="color:#34d399; border-color:rgba(52,211,153,0.4); background:rgba(52,211,153,0.1);">
+                    🔴 Live
+                </span>
+            {% elif tournament.status == 'completed' %}
+                <span class="text-xs px-3 py-1 rounded-full font-bold border"
+                      style="color:#fbbf24; border-color:rgba(251,191,36,0.4); background:rgba(251,191,36,0.1);">
+                    🏆 Completed
+                </span>
+            {% elif tournament.status == 'cancelled' %}
+                <span class="text-xs px-3 py-1 rounded-full font-bold border"
+                      style="color:#f87171; border-color:rgba(248,113,113,0.4); background:rgba(248,113,113,0.1);">
+                    ❌ Cancelled
+                </span>
+            {% endif %}
+        </div>
+
+        <!-- ACTION BUTTONS -->
+        <div class="flex flex-wrap gap-2">
+
+            <button onclick="openGuide()"
+                    class="bg-cyan-400 text-black px-4 py-2 rounded-lg font-bold text-sm hover:bg-cyan-300 transition">
+                📘 How to Join
+            </button>
+
+            {% if user.is_authenticated %}
+                {% if user == tournament.creator or user.profile.is_admin %}
+
+                    <a href="/edit-tournament/{{ tournament.id }}/"
+                       class="bg-yellow-400 text-black px-4 py-2 rounded-lg font-bold text-sm hover:bg-yellow-300 transition">
+                        ✏️ Edit
+                    </a>
+
+                    {% if tournament.status == 'upcoming' %}
+                    <form method="POST" action="/cancel-tournament/{{ tournament.id }}/" id="cancelForm">
+                        {% csrf_token %}
+                        <input type="hidden" name="cancel_reason" id="cancelReasonInput" value="">
+                        <button type="button" onclick="showCancelBox()"
+                                class="bg-orange-500 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-orange-400 transition">
+                            ❌ Cancel
+                        </button>
+                    </form>
+                    {% endif %}
+
+                    {% if tournament.status == 'ongoing' %}
+                    <a href="/generate-matches/{{ tournament.id }}/"
+                       class="bg-green-500 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-green-400 transition">
+                        ⚔️ Generate Matches
+                    </a>
+                    <a href="/upload-results/{{ tournament.id }}/"
+                       class="px-4 py-2 rounded-lg font-bold text-sm text-white transition hover:opacity-90"
+                       style="background: linear-gradient(90deg, #06b6d4, #8b5cf6);">
+                        📸 Upload Results
+                    </a>
+                    {% endif %}
+
+                    <form method="POST" action="/delete-tournament/{{ tournament.id }}/"
+                          onsubmit="return confirm('Delete this tournament?')">
+                        {% csrf_token %}
+                        <button type="submit"
+                                class="bg-red-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-red-500 transition">
+                            🗑️ Delete
+                        </button>
+                    </form>
+
+                {% endif %}
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- CANCELLED NOTICE -->
+    {% if tournament.status == 'cancelled' %}
+    <div class="rounded-xl p-5 mb-5 relative overflow-hidden border"
+         style="background:linear-gradient(135deg,#1a0000,#2d0a0a); border-color:rgba(248,113,113,0.5);">
+        <div class="relative">
+            <div class="flex items-center gap-3 mb-3">
+                <span class="text-3xl">❌</span>
+                <div>
+                    <p class="text-red-400 font-extrabold text-lg">Tournament Cancelled</p>
+                    <p class="text-gray-400 text-xs">{{ tournament.name }}</p>
+                </div>
+            </div>
+            {% if tournament.cancel_reason %}
+            <div class="rounded-lg p-3 mb-3 border"
+                 style="background:rgba(0,0,0,0.5); border-color:rgba(248,113,113,0.3);">
+                <p class="text-gray-400 text-xs uppercase tracking-widest mb-1">Reason</p>
+                <p class="text-red-300 text-sm">{{ tournament.cancel_reason }}</p>
+            </div>
+            {% endif %}
+            {% if tournament.is_paid %}
+            <div class="rounded-lg p-3 border"
+                 style="background:rgba(52,211,153,0.08); border-color:rgba(52,211,153,0.3);">
+                <p class="text-green-400 text-sm font-bold">
+                    ♻️ Full refund of ₹{{ tournament.entry_fee }} has been added to your wallet
+                </p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
     {% endif %}
 
-    <!-- ACTION BUTTONS -->
-    <div class="flex gap-2 mt-4 flex-wrap">
+    {% if request.GET.cancelled %}
+    <div class="rounded-xl p-4 mb-5 border"
+         style="background:linear-gradient(135deg,#1a0000,#2d0a0a); border-color:rgba(248,113,113,0.4);">
+        <p class="text-red-400 font-bold">❌ Not enough players — tournament cancelled.</p>
+        {% if tournament.is_paid %}
+        <p class="text-green-400 text-sm mt-1">♻️ ₹{{ tournament.entry_fee }} refunded to all wallets.</p>
+        {% endif %}
+    </div>
+    {% endif %}
 
-        <button onclick="openGuide()" class="bg-cyan-400 px-4 py-2 rounded font-bold">
-            📘 How to Join
-        </button>
+    <!-- PAID INFO CARD -->
+    {% if tournament.is_paid %}
+    <div class="rounded-xl p-5 mb-5 border"
+         style="background:linear-gradient(135deg,rgba(234,179,8,0.08),rgba(52,211,153,0.08)); border-color:rgba(234,179,8,0.3);">
 
-        {% if user.is_authenticated %}
-            {% if user == tournament.creator or user.profile.is_admin %}
+        <p class="text-yellow-400 font-bold text-sm mb-3">💰 Paid Tournament</p>
 
-                <a href="/edit-tournament/{{ tournament.id }}/"
-                   class="bg-yellow-400 px-4 py-2 rounded font-bold">
-                   ✏️ Edit
-                </a>
+        <div class="grid grid-cols-2 gap-3 mb-3">
+            <div class="rounded-lg p-3 text-center" style="background:rgba(0,0,0,0.3);">
+                <p class="text-gray-400 text-xs">Entry Fee</p>
+                <p class="text-red-400 font-extrabold text-xl">₹{{ tournament.entry_fee }}</p>
+            </div>
+            <div class="rounded-lg p-3 text-center" style="background:rgba(0,0,0,0.3);">
+                <p class="text-gray-400 text-xs">Live Prize Pool</p>
+                <p class="text-green-400 font-extrabold text-xl">₹{{ prize_pool }}</p>
+            </div>
+        </div>
 
-                {% if tournament.status == 'upcoming' %}
-                <form method="POST" action="/cancel-tournament/{{ tournament.id }}/" id="cancelForm">
-                    {% csrf_token %}
-                    <input type="hidden" name="cancel_reason" id="cancelReasonInput">
-                    <button type="button" onclick="showCancelBox()" class="bg-orange-500 px-4 py-2 rounded text-white">
-                        ❌ Cancel
-                    </button>
-                </form>
-                {% endif %}
+        <div class="grid grid-cols-3 gap-2 mb-3">
+            <div class="rounded-lg p-2 text-center" style="background:rgba(0,0,0,0.3);">
+                <p class="text-gray-500 text-xs">Joined</p>
+                <p class="text-cyan-400 font-bold">{{ count }} / {{ tournament.max_players }}</p>
+            </div>
+            <div class="rounded-lg p-2 text-center" style="background:rgba(0,0,0,0.3);">
+                <p class="text-gray-500 text-xs">Min Required</p>
+                <p class="text-yellow-400 font-bold">{{ tournament.min_players }}</p>
+            </div>
+            <div class="rounded-lg p-2 text-center" style="background:rgba(0,0,0,0.3);">
+                <p class="text-gray-500 text-xs">Winner Gets</p>
+                <p class="text-green-400 font-bold">70%</p>
+            </div>
+        </div>
 
-                {% if tournament.status == 'ongoing' %}
-                <a href="/generate-matches/{{ tournament.id }}/"
-                   class="bg-green-500 px-4 py-2 rounded text-white">
-                   ⚔️ Generate Matches
-                </a>
+        <div class="rounded-lg p-3 mb-3" style="background:rgba(0,0,0,0.3);">
+            <p class="text-gray-400 text-xs mb-2 uppercase tracking-widest">Prize Info</p>
+            <div class="flex justify-between text-xs">
+                <span class="text-gray-300">🏆 Winner Prize</span>
+                <span class="text-green-400 font-bold">₹{{ prize_pool }}</span>
+            </div>
+        </div>
 
-                <a href="/upload-results/{{ tournament.id }}/"
-                   class="bg-purple-500 px-4 py-2 rounded text-white">
-                   📸 Upload Results
-                </a>
-                {% endif %}
+        <div class="rounded-lg p-3 border"
+             style="background:rgba(248,113,113,0.08); border-color:rgba(248,113,113,0.3);">
+            <p class="text-red-400 text-xs">
+                ⚠️ Starts only if minimum <strong>{{ tournament.min_players }} players</strong> join.
+                Otherwise full refund issued automatically.
+            </p>
+        </div>
+    </div>
+    {% endif %}
 
-                <form method="POST" action="/delete-tournament/{{ tournament.id }}/">
-                    {% csrf_token %}
-                    <button class="bg-red-600 px-4 py-2 rounded text-white">
-                        🗑️ Delete
-                    </button>
-                </form>
+    <!-- BASIC INFO -->
+    <div class="rounded-xl p-4 mb-5 border border-gray-800 bg-gray-900">
+        <p class="text-gray-300 text-sm mb-3">{{ tournament.description }}</p>
 
+        {% if tournament.reward and not tournament.is_paid %}
+        <p class="text-yellow-400 text-sm mb-2">🏆 Reward: {{ tournament.reward }}</p>
+        {% endif %}
+
+        <div class="flex flex-wrap gap-x-4 gap-y-2 text-xs text-gray-500 mt-2">
+            {% if tournament.start_time %}
+            <span>🕐 Starts: <span class="local-time text-gray-300" data-utc="{{ tournament.start_time|date:'c' }}"></span></span>
             {% endif %}
+            {% if tournament.end_time %}
+            <span>⏳ Ends: <span class="local-time text-gray-300" data-utc="{{ tournament.end_time|date:'c' }}"></span></span>
+            {% endif %}
+            {% if tournament.join_deadline %}
+            <span>⏰ Join by: <span class="local-time text-gray-300" data-utc="{{ tournament.join_deadline|date:'c' }}"></span></span>
+            {% endif %}
+        </div>
+
+        <!-- COUNTDOWN -->
+        {% if tournament.status == 'ongoing' and tournament.end_time %}
+        <div class="mt-3 rounded-lg px-4 py-2 border inline-block"
+             style="background:rgba(239,68,68,0.1); border-color:rgba(239,68,68,0.3);">
+            <p class="text-red-400 text-xs font-bold">⏳ Ends in: <span id="countdown" class="text-white font-mono"></span></p>
+        </div>
+        <script>
+            (function() {
+                const endTime = new Date("{{ tournament.end_time|date:'c' }}");
+                function updateCountdown() {
+                    const now = new Date();
+                    const diff = endTime - now;
+                    if (diff <= 0) {
+                        document.getElementById('countdown').innerText = 'Ended';
+                        return;
+                    }
+                    const h = Math.floor(diff / 3600000);
+                    const m = Math.floor((diff % 3600000) / 60000);
+                    const s = Math.floor((diff % 60000) / 1000);
+                    document.getElementById('countdown').innerText = h + 'h ' + m + 'm ' + s + 's';
+                }
+                updateCountdown();
+                setInterval(updateCountdown, 1000);
+            })();
+        </script>
         {% endif %}
     </div>
 
-    <!-- BASIC INFO -->
-    <div class="bg-gray-900 p-4 rounded-xl mt-5">
-        <p class="text-gray-300">{{ tournament.description }}</p>
-
-        <div class="text-sm text-gray-400 mt-2">
-            {% if tournament.start_time %}
-            <p>🕐 Starts: {{ tournament.start_time }}</p>
-            {% endif %}
-
-            {% if tournament.end_time %}
-            <p>⏳ Ends: {{ tournament.end_time }}</p>
-            {% endif %}
-        </div>
+    <!-- RULES -->
+    {% if tournament.rules %}
+    <div class="rounded-xl p-4 mb-5 border border-gray-800 bg-gray-900">
+        <p class="text-gray-400 text-xs uppercase tracking-widest mb-2">📋 Rules</p>
+        <p class="text-gray-300 text-sm whitespace-pre-line">{{ tournament.rules }}</p>
     </div>
+    {% endif %}
+
+    <!-- PASSWORD -->
+    {% if tournament.password and tournament.id not in joined_tournaments %}
+        {% if show_password %}
+        <div class="rounded-xl p-4 mb-5 border"
+             style="background:rgba(52,211,153,0.08); border-color:rgba(52,211,153,0.3);">
+            <p class="text-green-400 font-bold text-sm">🔓 Password: <span class="font-mono text-white">{{ tournament.password }}</span></p>
+        </div>
+        {% else %}
+        <div class="rounded-xl p-4 mb-5 border"
+             style="background:rgba(234,179,8,0.08); border-color:rgba(234,179,8,0.3);">
+            <p class="text-yellow-400 text-sm">🔒 Password unlocks 10 minutes before start</p>
+        </div>
+        {% endif %}
+    {% endif %}
 
     <!-- MATCHES -->
-    <h2 class="text-lg font-bold text-green-400 mt-6">⚔️ Matches</h2>
-
-    <div class="bg-gray-900 rounded-xl mt-2">
-
+    <h2 class="text-lg font-bold text-green-400 mb-3">⚔️ Matches</h2>
+    <div class="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden mb-5">
         {% for match in matches %}
-        <div class="p-4 border-b border-gray-800 text-center">
-
-            <p class="text-white">
-                {{ match.player1.username }} VS {{ match.player2.username }}
-            </p>
-
+        <div class="p-4 border-b border-gray-800">
+            <div class="flex items-center justify-between gap-2">
+                <span class="text-white font-semibold text-sm flex-1 text-center">{{ match.player1.username }}</span>
+                <span class="text-gray-500 text-xs font-bold px-2">VS</span>
+                <span class="text-white font-semibold text-sm flex-1 text-center">{{ match.player2.username }}</span>
+            </div>
             {% if match.winner %}
-                <p class="text-green-400">🏆 Winner: {{ match.winner.username }}</p>
-
-            {% else %}
-                {% if user.is_authenticated %}
-                    {% if user.profile.is_admin or user == tournament.creator %}
-                        <form method="POST" action="/submit-result/{{ match.id }}/" class="mt-2">
-                            {% csrf_token %}
-                            <select name="winner" class="bg-gray-800 p-2 rounded text-white text-sm">
-                                <option value="{{ match.player1.id }}">{{ match.player1.username }}</option>
-                                <option value="{{ match.player2.id }}">{{ match.player2.username }}</option>
-                            </select>
-                            <button type="submit" class="bg-green-500 px-3 py-1 rounded text-white text-sm mt-1">
-                                Set Winner
-                            </button>
-                        </form>
-                    {% endif %}
+                <p class="text-green-400 text-xs text-center mt-2">🏆 Winner: {{ match.winner.username }}</p>
+            {% elif user.is_authenticated %}
+                {% if user.profile.is_admin or user == tournament.creator %}
+                <form method="POST" action="/submit-result/{{ match.id }}/" class="flex gap-2 mt-3">
+                    {% csrf_token %}
+                    <select name="winner"
+                            class="flex-1 p-2 bg-gray-800 border border-gray-700 rounded text-white text-xs focus:outline-none">
+                        <option value="{{ match.player1.id }}">{{ match.player1.username }}</option>
+                        <option value="{{ match.player2.id }}">{{ match.player2.username }}</option>
+                    </select>
+                    <button type="submit"
+                            class="bg-green-500 text-white px-3 py-2 rounded font-bold text-xs hover:bg-green-400 transition">
+                        ✅ Set Winner
+                    </button>
+                </form>
                 {% endif %}
             {% endif %}
-
         </div>
         {% empty %}
-        <p class="text-gray-500 p-4">No matches yet.</p>
+        <p class="text-gray-500 p-5 text-sm">No matches yet.</p>
         {% endfor %}
-
     </div>
 
     <!-- PLAYERS -->
-    <h2 class="text-lg font-bold text-yellow-400 mt-6">👥 Players ({{ count }})</h2>
-
-    <div class="bg-gray-900 rounded-xl mt-2">
+    {% if tournament.show_participants %}
+    <h2 class="text-lg font-bold text-yellow-400 mb-3">👥 Players ({{ count }})</h2>
+    <div class="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden mb-5">
         {% for p in participants %}
-        <div class="p-3 border-b border-gray-800">
-            {{ p.user.username }}
+        <div class="flex items-center justify-between px-4 py-3 border-b border-gray-800">
+            <span class="text-white text-sm">{{ p.user.username }}</span>
+            {% if p.fee_paid %}
+                <span class="text-green-400 text-xs">✅ Paid</span>
+            {% endif %}
         </div>
         {% empty %}
-        <p class="text-gray-500 p-4">No players yet.</p>
+        <p class="text-gray-500 p-5 text-sm">No players yet.</p>
         {% endfor %}
     </div>
+    {% else %}
+    <div class="bg-gray-900 rounded-xl border border-gray-800 p-4 mb-5 text-center">
+        <p class="text-gray-500 text-sm">👁️ Participant list is hidden</p>
+        <p class="text-cyan-400 font-bold mt-1">{{ count }} players joined</p>
+    </div>
+    {% endif %}
 
     <!-- RESULTS -->
     {% if tournament.status == 'completed' %}
         {% if is_participant or user == tournament.creator or user.profile.is_admin %}
-        <div class="bg-green-900 p-4 rounded-xl mt-6">
-            <h2 class="text-lg font-bold text-green-400">🏆 Results</h2>
+        <div class="rounded-xl p-5 mb-5 border relative overflow-hidden"
+             style="background:linear-gradient(135deg,#0d1f0a,#1a3a0a); border-color:rgba(52,211,153,0.4);">
+            <div class="relative">
+                <h2 class="text-lg font-bold text-green-400 mb-4">🏆 Tournament Results</h2>
 
-            {% if tournament.result_screenshot %}
-            <img src="{{ tournament.result_screenshot.url }}" class="mt-3 rounded">
-            {% endif %}
+                {% if tournament.result_screenshot %}
+                <div class="mb-4">
+                    <p class="text-gray-400 text-xs uppercase tracking-widest mb-2">📊 Leaderboard</p>
+                    <img src="{{ tournament.result_screenshot.url }}"
+                         class="w-full rounded-xl border object-contain max-h-96"
+                         style="border-color:rgba(52,211,153,0.3);">
+                </div>
+                {% endif %}
 
-            {% if tournament.reward_screenshot %}
-            <img src="{{ tournament.reward_screenshot.url }}" class="mt-3 rounded">
-            {% endif %}
+                {% if tournament.reward_screenshot %}
+                <div class="mb-2">
+                    <p class="text-gray-400 text-xs uppercase tracking-widest mb-2">🎁 Reward Proof</p>
+                    <img src="{{ tournament.reward_screenshot.url }}"
+                         class="w-full rounded-xl border object-contain max-h-96"
+                         style="border-color:rgba(234,179,8,0.3);">
+                </div>
+                {% endif %}
+
+                {% if not tournament.result_screenshot and not tournament.reward_screenshot %}
+                <p class="text-gray-500 text-sm">Results will be uploaded by the organizer soon.</p>
+                {% endif %}
+            </div>
         </div>
         {% endif %}
     {% endif %}
 
 </div>
 
+<!-- HOW TO JOIN MODAL -->
+<div id="guideModal"
+     class="fixed inset-0 bg-black/80 z-50"
+     style="display:none;">
+
+    <div class="flex items-center justify-center min-h-screen px-4">
+
+        <div class="bg-gray-900 rounded-2xl w-full max-w-sm p-5 relative border border-gray-700 shadow-2xl">
+
+            <button onclick="closeGuide()"
+                    class="absolute top-3 right-4 text-gray-400 text-2xl hover:text-white leading-none">
+                ✖
+            </button>
+
+            <h2 class="text-xl text-cyan-400 mb-2 text-center font-bold">📘 How to Join</h2>
+
+            <!-- COPY NAME -->
+            <div class="flex items-center justify-center gap-3 mb-4 p-3 rounded-xl border"
+                 style="background:rgba(234,179,8,0.08); border-color:rgba(234,179,8,0.3);">
+                <span class="text-yellow-400 font-bold text-sm truncate">{{ tournament.name }}</span>
+                <button onclick="copyName()" id="copyBtn"
+                        class="bg-green-500 text-black text-xs px-3 py-1.5 rounded-lg font-bold hover:bg-green-400 transition flex-shrink-0">
+                    📋 Copy
+                </button>
+            </div>
+
+            <!-- SLIDE IMAGE -->
+            <div class="w-full bg-black rounded-xl overflow-hidden mb-4 border border-gray-700"
+                 style="min-height: 180px; display:flex; align-items:center; justify-content:center;">
+                <img id="slideImage"
+                     class="w-full h-auto object-contain"
+                     style="max-height: 220px;"
+                     alt="Step image">
+            </div>
+
+            <!-- SLIDE TEXT -->
+            <p id="slideText" class="text-gray-300 text-sm text-center mb-4 min-h-[2rem]"></p>
+
+            <!-- CONTROLS -->
+            <div class="flex justify-between items-center">
+                <button onclick="prevSlide()"
+                        class="bg-gray-800 text-white px-5 py-2 rounded-lg hover:bg-gray-700 transition font-bold">
+                    ←
+                </button>
+                <span class="text-gray-400 text-sm">Step <span id="stepNum">1</span> / 3</span>
+                <button onclick="nextSlide()"
+                        class="bg-gray-800 text-white px-5 py-2 rounded-lg hover:bg-gray-700 transition font-bold">
+                    →
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
 <script>
+// ── GUIDE MODAL ──────────────────────────────────────────
+const step1 = "{% static 'images/step1.jpeg' %}";
+const step2 = "{% static 'images/step2.jpeg' %}";
+const step3 = "{% static 'images/step3.jpeg' %}";
+
+const slides = [
+    { img: step1, text: "Open Clash Royale and tap the menu icon" },
+    { img: step2, text: "Go to the Tournaments section" },
+    { img: step3, text: "Search the tournament name and tap Join" }
+];
+
+let current = 0;
+
+function updateSlide() {
+    const img = document.getElementById("slideImage");
+    const text = document.getElementById("slideText");
+    const stepNum = document.getElementById("stepNum");
+    if (img) img.src = slides[current].img;
+    if (text) text.innerText = slides[current].text;
+    if (stepNum) stepNum.innerText = current + 1;
+}
+
+function nextSlide() {
+    current = (current + 1) % slides.length;
+    updateSlide();
+}
+
+function prevSlide() {
+    current = (current - 1 + slides.length) % slides.length;
+    updateSlide();
+}
+
+function openGuide() {
+    current = 0;
+    updateSlide();
+    const modal = document.getElementById("guideModal");
+    modal.style.display = "block";
+    document.body.style.overflow = "hidden";
+}
+
+function closeGuide() {
+    document.getElementById("guideModal").style.display = "none";
+    document.body.style.overflow = "";
+}
+
+document.getElementById("guideModal").addEventListener("click", function(e) {
+    if (e.target === this) closeGuide();
+});
+
+function copyName() {
+    navigator.clipboard.writeText("{{ tournament.name }}").then(() => {
+        const btn = document.getElementById('copyBtn');
+        btn.innerText = '✅ Copied!';
+        setTimeout(() => { btn.innerText = '📋 Copy'; }, 2000);
+    });
+}
+
+// ── CANCEL ───────────────────────────────────────────────
 function showCancelBox() {
-    const reason = prompt("Enter cancel reason:");
-    if (reason) {
-        document.getElementById("cancelReasonInput").value = reason;
-        document.getElementById("cancelForm").submit();
+    const reason = prompt('Enter reason for cancellation (players will see this):');
+    if (reason !== null && reason.trim() !== '') {
+        document.getElementById('cancelReasonInput').value = reason;
+        document.getElementById('cancelForm').submit();
     }
 }
 </script>

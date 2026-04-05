@@ -136,8 +136,27 @@
             </div>
         </div>
 
-        <!-- SECTION: SETTINGS -->
+        <!-- SETTINGS -->
         <p class="text-gray-500 text-xs uppercase tracking-widest mb-3">⚙️ Settings</p>
+
+        <!-- TIMEZONE -->
+        <label class="text-gray-400 text-sm mb-1 block">Time Zone *</label>
+        <div class="grid grid-cols-2 gap-3 mb-3">
+            <label class="cursor-pointer">
+                <input type="radio" name="timezone_choice" value="IST" checked class="hidden" id="tzIST" onchange="switchTZ('IST')">
+                <div id="labelIST" class="border-2 border-cyan-400 bg-cyan-400/10 rounded-xl p-3 text-center transition">
+                    <p class="text-cyan-400 font-bold text-sm">🇮🇳 IST</p>
+                    <p class="text-gray-400 text-xs">India Standard Time</p>
+                </div>
+            </label>
+            <label class="cursor-pointer">
+                <input type="radio" name="timezone_choice" value="UTC" class="hidden" id="tzUTC" onchange="switchTZ('UTC')">
+                <div id="labelUTC" class="border-2 border-gray-700 bg-gray-800 rounded-xl p-3 text-center transition">
+                    <p class="text-gray-400 font-bold text-sm">🌍 UTC</p>
+                    <p class="text-gray-500 text-xs">Universal Time</p>
+                </div>
+            </label>
+        </div>
 
         <div class="grid grid-cols-2 gap-3 mb-3">
             <div>
@@ -261,6 +280,21 @@ function selectRewardType(input) {
     const selected = input.closest('label').querySelector('.reward-btn');
     selected.className = 'reward-btn border border-yellow-400 bg-yellow-400/10 rounded-lg p-2 text-center text-xs transition';
     selected.querySelector('p:last-child').className = 'text-yellow-400';
+}
+function switchTZ(tz) {
+    const labelIST = document.getElementById('labelIST');
+    const labelUTC = document.getElementById('labelUTC');
+    if (tz === 'IST') {
+        labelIST.className = 'border-2 border-cyan-400 bg-cyan-400/10 rounded-xl p-3 text-center transition';
+        labelIST.querySelector('p').className = 'text-cyan-400 font-bold text-sm';
+        labelUTC.className = 'border-2 border-gray-700 bg-gray-800 rounded-xl p-3 text-center transition';
+        labelUTC.querySelector('p').className = 'text-gray-400 font-bold text-sm';
+    } else {
+        labelUTC.className = 'border-2 border-cyan-400 bg-cyan-400/10 rounded-xl p-3 text-center transition';
+        labelUTC.querySelector('p').className = 'text-cyan-400 font-bold text-sm';
+        labelIST.className = 'border-2 border-gray-700 bg-gray-800 rounded-xl p-3 text-center transition';
+        labelIST.querySelector('p').className = 'text-gray-400 font-bold text-sm';
+    }
 }
 </script>
 
