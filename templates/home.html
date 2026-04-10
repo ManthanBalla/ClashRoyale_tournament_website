@@ -4,6 +4,21 @@
 
 <div class="flex flex-col items-center justify-center text-center py-10">
 
+    {% if join_error %}
+    <div class="w-full max-w-4xl mb-4 rounded-xl px-4 py-3 border text-left"
+         style="background: rgba(248,113,113,0.08); border-color: rgba(248,113,113,0.4);">
+        {% if join_error == 'not_open' %}
+            <p class="text-red-400 text-sm font-semibold">⚠️ This tournament is not open for joining right now.</p>
+        {% elif join_error == 'deadline' %}
+            <p class="text-red-400 text-sm font-semibold">⏰ Join deadline has passed for this tournament.</p>
+        {% elif join_error == 'full' %}
+            <p class="text-red-400 text-sm font-semibold">👥 This tournament is full.</p>
+        {% else %}
+            <p class="text-red-400 text-sm font-semibold">⚠️ Unable to join this tournament.</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
     <!-- HERO -->
     <div class="mb-12">
         <h1 class="text-5xl md:text-6xl font-extrabold">
@@ -48,6 +63,20 @@
                         <span class="bg-green-500/20 text-green-400 px-4 py-2 rounded font-semibold border border-green-500 text-sm whitespace-nowrap block">
                             ✓ Joined
                         </span>
+                    {% elif item.tournament.status != 'upcoming' %}
+                        {% if item.tournament.status == 'ongoing' %}
+                        <span class="bg-yellow-500/20 text-yellow-300 px-4 py-2 rounded font-semibold border border-yellow-500 text-sm whitespace-nowrap block">
+                            🔴 Live
+                        </span>
+                        {% elif item.tournament.status == 'completed' %}
+                        <span class="bg-gray-700/40 text-gray-300 px-4 py-2 rounded font-semibold border border-gray-600 text-sm whitespace-nowrap block">
+                            🏆 Completed
+                        </span>
+                        {% else %}
+                        <span class="bg-gray-700/40 text-gray-300 px-4 py-2 rounded font-semibold border border-gray-600 text-sm whitespace-nowrap block">
+                            Not Open
+                        </span>
+                        {% endif %}
                     {% else %}
                         <a href="/join/{{ item.tournament.id }}/"
                            class="bg-cyan-400 text-black px-4 py-2 rounded font-semibold hover:bg-cyan-300 text-sm whitespace-nowrap block text-center">

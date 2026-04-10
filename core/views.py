@@ -176,6 +176,7 @@ def home(request):
     return render(request, 'home.html', {
         'tournament_data': tournament_data,
         'joined_tournaments': joined_tournaments,
+        'join_error': request.GET.get('join_error'),
     })
 
 
@@ -743,16 +744,16 @@ def join_tournament(request, tournament_id):
 
     # LOCK: not upcoming
     if tournament.status != 'upcoming':
-        return redirect('/')
+        return redirect('/?join_error=not_open')
 
     # LOCK: deadline passed
     if tournament.join_deadline and now > localtime(tournament.join_deadline):
-        return redirect('/?deadline=1')
+        return redirect('/?join_error=deadline')
 
     # LOCK: max players reached
     current_count = Participant.objects.filter(tournament=tournament).count()
     if current_count >= tournament.max_players:
-        return redirect('/?full=1')
+        return redirect('/?join_error=full')
 
     # PAID TOURNAMENT
     if tournament.is_paid:
