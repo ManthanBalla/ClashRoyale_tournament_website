@@ -100,6 +100,22 @@
         </a>
     </div>
 
+    <!-- RAZORPAY WALLET TOP-UP -->
+    <div class="rounded-xl border p-5 mb-6 bg-gray-900 border-gray-700">
+        <h2 class="text-lg font-bold text-cyan-400 mb-3">➕ Add Money to Wallet</h2>
+        <p class="text-gray-400 text-sm mb-4">Secure top-up via Razorpay (cards, UPI, netbanking).</p>
+
+        <div class="flex flex-col sm:flex-row gap-3">
+            <input id="topupAmount" type="number" min="10" step="1" placeholder="Enter amount (min ₹10)"
+                   class="flex-1 p-2.5 bg-gray-800 border border-gray-700 rounded focus:outline-none focus:border-cyan-400 text-white text-sm">
+            <button id="topupBtn" type="button"
+                    class="bg-cyan-400 text-black px-5 py-2.5 rounded font-bold hover:bg-cyan-300 transition">
+                Pay with Razorpay
+            </button>
+        </div>
+        <p id="topupMsg" class="text-xs mt-3 text-gray-400"></p>
+    </div>
+
     <!-- PLAN STATUS -->
     {% if profile.plan_active %}
     <div class="rounded-xl border p-4 mb-6"
@@ -214,5 +230,148 @@
     {% endif %}
 
 </div>
+
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script>
+function getCsrfToken() {
+    const name = 'csrftoken=';
+    const decoded = decodeURIComponent(document.cookie);
+    const parts = decoded.split(';');
+    for (let i = 0; i < parts.length; i++) {
+        const c = parts[i].trim();
+        if (c.indexOf(name) === 0) return c.substring(name.length, c.length);
+    }
+    return '';
+}
+
+const topupBtn = document.getElementById('topupBtn');
+const topupInput = document.getElementById('topupAmount');
+const topupMsg = document.getElementById('topupMsg');
+
+async function createOrder(amount) {
+    const res = await fetch('/payments/create-order/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken(),
+        },
+        body: JSON.stringify({ amount: amount })
+    });
+    return res.json();
+}
+
+async function verifyPayment(payload) {
+    const res = await fetch('/payments/verify/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken(),
+        },
+        body: JSON.stringify(payload)
+    });
+    return res.json();
+}
+
+async function markPaymentFailed(orderId, reason, rawError) {
+    await fetch('/payments/mark-failed/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken(),
+        },
+        body: JSON.stringify({
+            razorpay_order_id: orderId,
+            reason: reason,
+            raw_error: rawError || null
+        })
+    });
+}
+
+if (topupBtn) {
+    topupBtn.addEventListener('click', async function() {
+        const keyId = "{{ razorpay_key_id|default:'' }}";
+        const amount = Number(topupInput.value || 0);
+
+        if (!keyId) {
+            topupMsg.className = 'text-xs mt-3 text-red-400';
+            topupMsg.textContent = 'Payment gateway is not configured. Please contact support.';
+            return;
+        }
+        if (!amount || amount < 10) {
+            topupMsg.className = 'text-xs mt-3 text-red-400';
+            topupMsg.textContent = 'Please enter a valid amount (minimum ₹10).';
+            return;
+        }
+
+        topupBtn.disabled = true;
+        topupMsg.className = 'text-xs mt-3 text-gray-400';
+        topupMsg.textContent = 'Creating payment order...';
+
+        try {
+            const orderData = await createOrder(amount);
+            if (!orderData.ok) {
+                throw new Error(orderData.error || 'Could not create payment order.');
+            }
+
+            const options = {
+                key: orderData.key_id,
+                amount: orderData.amount_paise,
+                currency: orderData.currency,
+                name: 'Clash Arena',
+                description: 'Wallet Top-up',
+                order_id: orderData.order_id,
+                handler: async function (response) {
+                    topupMsg.className = 'text-xs mt-3 text-gray-400';
+                    topupMsg.textContent = 'Verifying payment...';
+
+                    const verifyData = await verifyPayment({
+                        razorpay_order_id: response.razorpay_order_id,
+                        razorpay_payment_id: response.razorpay_payment_id,
+                        razorpay_signature: response.razorpay_signature
+                    });
+
+                    if (verifyData.ok) {
+                        topupMsg.className = 'text-xs mt-3 text-green-400';
+                        topupMsg.textContent = verifyData.message + ' Reloading...';
+                        setTimeout(() => window.location.reload(), 800);
+                    } else {
+                        topupMsg.className = 'text-xs mt-3 text-red-400';
+                        topupMsg.textContent = verifyData.error || 'Payment verification failed.';
+                        topupBtn.disabled = false;
+                    }
+                },
+                modal: {
+                    ondismiss: function() {
+                        topupMsg.className = 'text-xs mt-3 text-yellow-400';
+                        topupMsg.textContent = 'Payment popup closed.';
+                        topupBtn.disabled = false;
+                    }
+                },
+                prefill: {
+                    name: "{{ request.user.first_name|default:'' }}",
+                    email: "{{ request.user.email|default:'' }}"
+                },
+                theme: {
+                    color: '#22d3ee'
+                }
+            };
+
+            const rzp = new Razorpay(options);
+            rzp.on('payment.failed', async function (resp) {
+                const msg = resp && resp.error && resp.error.description ? resp.error.description : 'Payment failed.';
+                topupMsg.className = 'text-xs mt-3 text-red-400';
+                topupMsg.textContent = msg;
+                await markPaymentFailed(orderData.order_id, 'payment_failed', resp && resp.error ? resp.error : null);
+                topupBtn.disabled = false;
+            });
+            rzp.open();
+        } catch (err) {
+            topupMsg.className = 'text-xs mt-3 text-red-400';
+            topupMsg.textContent = err.message || 'Something went wrong.';
+            topupBtn.disabled = false;
+        }
+    });
+}
+</script>
 
 {% endblock %}

@@ -9,7 +9,8 @@ from .views import (
     send_reward_code, grant_membership, subscription_view,
     delete_user, deactivate_membership, reactivate_membership,
     topup_wallet, notifications_view, mark_notification_read,
-    upload_results
+    upload_results, create_razorpay_order, verify_razorpay_payment,
+    mark_razorpay_payment_failed, razorpay_webhook
 )
 from django.contrib.auth import views as auth_views
 
@@ -23,6 +24,10 @@ urlpatterns = [
     path('subscription/', subscription_view, name='subscription'),
     path('notifications/', notifications_view, name='notifications'),
     path('notifications/read/<int:notification_id>/', mark_notification_read, name='mark_read'),
+    path('payments/create-order/', create_razorpay_order, name='create_razorpay_order'),
+    path('payments/verify/', verify_razorpay_payment, name='verify_razorpay_payment'),
+    path('payments/mark-failed/', mark_razorpay_payment_failed, name='mark_razorpay_payment_failed'),
+    path('payments/webhook/', razorpay_webhook, name='razorpay_webhook'),
 
     path('join/<int:tournament_id>/', join_tournament, name='join_tournament'),
     path('rules/<int:tournament_id>/', tournament_rules, name='tournament_rules'),

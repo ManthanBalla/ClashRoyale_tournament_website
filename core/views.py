@@ -2,15 +2,26 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
+from django.db import transaction
+from django.http import JsonResponse
 from django.utils import timezone
 from django.utils.timezone import localtime
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 from django.core.mail import send_mail
+from django.conf import settings
 from datetime import timedelta, datetime
 from decimal import Decimal
+import json
+import logging
 import random
 import pytz
+import razorpay
 
-from .models import Tournament, Participant, Match, Profile, WithdrawalRequest, RewardCode, CreatorMembership, Transaction, Notification
+from .models import Tournament, Participant, Match, Profile, WithdrawalRequest, RewardCode, CreatorMembership, Transaction, Notification, Payment
+
+
+logger = logging.getLogger(__name__)
 
 
 # ─── HELPERS ───────────────────────────────────────────────────────────────
@@ -220,6 +231,7 @@ def profile_view(request):
                     'memberships': memberships,
                     'transactions': transactions,
                     'recent_topup': recent_topup,
+                    'razorpay_key_id': settings.RAZORPAY_KEY_ID,
                     'error': 'This email is already used by another account.'
                 })
 
@@ -235,6 +247,7 @@ def profile_view(request):
             'memberships': memberships,
             'transactions': transactions,
             'recent_topup': recent_topup,
+            'razorpay_key_id': settings.RAZORPAY_KEY_ID,
             'success': 'Profile updated successfully!'
         })
 
@@ -244,7 +257,258 @@ def profile_view(request):
         'memberships': memberships,
         'transactions': transactions,
         'recent_topup': recent_topup,
+        'razorpay_key_id': settings.RAZORPAY_KEY_ID,
     })
+
+
+def _get_razorpay_client():
+    if not settings.RAZORPAY_KEY_ID or not settings.RAZORPAY_KEY_SECRET:
+        return None
+    return razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+
+
+@login_required
+@require_POST
+def create_razorpay_order(request):
+    try:
+        payload = json.loads(request.body.decode('utf-8') or '{}')
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'Invalid JSON payload.'}, status=400)
+
+    amount = payload.get('amount')
+    try:
+        amount_decimal = Decimal(str(amount))
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'Invalid amount.'}, status=400)
+
+    if amount_decimal <= 0:
+        return JsonResponse({'ok': False, 'error': 'Amount must be greater than 0.'}, status=400)
+    if amount_decimal < Decimal('10.00') or amount_decimal > Decimal('50000.00'):
+        return JsonResponse({'ok': False, 'error': 'Amount must be between ₹10 and ₹50,000.'}, status=400)
+
+    client = _get_razorpay_client()
+    if not client:
+        logger.error("Razorpay keys missing while creating order for user_id=%s", request.user.id)
+        return JsonResponse({'ok': False, 'error': 'Payment gateway not configured.'}, status=500)
+
+    amount_paise = int(amount_decimal * 100)
+    receipt = f"wallet_{request.user.id}_{int(timezone.now().timestamp())}"
+
+    try:
+        order = client.order.create({
+            'amount': amount_paise,
+            'currency': 'INR',
+            'receipt': receipt,
+            'payment_capture': 1,
+            'notes': {
+                'user_id': str(request.user.id),
+                'purpose': 'wallet_topup',
+            }
+        })
+    except Exception:
+        logger.exception("Razorpay order creation failed for user_id=%s", request.user.id)
+        return JsonResponse({'ok': False, 'error': 'Could not create payment order.'}, status=502)
+
+    payment = Payment.objects.create(
+        user=request.user,
+        amount=amount_decimal,
+        razorpay_order_id=order.get('id'),
+        status='created',
+        raw_payload={'create_order_response': order}
+    )
+    logger.info(
+        "Payment order created payment_id=%s user_id=%s order_id=%s amount=%s",
+        payment.id, request.user.id, payment.razorpay_order_id, payment.amount
+    )
+
+    return JsonResponse({
+        'ok': True,
+        'payment_id': payment.id,
+        'order_id': order.get('id'),
+        'amount_paise': amount_paise,
+        'currency': 'INR',
+        'key_id': settings.RAZORPAY_KEY_ID,
+    })
+
+
+@login_required
+@require_POST
+def verify_razorpay_payment(request):
+    try:
+        payload = json.loads(request.body.decode('utf-8') or '{}')
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'Invalid JSON payload.'}, status=400)
+
+    order_id = payload.get('razorpay_order_id')
+    payment_id = payload.get('razorpay_payment_id')
+    signature = payload.get('razorpay_signature')
+
+    if not order_id or not payment_id or not signature:
+        return JsonResponse({'ok': False, 'error': 'Missing payment verification fields.'}, status=400)
+
+    client = _get_razorpay_client()
+    if not client:
+        logger.error("Razorpay keys missing while verifying payment for user_id=%s", request.user.id)
+        return JsonResponse({'ok': False, 'error': 'Payment gateway not configured.'}, status=500)
+
+    try:
+        client.utility.verify_payment_signature({
+            'razorpay_order_id': order_id,
+            'razorpay_payment_id': payment_id,
+            'razorpay_signature': signature,
+        })
+    except Exception:
+        logger.exception("Signature verification failed user_id=%s order_id=%s", request.user.id, order_id)
+        Payment.objects.filter(
+            user=request.user, razorpay_order_id=order_id, status='created'
+        ).update(status='failed', failure_reason='signature_verification_failed')
+        return JsonResponse({'ok': False, 'error': 'Signature verification failed.'}, status=400)
+
+    try:
+        gateway_payment = client.payment.fetch(payment_id)
+    except Exception:
+        logger.exception("Could not fetch payment from Razorpay payment_id=%s", payment_id)
+        return JsonResponse({'ok': False, 'error': 'Unable to validate payment details.'}, status=502)
+
+    try:
+        with transaction.atomic():
+            payment = Payment.objects.select_for_update().get(
+                user=request.user,
+                razorpay_order_id=order_id
+            )
+
+            if payment.wallet_credited:
+                logger.info("Duplicate verify callback ignored payment_id=%s", payment.id)
+                return JsonResponse({
+                    'ok': True,
+                    'message': 'Payment already processed.',
+                    'new_balance': str(request.user.profile.reward_balance),
+                })
+
+            expected_amount_paise = int(payment.amount * 100)
+            if (
+                gateway_payment.get('status') != 'captured'
+                or gateway_payment.get('order_id') != order_id
+                or int(gateway_payment.get('amount', 0)) != expected_amount_paise
+            ):
+                payment.status = 'failed'
+                payment.failure_reason = 'payment_mismatch_or_not_captured'
+                payment.raw_payload = {
+                    'verify_payload': payload,
+                    'gateway_payment': gateway_payment,
+                }
+                payment.save(update_fields=['status', 'failure_reason', 'raw_payload', 'updated_at'])
+                logger.warning(
+                    "Payment mismatch user_id=%s payment_row=%s order_id=%s payment_id=%s",
+                    request.user.id, payment.id, order_id, payment_id
+                )
+                return JsonResponse({'ok': False, 'error': 'Payment validation failed.'}, status=400)
+
+            profile = Profile.objects.select_for_update().get(user=request.user)
+            profile.reward_balance += payment.amount
+            profile.save(update_fields=['reward_balance'])
+
+            payment.razorpay_payment_id = payment_id
+            payment.razorpay_signature = signature
+            payment.status = 'success'
+            payment.wallet_credited = True
+            payment.raw_payload = {
+                'verify_payload': payload,
+                'gateway_payment': gateway_payment,
+            }
+            payment.failure_reason = None
+            payment.save(update_fields=[
+                'razorpay_payment_id',
+                'razorpay_signature',
+                'status',
+                'wallet_credited',
+                'raw_payload',
+                'failure_reason',
+                'updated_at',
+            ])
+
+            add_transaction(
+                request.user,
+                'credit',
+                'admin_topup',
+                payment.amount,
+                f'💳 Razorpay wallet top-up successful — ₹{payment.amount}'
+            )
+    except Payment.DoesNotExist:
+        logger.warning(
+            "Payment row missing for verify user_id=%s order_id=%s payment_id=%s",
+            request.user.id, order_id, payment_id
+        )
+        return JsonResponse({'ok': False, 'error': 'Order not found.'}, status=404)
+
+    logger.info(
+        "Wallet credited user_id=%s order_id=%s payment_id=%s amount=%s",
+        request.user.id, order_id, payment_id, payment.amount
+    )
+    return JsonResponse({
+        'ok': True,
+        'message': 'Wallet top-up successful.',
+        'new_balance': str(profile.reward_balance),
+    })
+
+
+@login_required
+@require_POST
+def mark_razorpay_payment_failed(request):
+    try:
+        payload = json.loads(request.body.decode('utf-8') or '{}')
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'Invalid JSON payload.'}, status=400)
+
+    order_id = payload.get('razorpay_order_id')
+    reason = (payload.get('reason') or 'payment_failed')[:255]
+    raw_error = payload.get('raw_error')
+    if not order_id:
+        return JsonResponse({'ok': False, 'error': 'Order ID is required.'}, status=400)
+
+    updated = Payment.objects.filter(
+        user=request.user,
+        razorpay_order_id=order_id,
+        wallet_credited=False
+    ).update(
+        status='failed',
+        failure_reason=reason,
+        raw_payload={'frontend_failure': raw_error} if raw_error else {'frontend_failure': reason}
+    )
+    logger.warning(
+        "Payment failed marked user_id=%s order_id=%s updated=%s reason=%s",
+        request.user.id, order_id, updated, reason
+    )
+    return JsonResponse({'ok': True})
+
+
+@csrf_exempt
+@require_POST
+def razorpay_webhook(request):
+    webhook_secret = settings.RAZORPAY_WEBHOOK_SECRET
+    if not webhook_secret:
+        return JsonResponse({'ok': False, 'error': 'Webhook is not configured.'}, status=400)
+
+    signature = request.headers.get('X-Razorpay-Signature')
+    body = request.body
+
+    client = _get_razorpay_client()
+    if not client:
+        return JsonResponse({'ok': False, 'error': 'Payment gateway not configured.'}, status=500)
+
+    try:
+        client.utility.verify_webhook_signature(body, signature, webhook_secret)
+    except Exception:
+        logger.exception("Invalid Razorpay webhook signature.")
+        return JsonResponse({'ok': False, 'error': 'Invalid webhook signature.'}, status=400)
+
+    try:
+        event = json.loads(body.decode('utf-8'))
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'Invalid webhook JSON.'}, status=400)
+
+    logger.info("Razorpay webhook received event=%s", event.get('event'))
+    return JsonResponse({'ok': True})
 
 
 # ─── WITHDRAW ──────────────────────────────────────────────────────────────
