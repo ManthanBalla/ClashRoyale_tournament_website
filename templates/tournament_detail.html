@@ -253,40 +253,6 @@
         {% endif %}
     {% endif %}
 
-    <!-- MATCHES -->
-    <h2 class="text-lg font-bold text-green-400 mb-3">⚔️ Matches</h2>
-    <div class="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden mb-5">
-        {% for match in matches %}
-        <div class="p-4 border-b border-gray-800">
-            <div class="flex items-center justify-between gap-2">
-                <span class="text-white font-semibold text-sm flex-1 text-center">{{ match.player1.username }}</span>
-                <span class="text-gray-500 text-xs font-bold px-2">VS</span>
-                <span class="text-white font-semibold text-sm flex-1 text-center">{{ match.player2.username }}</span>
-            </div>
-            {% if match.winner %}
-                <p class="text-green-400 text-xs text-center mt-2">🏆 Winner: {{ match.winner.username }}</p>
-            {% elif user.is_authenticated %}
-                {% if user.profile.is_admin or user == tournament.creator %}
-                <form method="POST" action="/submit-result/{{ match.id }}/" class="flex gap-2 mt-3">
-                    {% csrf_token %}
-                    <select name="winner"
-                            class="flex-1 p-2 bg-gray-800 border border-gray-700 rounded text-white text-xs focus:outline-none">
-                        <option value="{{ match.player1.id }}">{{ match.player1.username }}</option>
-                        <option value="{{ match.player2.id }}">{{ match.player2.username }}</option>
-                    </select>
-                    <button type="submit"
-                            class="bg-green-500 text-white px-3 py-2 rounded font-bold text-xs hover:bg-green-400 transition">
-                        ✅ Set Winner
-                    </button>
-                </form>
-                {% endif %}
-            {% endif %}
-        </div>
-        {% empty %}
-        <p class="text-gray-500 p-5 text-sm">No matches yet.</p>
-        {% endfor %}
-    </div>
-
     <!-- PLAYERS -->
     {% if tournament.show_participants %}
     <h2 class="text-lg font-bold text-yellow-400 mb-3">👥 Players ({{ count }})</h2>
@@ -352,7 +318,7 @@
 
     <div class="flex items-center justify-center min-h-screen px-4">
 
-        <div class="bg-gray-900 rounded-2xl w-full max-w-sm p-5 relative border border-gray-700 shadow-2xl">
+        <div class="bg-gray-900 rounded-2xl w-full max-w-3xl p-4 sm:p-5 relative border border-gray-700 shadow-2xl">
 
             <button onclick="closeGuide()"
                     class="absolute top-3 right-4 text-gray-400 text-2xl hover:text-white leading-none">
@@ -372,11 +338,10 @@
             </div>
 
             <!-- SLIDE IMAGE -->
-            <div class="w-full bg-black rounded-xl overflow-hidden mb-4 border border-gray-700"
-                 style="min-height: 180px; display:flex; align-items:center; justify-content:center;">
+            <div class="w-full bg-black rounded-xl overflow-hidden mb-4 border border-gray-700 flex items-center justify-center h-[52vh] sm:h-[58vh] md:h-[62vh] max-h-[640px]">
                 <img id="slideImage"
-                     class="w-full h-auto object-contain"
-                     style="max-height: 220px;"
+                     class="w-full h-full object-contain"
+                     style="image-rendering:auto;"
                      alt="Step image">
             </div>
 

@@ -70,6 +70,33 @@ def parse_and_convert(dt_str, tz_choice):
         return dt_str
 
 
+def sync_tournament_status(tournament, now=None):
+    """
+    Keep tournament.status aligned with time:
+    - before start: upcoming
+    - between start and end: ongoing
+    - after end: completed
+    Cancelled/completed remain final states.
+    """
+    if tournament.status in ('cancelled', 'completed'):
+        return tournament.status
+
+    now = now or timezone.now()
+
+    if tournament.end_time and now >= tournament.end_time:
+        expected_status = 'completed'
+    elif tournament.start_time and now >= tournament.start_time:
+        expected_status = 'ongoing'
+    else:
+        expected_status = 'upcoming'
+
+    if tournament.status != expected_status:
+        tournament.status = expected_status
+        tournament.save(update_fields=['status'])
+
+    return tournament.status
+
+
 # ─── AUTH ──────────────────────────────────────────────────────────────────
 
 def home(request):
@@ -82,6 +109,7 @@ def home(request):
 
     tournament_data = []
     for t in tournaments:
+        sync_tournament_status(t)
         count = Participant.objects.filter(tournament=t).count()
         tournament_data.append({
             'tournament': t,
@@ -395,22 +423,25 @@ def join_tournament(request, tournament_id):
         return redirect(f'/rules/{tournament.id}/')
 
     # FREE TOURNAMENT
+    # FREE TOURNAMENT — password reveal
     show_password = False
     if tournament.start_time:
-        if now >= tournament.start_time - timedelta(minutes=10):
+        now_utc = timezone.now()
+        if now_utc >= tournament.start_time - timedelta(minutes=10):
             show_password = True
 
     if tournament.password:
-        if request.method == "POST" and show_password:
+        if request.method == "POST":
             entered_password = request.POST.get('password')
-            if entered_password != tournament.password:
+            if entered_password == tournament.password:
+                Participant.objects.create(user=request.user, tournament=tournament)
+                return redirect(f'/tournament/{tournament.id}/')
+            else:
                 return render(request, 'enter_password.html', {
                     'tournament': tournament,
-                    'error': 'Wrong password',
+                    'error': 'Wrong password ❌',
                     'show_password': show_password
                 })
-            Participant.objects.create(user=request.user, tournament=tournament)
-            return redirect(f'/tournament/{tournament.id}/')
         return render(request, 'enter_password.html', {
             'tournament': tournament,
             'show_password': show_password
@@ -548,6 +579,7 @@ def edit_tournament(request, tournament_id):
 
 def tournament_detail(request, tournament_id):
     tournament = get_object_or_404(Tournament, id=tournament_id)
+    sync_tournament_status(tournament)
     participants = Participant.objects.filter(tournament=tournament)
     matches = Match.objects.filter(tournament=tournament)
     now = localtime()
@@ -555,7 +587,8 @@ def tournament_detail(request, tournament_id):
 
     show_password = False
     if tournament.start_time:
-        if now >= tournament.start_time - timedelta(minutes=10):
+        now_utc = timezone.now()
+        if now_utc >= tournament.start_time - timedelta(minutes=10):
             show_password = True
 
     joined_tournaments = []
@@ -806,6 +839,7 @@ def creator_admin(request):
 
     tournament_data = []
     for t in tournaments:
+        sync_tournament_status(t)
         count = Participant.objects.filter(tournament=t).count()
         tournament_data.append({'tournament': t, 'count': count})
 

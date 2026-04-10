@@ -8,7 +8,7 @@
           class="bg-gray-900 p-6 rounded-xl w-full max-w-lg shadow-lg border border-gray-700">
         {% csrf_token %}
 
-        <h2 class="text-2xl text-yellow-400 mb-2 text-center font-bold">⚔️ Host Tournament</h2>
+        <h2 class="text-2xl text-yellow-400 mb-5 text-center font-bold">⚔️ Host Tournament</h2>
 
         {% if error %}
         <div class="bg-red-500/10 border border-red-500/40 rounded-lg px-4 py-3 mb-4">
@@ -16,7 +16,6 @@
         </div>
         {% endif %}
 
-        <!-- PLAN USAGE (non-admin creators) -->
         {% if not request.user.profile.is_admin %}
         <div class="bg-gray-800 rounded-lg px-4 py-3 mb-4 border border-gray-700 text-xs text-gray-400 flex justify-between">
             <span>Tournaments used this month</span>
@@ -26,7 +25,7 @@
         </div>
         {% endif %}
 
-        <!-- SECTION: BASIC INFO -->
+        <!-- BASIC INFO -->
         <p class="text-gray-500 text-xs uppercase tracking-widest mb-3">📋 Basic Info</p>
 
         <label class="text-gray-400 text-sm mb-1 block">Tournament Name *</label>
@@ -43,64 +42,54 @@
                   rows="3"
                   class="w-full p-2.5 mb-4 bg-gray-800 border border-gray-700 rounded focus:outline-none focus:border-cyan-400 text-white text-sm resize-none"></textarea>
 
-        <!-- SECTION: TOURNAMENT TYPE -->
+        <!-- TOURNAMENT TYPE -->
         <p class="text-gray-500 text-xs uppercase tracking-widest mb-3">🎮 Tournament Type</p>
 
         <div class="grid grid-cols-2 gap-3 mb-4">
-            <label class="cursor-pointer">
-                <input type="radio" name="is_paid" value="free" checked
-                       onchange="switchType('free')" class="hidden" id="typeFree">
-                <div id="labelFree"
-                     class="border-2 border-cyan-400 bg-cyan-400/10 rounded-xl p-3 text-center transition">
-                    <p class="text-2xl mb-1">🆓</p>
-                    <p class="text-cyan-400 font-bold text-sm">Free</p>
-                    <p class="text-gray-400 text-xs">No entry fee</p>
-                </div>
-            </label>
-            <label class="cursor-pointer">
-                <input type="radio" name="is_paid" value="paid"
-                       onchange="switchType('paid')" class="hidden" id="typePaid">
-                <div id="labelPaid"
-                     class="border-2 border-gray-700 bg-gray-800 rounded-xl p-3 text-center transition">
-                    <p class="text-2xl mb-1">💰</p>
-                    <p class="text-gray-400 font-bold text-sm">Paid</p>
-                    <p class="text-gray-500 text-xs">Entry fee required</p>
-                </div>
-            </label>
+            <div onclick="switchType('free')" id="cardFree"
+                 class="cursor-pointer border-2 border-cyan-400 bg-cyan-400/10 rounded-xl p-3 text-center transition">
+                <p class="text-2xl mb-1">🆓</p>
+                <p class="text-cyan-400 font-bold text-sm">Free</p>
+                <p class="text-gray-400 text-xs">No entry fee</p>
+            </div>
+            <div onclick="switchType('paid')" id="cardPaid"
+                 class="cursor-pointer border-2 border-gray-700 bg-gray-800 rounded-xl p-3 text-center transition">
+                <p class="text-2xl mb-1">💰</p>
+                <p class="text-gray-400 font-bold text-sm">Paid</p>
+                <p class="text-gray-500 text-xs">Entry fee required</p>
+            </div>
         </div>
 
-        <!-- FREE TOURNAMENT REWARD -->
+        <!-- Hidden input to track type -->
+        <input type="hidden" name="is_paid" id="isPaidInput" value="free">
+
+        <!-- FREE SECTION -->
         <div id="freeSection">
             <p class="text-gray-500 text-xs uppercase tracking-widest mb-3">🎁 Reward</p>
 
-            <label class="text-gray-400 text-sm mb-1 block">Reward Type</label>
             <div class="grid grid-cols-3 gap-2 mb-3">
-                <label class="cursor-pointer">
-                    <input type="radio" name="reward_type" value="cash" class="hidden rewardType" onchange="selectRewardType(this)">
-                    <div class="reward-btn border border-gray-700 rounded-lg p-2 text-center text-xs hover:border-yellow-400 transition">
-                        <p>💵</p><p class="text-gray-400">Cash</p>
-                    </div>
-                </label>
-                <label class="cursor-pointer">
-                    <input type="radio" name="reward_type" value="gift_card" class="hidden rewardType" onchange="selectRewardType(this)">
-                    <div class="reward-btn border border-gray-700 rounded-lg p-2 text-center text-xs hover:border-yellow-400 transition">
-                        <p>🎁</p><p class="text-gray-400">Gift Card</p>
-                    </div>
-                </label>
-                <label class="cursor-pointer">
-                    <input type="radio" name="reward_type" value="ingame" class="hidden rewardType" checked onchange="selectRewardType(this)">
-                    <div class="reward-btn border border-yellow-400 bg-yellow-400/10 rounded-lg p-2 text-center text-xs transition">
-                        <p>🎮</p><p class="text-yellow-400">In-Game</p>
-                    </div>
-                </label>
+                <div onclick="selectRewardType(this, 'cash')"
+                     class="reward-btn cursor-pointer border border-gray-700 rounded-lg p-2 text-center text-xs hover:border-yellow-400 transition">
+                    <p>💵</p><p class="text-gray-400 mt-1">Cash</p>
+                </div>
+                <div onclick="selectRewardType(this, 'gift_card')"
+                     class="reward-btn cursor-pointer border border-gray-700 rounded-lg p-2 text-center text-xs hover:border-yellow-400 transition">
+                    <p>🎁</p><p class="text-gray-400 mt-1">Gift Card</p>
+                </div>
+                <div onclick="selectRewardType(this, 'ingame')"
+                     id="defaultReward"
+                     class="reward-btn cursor-pointer border border-yellow-400 bg-yellow-400/10 rounded-lg p-2 text-center text-xs transition">
+                    <p>🎮</p><p class="text-yellow-400 mt-1">In-Game</p>
+                </div>
             </div>
+            <input type="hidden" name="reward_type" id="rewardTypeInput" value="ingame">
 
             <label class="text-gray-400 text-sm mb-1 block">Reward Details <span class="text-gray-500">(optional)</span></label>
-            <input type="text" name="reward" placeholder="e.g. 500 Gems, Google Play ₹500 code"
+            <input type="text" name="reward" placeholder="e.g. 500 Gems, Google Play ₹500"
                    class="w-full p-2.5 mb-4 bg-gray-800 border border-gray-700 rounded focus:outline-none focus:border-yellow-400 text-white text-sm">
         </div>
 
-        <!-- PAID TOURNAMENT SECTION -->
+        <!-- PAID SECTION -->
         <div id="paidSection" class="hidden">
             <p class="text-gray-500 text-xs uppercase tracking-widest mb-3">💰 Paid Settings</p>
 
@@ -109,8 +98,8 @@
                    oninput="updatePrizePreview()"
                    class="w-full p-2.5 mb-3 bg-gray-800 border border-gray-700 rounded focus:outline-none focus:border-yellow-400 text-white text-sm">
 
-            <!-- LIVE PRIZE POOL PREVIEW -->
-            <div class="bg-gradient-to-r from-yellow-400/10 to-green-400/10 border border-yellow-400/30 rounded-xl p-4 mb-4">
+            <div class="rounded-xl p-4 mb-4 border"
+                 style="background:linear-gradient(135deg,rgba(234,179,8,0.1),rgba(52,211,153,0.1)); border-color:rgba(234,179,8,0.3);">
                 <p class="text-gray-400 text-xs mb-2 uppercase tracking-widest">Live Prize Pool Preview</p>
                 <div class="grid grid-cols-3 gap-2 text-center">
                     <div>
@@ -126,13 +115,22 @@
                         <p id="previewMax" class="text-cyan-400 font-bold text-lg">₹0</p>
                     </div>
                 </div>
-                <p class="text-gray-500 text-xs text-center mt-2">Prize pool = Entry Fee × Players joined</p>
+                <p class="text-gray-500 text-xs text-center mt-2">Prize = Entry Fee × Players joined</p>
             </div>
 
-            <!-- PAID DISCLAIMER -->
-            <div class="bg-red-500/10 border border-red-500/30 rounded-xl p-4 mb-4">
-                <p class="text-red-400 text-xs font-bold mb-1">⚠️ Paid Tournament Disclaimer</p>
-                <p class="text-gray-400 text-xs">Prize pool depends on number of players who join. If minimum players are not reached, all entry fees will be fully refunded to wallets.</p>
+            <div class="rounded-xl p-3 mb-4 border"
+                 style="background:rgba(248,113,113,0.08); border-color:rgba(248,113,113,0.3);">
+                <p class="text-red-400 text-xs">⚠️ Prize pool depends on players who join. Full refund if minimum not reached.</p>
+            </div>
+
+            <!-- Paid disclaimer — NOT required, just a visual checkbox -->
+            <div class="flex items-start gap-3 mb-4">
+                <input type="checkbox" id="creatorAgreedCheckbox"
+                       class="mt-1 accent-yellow-400">
+                <label for="creatorAgreedCheckbox" class="text-gray-400 text-xs cursor-pointer">
+                    I agree that the prize pool is dynamic and depends on players who join.
+                    If minimum players are not reached, all fees will be refunded automatically.
+                </label>
             </div>
         </div>
 
@@ -142,21 +140,18 @@
         <!-- TIMEZONE -->
         <label class="text-gray-400 text-sm mb-1 block">Time Zone *</label>
         <div class="grid grid-cols-2 gap-3 mb-3">
-            <label class="cursor-pointer">
-                <input type="radio" name="timezone_choice" value="IST" checked class="hidden" id="tzIST" onchange="switchTZ('IST')">
-                <div id="labelIST" class="border-2 border-cyan-400 bg-cyan-400/10 rounded-xl p-3 text-center transition">
-                    <p class="text-cyan-400 font-bold text-sm">🇮🇳 IST</p>
-                    <p class="text-gray-400 text-xs">India Standard Time</p>
-                </div>
-            </label>
-            <label class="cursor-pointer">
-                <input type="radio" name="timezone_choice" value="UTC" class="hidden" id="tzUTC" onchange="switchTZ('UTC')">
-                <div id="labelUTC" class="border-2 border-gray-700 bg-gray-800 rounded-xl p-3 text-center transition">
-                    <p class="text-gray-400 font-bold text-sm">🌍 UTC</p>
-                    <p class="text-gray-500 text-xs">Universal Time</p>
-                </div>
-            </label>
+            <div onclick="switchTZ('IST')" id="cardIST"
+                 class="cursor-pointer border-2 border-cyan-400 bg-cyan-400/10 rounded-xl p-3 text-center transition">
+                <p class="text-cyan-400 font-bold text-sm">🇮🇳 IST</p>
+                <p class="text-gray-400 text-xs">India Standard Time</p>
+            </div>
+            <div onclick="switchTZ('UTC')" id="cardUTC"
+                 class="cursor-pointer border-2 border-gray-700 bg-gray-800 rounded-xl p-3 text-center transition">
+                <p class="text-gray-400 font-bold text-sm">🌍 UTC</p>
+                <p class="text-gray-500 text-xs">Universal Time</p>
+            </div>
         </div>
+        <input type="hidden" name="timezone_choice" id="timezoneInput" value="IST">
 
         <div class="grid grid-cols-2 gap-3 mb-3">
             <div>
@@ -187,7 +182,7 @@
         </div>
 
         <div class="mb-3">
-            <label class="text-gray-400 text-sm mb-1 block">Join Deadline</label>
+            <label class="text-gray-400 text-sm mb-1 block">Join Deadline <span class="text-gray-500">(optional)</span></label>
             <input type="datetime-local" name="join_deadline"
                    class="w-full p-2.5 bg-gray-800 border border-gray-700 rounded focus:outline-none focus:border-cyan-400 text-white text-sm">
         </div>
@@ -204,27 +199,14 @@
             </div>
             <label class="relative inline-flex items-center cursor-pointer">
                 <input type="checkbox" name="show_participants" checked class="sr-only peer">
-                <div class="w-11 h-6 bg-gray-600 peer-checked:bg-cyan-400 rounded-full transition peer-focus:outline-none"></div>
+                <div class="w-11 h-6 bg-gray-600 peer-checked:bg-cyan-400 rounded-full transition"></div>
                 <div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition peer-checked:translate-x-5"></div>
             </label>
         </div>
 
-        <!-- PROOF IMAGE -->
         <label class="text-gray-400 text-sm mb-1 block">Proof Image <span class="text-gray-500">(optional)</span></label>
         <input type="file" name="proof_image" accept="image/*"
                class="w-full p-2.5 mb-5 bg-gray-800 border border-gray-700 rounded text-gray-400 text-sm">
-
-        <!-- PAID AGREE CHECKBOX -->
-        <div id="agreeSection" class="hidden mb-4">
-            <label class="flex items-start gap-3 cursor-pointer">
-                <input type="checkbox" name="creator_agreed" id="creatorAgreed" required
-                       class="mt-1 accent-yellow-400">
-                <span class="text-gray-400 text-xs">
-                    I agree that the prize pool is dynamic and depends on the number of players who join.
-                    If minimum players are not reached, all fees will be refunded automatically.
-                </span>
-            </label>
-        </div>
 
         <button type="submit"
                 class="w-full bg-yellow-400 text-black py-2.5 rounded font-bold hover:bg-yellow-300 transition text-base">
@@ -236,64 +218,72 @@
 </div>
 
 <script>
+// ── TYPE SWITCH ──────────────────────────────────────────
 function switchType(type) {
     const freeSection = document.getElementById('freeSection');
     const paidSection = document.getElementById('paidSection');
-    const agreeSection = document.getElementById('agreeSection');
-    const labelFree = document.getElementById('labelFree');
-    const labelPaid = document.getElementById('labelPaid');
+    const cardFree = document.getElementById('cardFree');
+    const cardPaid = document.getElementById('cardPaid');
+    const isPaidInput = document.getElementById('isPaidInput');
+
+    isPaidInput.value = type;
 
     if (type === 'paid') {
         freeSection.classList.add('hidden');
         paidSection.classList.remove('hidden');
-        agreeSection.classList.remove('hidden');
-        labelPaid.className = 'border-2 border-yellow-400 bg-yellow-400/10 rounded-xl p-3 text-center transition';
-        labelPaid.querySelector('p:nth-child(2)').className = 'text-yellow-400 font-bold text-sm';
-        labelFree.className = 'border-2 border-gray-700 bg-gray-800 rounded-xl p-3 text-center transition';
-        labelFree.querySelector('p:nth-child(2)').className = 'text-gray-400 font-bold text-sm';
+        cardPaid.className = 'cursor-pointer border-2 border-yellow-400 bg-yellow-400/10 rounded-xl p-3 text-center transition';
+        cardPaid.querySelector('p:nth-child(2)').className = 'text-yellow-400 font-bold text-sm';
+        cardFree.className = 'cursor-pointer border-2 border-gray-700 bg-gray-800 rounded-xl p-3 text-center transition';
+        cardFree.querySelector('p:nth-child(2)').className = 'text-gray-400 font-bold text-sm';
     } else {
         freeSection.classList.remove('hidden');
         paidSection.classList.add('hidden');
-        agreeSection.classList.add('hidden');
-        labelFree.className = 'border-2 border-cyan-400 bg-cyan-400/10 rounded-xl p-3 text-center transition';
-        labelFree.querySelector('p:nth-child(2)').className = 'text-cyan-400 font-bold text-sm';
-        labelPaid.className = 'border-2 border-gray-700 bg-gray-800 rounded-xl p-3 text-center transition';
-        labelPaid.querySelector('p:nth-child(2)').className = 'text-gray-400 font-bold text-sm';
+        cardFree.className = 'cursor-pointer border-2 border-cyan-400 bg-cyan-400/10 rounded-xl p-3 text-center transition';
+        cardFree.querySelector('p:nth-child(2)').className = 'text-cyan-400 font-bold text-sm';
+        cardPaid.className = 'cursor-pointer border-2 border-gray-700 bg-gray-800 rounded-xl p-3 text-center transition';
+        cardPaid.querySelector('p:nth-child(2)').className = 'text-gray-400 font-bold text-sm';
     }
 }
 
-function updatePrizePreview() {
-    const fee = parseFloat(document.getElementById('entryFee').value) || 0;
-    const min = parseInt(document.getElementById('minPlayers').value) || 2;
-    const max = parseInt(document.getElementById('maxPlayers').value) || 100;
-
-    document.getElementById('previewMin').innerText = '₹' + (fee * min).toLocaleString('en-IN');
-    document.getElementById('preview50').innerText = '₹' + (fee * 50).toLocaleString('en-IN');
-    document.getElementById('previewMax').innerText = '₹' + (fee * max).toLocaleString('en-IN');
-}
-
-function selectRewardType(input) {
-    document.querySelectorAll('.reward-btn').forEach(btn => {
-        btn.className = 'reward-btn border border-gray-700 rounded-lg p-2 text-center text-xs hover:border-yellow-400 transition';
-        btn.querySelector('p:last-child').className = 'text-gray-400';
-    });
-    const selected = input.closest('label').querySelector('.reward-btn');
-    selected.className = 'reward-btn border border-yellow-400 bg-yellow-400/10 rounded-lg p-2 text-center text-xs transition';
-    selected.querySelector('p:last-child').className = 'text-yellow-400';
-}
+// ── TIMEZONE SWITCH ──────────────────────────────────────
 function switchTZ(tz) {
-    const labelIST = document.getElementById('labelIST');
-    const labelUTC = document.getElementById('labelUTC');
+    const cardIST = document.getElementById('cardIST');
+    const cardUTC = document.getElementById('cardUTC');
+    document.getElementById('timezoneInput').value = tz;
+
     if (tz === 'IST') {
-        labelIST.className = 'border-2 border-cyan-400 bg-cyan-400/10 rounded-xl p-3 text-center transition';
-        labelIST.querySelector('p').className = 'text-cyan-400 font-bold text-sm';
-        labelUTC.className = 'border-2 border-gray-700 bg-gray-800 rounded-xl p-3 text-center transition';
-        labelUTC.querySelector('p').className = 'text-gray-400 font-bold text-sm';
+        cardIST.className = 'cursor-pointer border-2 border-cyan-400 bg-cyan-400/10 rounded-xl p-3 text-center transition';
+        cardIST.querySelector('p').className = 'text-cyan-400 font-bold text-sm';
+        cardUTC.className = 'cursor-pointer border-2 border-gray-700 bg-gray-800 rounded-xl p-3 text-center transition';
+        cardUTC.querySelector('p').className = 'text-gray-400 font-bold text-sm';
     } else {
-        labelUTC.className = 'border-2 border-cyan-400 bg-cyan-400/10 rounded-xl p-3 text-center transition';
-        labelUTC.querySelector('p').className = 'text-cyan-400 font-bold text-sm';
-        labelIST.className = 'border-2 border-gray-700 bg-gray-800 rounded-xl p-3 text-center transition';
-        labelIST.querySelector('p').className = 'text-gray-400 font-bold text-sm';
+        cardUTC.className = 'cursor-pointer border-2 border-cyan-400 bg-cyan-400/10 rounded-xl p-3 text-center transition';
+        cardUTC.querySelector('p').className = 'text-cyan-400 font-bold text-sm';
+        cardIST.className = 'cursor-pointer border-2 border-gray-700 bg-gray-800 rounded-xl p-3 text-center transition';
+        cardIST.querySelector('p').className = 'text-gray-400 font-bold text-sm';
+    }
+}
+
+// ── REWARD TYPE ──────────────────────────────────────────
+function selectRewardType(el, type) {
+    document.querySelectorAll('.reward-btn').forEach(btn => {
+        btn.className = 'reward-btn cursor-pointer border border-gray-700 rounded-lg p-2 text-center text-xs hover:border-yellow-400 transition';
+        btn.querySelector('p:last-child').className = 'text-gray-400 mt-1';
+    });
+    el.className = 'reward-btn cursor-pointer border border-yellow-400 bg-yellow-400/10 rounded-lg p-2 text-center text-xs transition';
+    el.querySelector('p:last-child').className = 'text-yellow-400 mt-1';
+    document.getElementById('rewardTypeInput').value = type;
+}
+
+// ── PRIZE PREVIEW ────────────────────────────────────────
+function updatePrizePreview() {
+    const fee = parseFloat(document.getElementById('entryFee')?.value) || 0;
+    const min = parseInt(document.getElementById('minPlayers')?.value) || 2;
+    const max = parseInt(document.getElementById('maxPlayers')?.value) || 100;
+    if (document.getElementById('previewMin')) {
+        document.getElementById('previewMin').innerText = '₹' + (fee * min).toLocaleString('en-IN');
+        document.getElementById('preview50').innerText = '₹' + (fee * 50).toLocaleString('en-IN');
+        document.getElementById('previewMax').innerText = '₹' + (fee * max).toLocaleString('en-IN');
     }
 }
 </script>
