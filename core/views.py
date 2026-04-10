@@ -6,6 +6,7 @@ from django.db import transaction
 from django.http import JsonResponse
 from django.utils import timezone
 from django.utils.timezone import localtime
+from django.core.cache import cache
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.core.mail import send_mail
@@ -18,7 +19,7 @@ import random
 import pytz
 import razorpay
 
-from .models import Tournament, Participant, Match, Profile, WithdrawalRequest, RewardCode, CreatorMembership, Transaction, Notification, Payment
+from .models import Tournament, Participant, Match, Profile, WithdrawalRequest, RewardCode, CreatorMembership, Transaction, Notification, Payment, DisputeReport
 
 
 logger = logging.getLogger(__name__)
@@ -26,26 +27,59 @@ logger = logging.getLogger(__name__)
 
 # ─── HELPERS ───────────────────────────────────────────────────────────────
 
-def add_transaction(user, transaction_type, reason, amount, description=''):
+def add_transaction(user, transaction_type, reason, amount, description='', category=None, tournament=None, payment=None):
+    if category is None:
+        if reason in ('tournament_win',):
+            category = 'winning'
+        elif reason in ('tournament_refund', 'withdrawal_refund'):
+            category = 'refund'
+        elif transaction_type == 'debit':
+            category = 'debit'
+        else:
+            category = 'credit'
+
     Transaction.objects.create(
         user=user,
         transaction_type=transaction_type,
+        category=category,
         reason=reason,
         amount=amount,
+        tournament=tournament,
+        payment=payment,
         description=description
     )
 
 
-def credit_wallet(user, amount, reason, description=''):
-    user.profile.reward_balance += Decimal(str(amount))
-    user.profile.save()
-    add_transaction(user, 'credit', reason, amount, description)
+def credit_wallet(user, amount, reason, description='', tournament=None, payment=None):
+    amount = Decimal(str(amount))
+    if amount <= 0:
+        raise ValueError('Credit amount must be greater than zero.')
+
+    with transaction.atomic():
+        profile = Profile.objects.select_for_update().get(user=user)
+        profile.reward_balance += amount
+        profile.save(update_fields=['reward_balance'])
+        add_transaction(
+            user, 'credit', reason, amount, description,
+            tournament=tournament, payment=payment
+        )
 
 
-def debit_wallet(user, amount, reason, description=''):
-    user.profile.reward_balance -= Decimal(str(amount))
-    user.profile.save()
-    add_transaction(user, 'debit', reason, amount, description)
+def debit_wallet(user, amount, reason, description='', tournament=None, payment=None):
+    amount = Decimal(str(amount))
+    if amount <= 0:
+        raise ValueError('Debit amount must be greater than zero.')
+
+    with transaction.atomic():
+        profile = Profile.objects.select_for_update().get(user=user)
+        if profile.reward_balance < amount:
+            raise ValueError('Insufficient wallet balance.')
+        profile.reward_balance -= amount
+        profile.save(update_fields=['reward_balance'])
+        add_transaction(
+            user, 'debit', reason, amount, description,
+            tournament=tournament, payment=payment
+        )
 
 
 def send_notification(user, notification_type, title, message, tournament=None):
@@ -106,6 +140,17 @@ def sync_tournament_status(tournament, now=None):
         tournament.save(update_fields=['status'])
 
     return tournament.status
+
+
+def check_rate_limit(key, limit=20, window_seconds=60):
+    current = cache.get(key, 0)
+    if current >= limit:
+        return False
+    if current == 0:
+        cache.set(key, 1, timeout=window_seconds)
+    else:
+        cache.incr(key)
+    return True
 
 
 # ─── AUTH ──────────────────────────────────────────────────────────────────
@@ -213,6 +258,11 @@ def profile_view(request):
         user=request.user
     ).order_by('-created_at')[:30]
 
+    breakdown = {'credit': Decimal('0.00'), 'debit': Decimal('0.00'), 'refund': Decimal('0.00'), 'winning': Decimal('0.00')}
+    all_tx = Transaction.objects.filter(user=request.user)
+    for tx in all_tx:
+        breakdown[tx.category] = breakdown.get(tx.category, Decimal('0.00')) + tx.amount
+
     recent_topup = Transaction.objects.filter(
         user=request.user,
         reason='admin_topup'
@@ -231,6 +281,7 @@ def profile_view(request):
                     'memberships': memberships,
                     'transactions': transactions,
                     'recent_topup': recent_topup,
+                    'wallet_breakdown': breakdown,
                     'razorpay_key_id': settings.RAZORPAY_KEY_ID,
                     'error': 'This email is already used by another account.'
                 })
@@ -247,6 +298,7 @@ def profile_view(request):
             'memberships': memberships,
             'transactions': transactions,
             'recent_topup': recent_topup,
+            'wallet_breakdown': breakdown,
             'razorpay_key_id': settings.RAZORPAY_KEY_ID,
             'success': 'Profile updated successfully!'
         })
@@ -257,6 +309,7 @@ def profile_view(request):
         'memberships': memberships,
         'transactions': transactions,
         'recent_topup': recent_topup,
+        'wallet_breakdown': breakdown,
         'razorpay_key_id': settings.RAZORPAY_KEY_ID,
     })
 
@@ -270,6 +323,10 @@ def _get_razorpay_client():
 @login_required
 @require_POST
 def create_razorpay_order(request):
+    rate_key = f"rzp_create:{request.user.id}"
+    if not check_rate_limit(rate_key, limit=15, window_seconds=60):
+        return JsonResponse({'ok': False, 'error': 'Too many requests. Please retry shortly.'}, status=429)
+
     try:
         payload = json.loads(request.body.decode('utf-8') or '{}')
     except Exception:
@@ -313,7 +370,7 @@ def create_razorpay_order(request):
         user=request.user,
         amount=amount_decimal,
         razorpay_order_id=order.get('id'),
-        status='created',
+        status='pending',
         raw_payload={'create_order_response': order}
     )
     logger.info(
@@ -334,6 +391,10 @@ def create_razorpay_order(request):
 @login_required
 @require_POST
 def verify_razorpay_payment(request):
+    rate_key = f"rzp_verify:{request.user.id}"
+    if not check_rate_limit(rate_key, limit=30, window_seconds=60):
+        return JsonResponse({'ok': False, 'error': 'Too many verify attempts. Please retry shortly.'}, status=429)
+
     try:
         payload = json.loads(request.body.decode('utf-8') or '{}')
     except Exception:
@@ -359,9 +420,18 @@ def verify_razorpay_payment(request):
         })
     except Exception:
         logger.exception("Signature verification failed user_id=%s order_id=%s", request.user.id, order_id)
-        Payment.objects.filter(
+        affected = Payment.objects.filter(
             user=request.user, razorpay_order_id=order_id, status='created'
         ).update(status='failed', failure_reason='signature_verification_failed')
+        if not affected:
+            Payment.objects.filter(
+                user=request.user, razorpay_order_id=order_id, status='pending'
+            ).update(status='failed', failure_reason='signature_verification_failed')
+        send_notification(
+            request.user, 'general',
+            '❌ Wallet Top-up Failed',
+            'Payment signature verification failed. No amount was added to your wallet.'
+        )
         return JsonResponse({'ok': False, 'error': 'Signature verification failed.'}, status=400)
 
     try:
@@ -432,7 +502,15 @@ def verify_razorpay_payment(request):
                 'credit',
                 'admin_topup',
                 payment.amount,
-                f'💳 Razorpay wallet top-up successful — ₹{payment.amount}'
+                f'💳 Razorpay wallet top-up successful — ₹{payment.amount}',
+                category='credit',
+                payment=payment
+            )
+            send_notification(
+                request.user,
+                'wallet_credit',
+                f'✅ Wallet Top-up Successful — ₹{payment.amount}',
+                f'Your Razorpay payment was verified and ₹{payment.amount} was added to your wallet.'
             )
     except Payment.DoesNotExist:
         logger.warning(
@@ -479,6 +557,34 @@ def mark_razorpay_payment_failed(request):
         "Payment failed marked user_id=%s order_id=%s updated=%s reason=%s",
         request.user.id, order_id, updated, reason
     )
+    if updated:
+        send_notification(
+            request.user, 'general',
+            '❌ Wallet Top-up Failed',
+            'Your payment did not complete. No money was added.'
+        )
+    return JsonResponse({'ok': True})
+
+
+@login_required
+@require_POST
+def mark_razorpay_payment_abandoned(request):
+    try:
+        payload = json.loads(request.body.decode('utf-8') or '{}')
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'Invalid JSON payload.'}, status=400)
+
+    order_id = payload.get('razorpay_order_id')
+    if not order_id:
+        return JsonResponse({'ok': False, 'error': 'Order ID is required.'}, status=400)
+
+    Payment.objects.filter(
+        user=request.user,
+        razorpay_order_id=order_id,
+        wallet_credited=False,
+        status__in=['created', 'pending']
+    ).update(status='abandoned', failure_reason='checkout_closed_by_user')
+    logger.info("Payment abandoned user_id=%s order_id=%s", request.user.id, order_id)
     return JsonResponse({'ok': True})
 
 
@@ -545,10 +651,16 @@ def withdraw_view(request):
             amount=amount,
             upi_id=profile.upi_id
         )
-        debit_wallet(
-            request.user, amount, 'withdrawal',
-            f'💸 Withdrawal request of ₹{amount} to {profile.upi_id}'
-        )
+        try:
+            debit_wallet(
+                request.user, amount, 'withdrawal',
+                f'💸 Withdrawal request of ₹{amount} to {profile.upi_id}'
+            )
+        except ValueError:
+            return render(request, 'withdraw.html', {
+                'error': f'Insufficient balance. Your balance is ₹{request.user.profile.reward_balance}.',
+                'profile': request.user.profile
+            })
         send_notification(
             request.user, 'wallet_credit',
             f'💸 Withdrawal Requested — ₹{amount}',
@@ -622,6 +734,7 @@ def tournament_rules(request, tournament_id):
 @login_required
 def join_tournament(request, tournament_id):
     tournament = get_object_or_404(Tournament, id=tournament_id)
+    sync_tournament_status(tournament)
     now = localtime()
 
     # LOCK: already joined
@@ -658,12 +771,21 @@ def join_tournament(request, tournament_id):
                 })
 
             # deduct fee
-            debit_wallet(
-                request.user,
-                tournament.entry_fee,
-                'tournament_join',
-                f'🎮 Entry fee for {tournament.name}'
-            )
+            try:
+                debit_wallet(
+                    request.user,
+                    tournament.entry_fee,
+                    'tournament_join',
+                    f'🎮 Entry fee for {tournament.name}',
+                    tournament=tournament
+                )
+            except ValueError:
+                return render(request, 'tournament_rules.html', {
+                    'tournament': tournament,
+                    'count': current_count,
+                    'prize_pool': tournament.entry_fee * current_count,
+                    'error': f'Insufficient balance. You need ₹{tournament.entry_fee} to join. Your balance is ₹{request.user.profile.reward_balance}.'
+                })
 
             # notify deduction
             send_notification(
@@ -682,6 +804,11 @@ def join_tournament(request, tournament_id):
                 tournament=tournament,
                 fee_paid=True
             )
+            send_notification(
+                request.user, 'general',
+                f'✅ Joined {tournament.name}',
+                f'You have successfully joined {tournament.name}.'
+            )
             return redirect(f'/tournament/{tournament.id}/')
 
         return redirect(f'/rules/{tournament.id}/')
@@ -699,6 +826,11 @@ def join_tournament(request, tournament_id):
             entered_password = request.POST.get('password')
             if entered_password == tournament.password:
                 Participant.objects.create(user=request.user, tournament=tournament)
+                send_notification(
+                    request.user, 'general',
+                    f'✅ Joined {tournament.name}',
+                    f'You have successfully joined {tournament.name}.'
+                )
                 return redirect(f'/tournament/{tournament.id}/')
             else:
                 return render(request, 'enter_password.html', {
@@ -712,6 +844,11 @@ def join_tournament(request, tournament_id):
         })
 
     Participant.objects.create(user=request.user, tournament=tournament)
+    send_notification(
+        request.user, 'general',
+        f'✅ Joined {tournament.name}',
+        f'You have successfully joined {tournament.name}.'
+    )
     return redirect(f'/tournament/{tournament.id}/')
 
 
@@ -795,7 +932,8 @@ def delete_tournament(request, tournament_id):
                     p.user,
                     tournament.entry_fee,
                     'tournament_refund',
-                    f'♻️ Refund — {tournament.name} deleted by organizer'
+                    f'♻️ Refund — {tournament.name} deleted by organizer',
+                    tournament=tournament
                 )
                 send_notification(
                     p.user, 'tournament_cancel',
@@ -871,12 +1009,44 @@ def tournament_detail(request, tournament_id):
         'tournament': tournament,
         'participants': participants,
         'matches': matches,
+        'match_options': matches,
+        'open_disputes': DisputeReport.objects.filter(tournament=tournament, status='open').order_by('-created_at')[:10],
         'show_password': show_password,
         'joined_tournaments': joined_tournaments,
         'count': count,
         'prize_pool': prize_pool,
         'is_participant': is_participant,
     })
+
+
+@login_required
+@require_POST
+def submit_dispute(request, tournament_id):
+    tournament = get_object_or_404(Tournament, id=tournament_id)
+    message = (request.POST.get('message') or '').strip()
+    match_id = request.POST.get('match_id')
+    proof_image = request.FILES.get('proof_image')
+
+    if not message:
+        return redirect(f'/tournament/{tournament.id}/?dispute_error=1')
+
+    match = None
+    if match_id:
+        match = Match.objects.filter(id=match_id, tournament=tournament).first()
+
+    DisputeReport.objects.create(
+        user=request.user,
+        tournament=tournament,
+        match=match,
+        message=message,
+        proof_image=proof_image,
+    )
+    send_notification(
+        request.user, 'general',
+        '📨 Dispute Submitted',
+        f'Your dispute for {tournament.name} has been submitted and will be reviewed by admin.'
+    )
+    return redirect(f'/tournament/{tournament.id}/?dispute_submitted=1')
 
 
 @login_required
@@ -923,7 +1093,8 @@ def cancel_tournament(request, tournament_id):
                     p.user,
                     tournament.entry_fee,
                     'tournament_refund',
-                    f'♻️ Refund — {tournament.name} cancelled: {reason}'
+                    f'♻️ Refund — {tournament.name} cancelled: {reason}',
+                    tournament=tournament
                 )
 
         notify_all_participants(
@@ -962,7 +1133,8 @@ def generate_matches(request, tournament_id):
                     u,
                     tournament.entry_fee,
                     'tournament_refund',
-                    f'♻️ Refund — {tournament.name} cancelled (min players not reached)'
+                    f'♻️ Refund — {tournament.name} cancelled (min players not reached)',
+                    tournament=tournament
                 )
 
         tournament.status = 'cancelled'
@@ -1043,7 +1215,8 @@ def submit_result(request, match_id):
                 credit_wallet(
                     top_winner, prize_pool,
                     'tournament_win',
-                    f'🏆 Prize — Won {tournament.name}'
+                    f'🏆 Prize — Won {tournament.name}',
+                    tournament=tournament
                 )
                 send_notification(
                     top_winner, 'wallet_credit',
@@ -1056,7 +1229,8 @@ def submit_result(request, match_id):
                 credit_wallet(
                     tournament.creator, creator_share,
                     'creator_share',
-                    f'🎮 Creator earnings — {tournament.name}'
+                    f'🎮 Creator earnings — {tournament.name}',
+                    tournament=tournament
                 )
                 send_notification(
                     tournament.creator, 'wallet_credit',
@@ -1071,7 +1245,8 @@ def submit_result(request, match_id):
                     credit_wallet(
                         admin, admin_share,
                         'admin_share',
-                        f'⚙️ Platform fee — {tournament.name}'
+                        f'⚙️ Platform fee — {tournament.name}',
+                        tournament=tournament
                     )
 
                 tournament.status = 'completed'
@@ -1100,6 +1275,7 @@ def creator_admin(request):
     reward_codes = RewardCode.objects.all().order_by('-created_at')
     memberships = CreatorMembership.objects.all().order_by('-started_at')
     all_transactions = Transaction.objects.all().order_by('-created_at')[:50]
+    open_disputes = DisputeReport.objects.filter(status='open').order_by('-created_at')[:50]
 
     tournament_data = []
     for t in tournaments:
@@ -1114,7 +1290,48 @@ def creator_admin(request):
         'reward_codes': reward_codes,
         'memberships': memberships,
         'all_transactions': all_transactions,
+        'open_disputes': open_disputes,
     })
+
+
+@login_required
+@require_POST
+def resolve_dispute(request, dispute_id):
+    if not request.user.profile.is_admin:
+        return redirect('/')
+    dispute = get_object_or_404(DisputeReport, id=dispute_id)
+    action = request.POST.get('action')
+    note = (request.POST.get('admin_note') or '').strip()
+
+    if action == 'resolve':
+        dispute.status = 'resolved'
+    elif action == 'reject':
+        dispute.status = 'rejected'
+    else:
+        return redirect('/creator-admin/')
+
+    dispute.admin_note = note
+    dispute.resolved_at = timezone.now()
+    dispute.save(update_fields=['status', 'admin_note', 'resolved_at'])
+
+    send_notification(
+        dispute.user, 'general',
+        f'🧾 Dispute {dispute.get_status_display()}',
+        f'Your dispute on {dispute.tournament.name} is {dispute.get_status_display().lower()}.'
+    )
+    return redirect('/creator-admin/')
+
+
+def terms_page(request):
+    return render(request, 'terms.html')
+
+
+def privacy_page(request):
+    return render(request, 'privacy.html')
+
+
+def refund_policy_page(request):
+    return render(request, 'refund_policy.html')
 
 
 @login_required

@@ -373,6 +373,45 @@
         {% endfor %}
     </div>
 
+    <!-- DISPUTES -->
+    <h2 class="text-lg font-bold text-red-400 mb-3">🚩 Open Disputes</h2>
+    <div class="rounded-xl border border-gray-700 overflow-hidden mb-8 bg-gray-900">
+        {% for d in open_disputes %}
+        <div class="p-4 border-b border-gray-800">
+            <div class="mb-2">
+                <p class="text-white font-bold text-sm">{{ d.user.username }} — {{ d.tournament.name }}</p>
+                <p class="text-gray-400 text-xs">{{ d.message }}</p>
+                <p class="text-gray-600 text-xs">{{ d.created_at|date:"d M Y, H:i" }}</p>
+                {% if d.proof_image %}
+                <a href="{{ d.proof_image.url }}" target="_blank" class="text-cyan-400 text-xs hover:underline">View proof</a>
+                {% endif %}
+            </div>
+            <div class="flex gap-2">
+                <form method="POST" action="/resolve-dispute/{{ d.id }}/" class="flex-1">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="resolve">
+                    <input type="text" name="admin_note" placeholder="Admin note (optional)"
+                           class="w-full p-2 mb-2 bg-gray-800 border border-gray-700 rounded text-white text-xs">
+                    <button type="submit" class="w-full bg-green-500 text-white py-2 rounded text-xs font-bold hover:bg-green-400 transition">
+                        ✅ Resolve
+                    </button>
+                </form>
+                <form method="POST" action="/resolve-dispute/{{ d.id }}/" class="flex-1">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="reject">
+                    <input type="text" name="admin_note" placeholder="Admin note (optional)"
+                           class="w-full p-2 mb-2 bg-gray-800 border border-gray-700 rounded text-white text-xs">
+                    <button type="submit" class="w-full bg-red-500 text-white py-2 rounded text-xs font-bold hover:bg-red-400 transition">
+                        ❌ Reject
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% empty %}
+        <p class="text-gray-500 text-sm p-5">No open disputes.</p>
+        {% endfor %}
+    </div>
+
     <!-- ALL TRANSACTIONS -->
     <h2 class="text-lg font-bold text-green-400 mb-3">📊 Recent Transactions</h2>
     <div class="rounded-xl border border-gray-700 overflow-hidden mb-8 bg-gray-900">

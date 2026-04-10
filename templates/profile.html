@@ -100,6 +100,25 @@
         </a>
     </div>
 
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <div class="bg-gray-900 border border-gray-700 rounded-xl p-3">
+            <p class="text-xs text-gray-400">Credits</p>
+            <p class="text-sm font-bold text-green-400">₹{{ wallet_breakdown.credit }}</p>
+        </div>
+        <div class="bg-gray-900 border border-gray-700 rounded-xl p-3">
+            <p class="text-xs text-gray-400">Debits</p>
+            <p class="text-sm font-bold text-red-400">₹{{ wallet_breakdown.debit }}</p>
+        </div>
+        <div class="bg-gray-900 border border-gray-700 rounded-xl p-3">
+            <p class="text-xs text-gray-400">Refunds</p>
+            <p class="text-sm font-bold text-cyan-400">₹{{ wallet_breakdown.refund }}</p>
+        </div>
+        <div class="bg-gray-900 border border-gray-700 rounded-xl p-3">
+            <p class="text-xs text-gray-400">Winnings</p>
+            <p class="text-sm font-bold text-yellow-400">₹{{ wallet_breakdown.winning }}</p>
+        </div>
+    </div>
+
     <!-- RAZORPAY WALLET TOP-UP -->
     <div class="rounded-xl border p-5 mb-6 bg-gray-900 border-gray-700">
         <h2 class="text-lg font-bold text-cyan-400 mb-3">➕ Add Money to Wallet</h2>
@@ -287,6 +306,17 @@ async function markPaymentFailed(orderId, reason, rawError) {
     });
 }
 
+async function markPaymentAbandoned(orderId) {
+    await fetch('/payments/mark-abandoned/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken(),
+        },
+        body: JSON.stringify({ razorpay_order_id: orderId })
+    });
+}
+
 if (topupBtn) {
     topupBtn.addEventListener('click', async function() {
         const keyId = "{{ razorpay_key_id|default:'' }}";
@@ -341,9 +371,10 @@ if (topupBtn) {
                     }
                 },
                 modal: {
-                    ondismiss: function() {
+                    ondismiss: async function() {
                         topupMsg.className = 'text-xs mt-3 text-yellow-400';
                         topupMsg.textContent = 'Payment popup closed.';
+                        await markPaymentAbandoned(orderData.order_id);
                         topupBtn.disabled = false;
                     }
                 },

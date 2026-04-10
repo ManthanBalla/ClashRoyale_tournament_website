@@ -131,6 +131,19 @@
     </div>
     {% endif %}
 
+    {% if request.GET.dispute_submitted %}
+    <div class="rounded-xl p-4 mb-5 border"
+         style="background:rgba(52,211,153,0.08); border-color:rgba(52,211,153,0.4);">
+        <p class="text-green-400 font-bold text-sm">✅ Dispute submitted successfully.</p>
+    </div>
+    {% endif %}
+    {% if request.GET.dispute_error %}
+    <div class="rounded-xl p-4 mb-5 border"
+         style="background:rgba(248,113,113,0.08); border-color:rgba(248,113,113,0.4);">
+        <p class="text-red-400 font-bold text-sm">⚠️ Please enter dispute details before submitting.</p>
+    </div>
+    {% endif %}
+
     <!-- PAID INFO CARD -->
     {% if tournament.is_paid %}
     <div class="rounded-xl p-5 mb-5 border"
@@ -179,6 +192,30 @@
                 Otherwise full refund issued automatically.
             </p>
         </div>
+    </div>
+    {% endif %}
+
+    <!-- DISPUTE / REPORT -->
+    {% if user.is_authenticated %}
+    <div class="rounded-xl p-4 mb-5 border border-gray-800 bg-gray-900">
+        <h2 class="text-lg font-bold text-red-400 mb-3">🚩 Report / Dispute</h2>
+        <form method="POST" action="/tournament/{{ tournament.id }}/submit-dispute/" enctype="multipart/form-data" class="space-y-3">
+            {% csrf_token %}
+            <select name="match_id" class="w-full p-2.5 bg-gray-800 border border-gray-700 rounded text-white text-sm">
+                <option value="">General dispute (no specific match)</option>
+                {% for m in match_options %}
+                <option value="{{ m.id }}">Match #{{ m.id }} - {{ m.player1.username }} vs {{ m.player2.username }}</option>
+                {% endfor %}
+            </select>
+            <textarea name="message" rows="3" placeholder="Explain your issue..."
+                      class="w-full p-2.5 bg-gray-800 border border-gray-700 rounded text-white text-sm"></textarea>
+            <input type="file" name="proof_image" accept="image/*"
+                   class="w-full p-2.5 bg-gray-800 border border-gray-700 rounded text-white text-sm">
+            <button type="submit"
+                    class="bg-red-500 text-white px-4 py-2 rounded font-bold text-sm hover:bg-red-400 transition">
+                Submit Dispute
+            </button>
+        </form>
     </div>
     {% endif %}
 

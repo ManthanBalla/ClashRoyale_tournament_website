@@ -10,7 +10,9 @@ from .views import (
     delete_user, deactivate_membership, reactivate_membership,
     topup_wallet, notifications_view, mark_notification_read,
     upload_results, create_razorpay_order, verify_razorpay_payment,
-    mark_razorpay_payment_failed, razorpay_webhook
+    mark_razorpay_payment_failed, mark_razorpay_payment_abandoned,
+    razorpay_webhook, submit_dispute, resolve_dispute,
+    terms_page, privacy_page, refund_policy_page
 )
 from django.contrib.auth import views as auth_views
 
@@ -27,7 +29,13 @@ urlpatterns = [
     path('payments/create-order/', create_razorpay_order, name='create_razorpay_order'),
     path('payments/verify/', verify_razorpay_payment, name='verify_razorpay_payment'),
     path('payments/mark-failed/', mark_razorpay_payment_failed, name='mark_razorpay_payment_failed'),
+    path('payments/mark-abandoned/', mark_razorpay_payment_abandoned, name='mark_razorpay_payment_abandoned'),
     path('payments/webhook/', razorpay_webhook, name='razorpay_webhook'),
+    path('tournament/<int:tournament_id>/submit-dispute/', submit_dispute, name='submit_dispute'),
+    path('resolve-dispute/<int:dispute_id>/', resolve_dispute, name='resolve_dispute'),
+    path('terms/', terms_page, name='terms'),
+    path('privacy/', privacy_page, name='privacy'),
+    path('refund-policy/', refund_policy_page, name='refund_policy'),
 
     path('join/<int:tournament_id>/', join_tournament, name='join_tournament'),
     path('rules/<int:tournament_id>/', tournament_rules, name='tournament_rules'),

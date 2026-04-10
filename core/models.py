@@ -183,10 +183,19 @@ class Transaction(models.Model):
         ('withdrawal_refund', 'Withdrawal Refund'),
         ('admin_topup', 'Admin Top Up'),
     ]
+    CATEGORY_CHOICES = [
+        ('credit', 'Credit'),
+        ('debit', 'Debit'),
+        ('refund', 'Refund'),
+        ('winning', 'Winning'),
+    ]
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='transactions')
     transaction_type = models.CharField(max_length=10, choices=TYPE_CHOICES)
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default='credit')
     reason = models.CharField(max_length=30, choices=REASON_CHOICES)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
+    tournament = models.ForeignKey('Tournament', on_delete=models.SET_NULL, null=True, blank=True, related_name='transactions')
+    payment = models.ForeignKey('Payment', on_delete=models.SET_NULL, null=True, blank=True, related_name='transactions')
     description = models.CharField(max_length=255, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -218,8 +227,10 @@ class Notification(models.Model):
 class Payment(models.Model):
     STATUS_CHOICES = [
         ('created', 'Created'),
+        ('pending', 'Pending'),
         ('success', 'Success'),
         ('failed', 'Failed'),
+        ('abandoned', 'Abandoned'),
     ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='payments')
@@ -236,6 +247,27 @@ class Payment(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.amount} - {self.status}"
+
+
+class DisputeReport(models.Model):
+    STATUS_CHOICES = [
+        ('open', 'Open'),
+        ('resolved', 'Resolved'),
+        ('rejected', 'Rejected'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='disputes')
+    tournament = models.ForeignKey(Tournament, on_delete=models.CASCADE, related_name='disputes')
+    match = models.ForeignKey(Match, on_delete=models.SET_NULL, null=True, blank=True, related_name='disputes')
+    message = models.TextField()
+    proof_image = models.ImageField(upload_to='disputes/', blank=True, null=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open')
+    admin_note = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    resolved_at = models.DateTimeField(blank=True, null=True)
+
+    def __str__(self):
+        return f"{self.user.username} - {self.tournament.name} - {self.status}"
 
 
 @receiver(post_save, sender=User)
