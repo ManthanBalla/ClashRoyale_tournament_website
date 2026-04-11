@@ -2,23 +2,21 @@
 
 {% block content %}
 
-<div class="max-w-2xl mx-auto px-4 py-8">
+<div class="max-w-2xl mx-auto px-3 sm:px-4 py-6 sm:py-10">
 
-    <h1 class="text-2xl font-bold text-white mb-6">🔔 Notifications</h1>
+    <h1 class="text-2xl sm:text-3xl font-extrabold text-white mb-2 tracking-tight">Notifications</h1>
+    <p class="ca-muted text-sm mb-6">Tournament and wallet updates</p>
 
     <div class="space-y-3">
         {% for n in notifications %}
-        <div class="rounded-xl p-4 border relative overflow-hidden transition"
-             style="{% if not n.is_read %}background: linear-gradient(135deg, #0a1628, #0c2040); border-color: rgba(96,165,250,0.5);{% else %}background: #0f0f1a; border-color: rgba(255,255,255,0.07);{% endif %}">
+        <div class="ca-glass p-4 relative overflow-hidden transition border {% if not n.is_read %}border-ca-accent/35 shadow-[0_0_24px_rgba(255,77,94,0.12)]{% else %}border-white/[0.06]{% endif %}">
 
-            <!-- UNREAD DOT -->
             {% if not n.is_read %}
-            <div class="absolute top-4 right-4 w-2 h-2 rounded-full bg-cyan-400"></div>
+            <div class="absolute top-4 right-4 w-2 h-2 rounded-full bg-ca-accent shadow-glow-accent"></div>
             {% endif %}
 
-            <div class="flex items-start gap-3">
+            <div class="flex items-start gap-3 pr-4">
 
-                <!-- ICON -->
                 <div class="text-2xl flex-shrink-0">
                     {% if n.notification_type == 'tournament_start' %}🔴
                     {% elif n.notification_type == 'tournament_end' %}🏆
@@ -31,13 +29,13 @@
 
                 <div class="flex-1 min-w-0">
                     <p class="text-white font-bold text-sm">{{ n.title }}</p>
-                    <p class="text-gray-400 text-xs mt-1">{{ n.message }}</p>
-                    <div class="flex items-center gap-3 mt-2">
-                        <p class="text-gray-600 text-xs">{{ n.created_at|date:"d M Y, H:i" }}</p>
+                    <p class="ca-muted text-xs mt-1 leading-relaxed">{{ n.message }}</p>
+                    <div class="flex flex-wrap items-center gap-3 mt-2">
+                        <p class="text-white/35 text-xs">{{ n.created_at|date:"d M Y, H:i" }}</p>
                         {% if n.tournament %}
                         <a href="/tournament/{{ n.tournament.id }}/"
-                           class="text-cyan-400 text-xs hover:underline">
-                            View Tournament →
+                           class="text-ca-accent text-xs font-semibold hover:text-white transition">
+                            View tournament →
                         </a>
                         {% endif %}
                     </div>
@@ -47,10 +45,8 @@
 
         </div>
         {% empty %}
-        <div class="rounded-xl p-10 text-center border border-gray-800 bg-gray-900">
-            <p class="text-4xl mb-3">🔔</p>
-            <p class="text-gray-400">No notifications yet</p>
-            <p class="text-gray-600 text-sm mt-1">You'll see tournament updates, wallet credits and more here</p>
+        <div class="ca-glass px-5 py-10 text-center">
+            <p class="ca-muted text-sm">No notifications yet.</p>
         </div>
         {% endfor %}
     </div>

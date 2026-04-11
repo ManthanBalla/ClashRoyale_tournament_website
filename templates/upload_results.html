@@ -2,59 +2,51 @@
 
 {% block content %}
 
-<div class="flex items-center justify-center px-4 py-8">
+<div class="flex items-center justify-center px-3 sm:px-4 py-8 sm:py-12">
 
     <div class="w-full max-w-md">
 
-        <div class="rounded-2xl p-6 border mb-6"
-             style="background: linear-gradient(135deg, #0a1628, #0c2040); border-color: rgba(96,165,250,0.4);">
+        <div class="ca-glass p-6 sm:p-7 border border-ca-accent/20 mb-6">
 
-            <h1 class="text-2xl font-bold text-cyan-400 mb-1 text-center">📸 Upload Results</h1>
-            <p class="text-gray-400 text-sm text-center mb-6">{{ tournament.name }}</p>
+            <h1 class="text-xl sm:text-2xl font-extrabold text-white mb-1 text-center tracking-tight">Upload results</h1>
+            <p class="ca-muted text-sm text-center mb-6 truncate">{{ tournament.name }}</p>
 
             <form method="POST" enctype="multipart/form-data">
                 {% csrf_token %}
 
-                <!-- RESULT SCREENSHOT -->
-                <div class="rounded-xl p-4 mb-4 border"
-                     style="background: rgba(0,0,0,0.3); border-color: rgba(96,165,250,0.2);">
-                    <p class="text-cyan-400 font-bold text-sm mb-1">🏆 Leaderboard Screenshot</p>
-                    <p class="text-gray-500 text-xs mb-3">Upload the Clash Royale tournament result screenshot showing the leaderboard/winner</p>
+                <div class="ca-glass-sm p-4 mb-4 border border-ca-accent/15">
+                    <p class="text-ca-accent font-bold text-sm mb-1">Leaderboard screenshot</p>
+                    <p class="ca-muted text-xs mb-3">Tournament result / winner screen</p>
                     <input type="file" name="result_screenshot" accept="image/*"
-                           class="w-full p-2.5 bg-gray-800 border border-gray-700 rounded text-gray-400 text-sm">
+                           class="ca-input text-sm py-2">
                 </div>
 
-                <!-- REWARD SCREENSHOT -->
-                <div class="rounded-xl p-4 mb-6 border"
-                     style="background: rgba(0,0,0,0.3); border-color: rgba(52,211,153,0.2);">
-                    <p class="text-green-400 font-bold text-sm mb-1">🎁 Reward Proof Screenshot</p>
-                    <p class="text-gray-500 text-xs mb-3">Upload proof that the winner has received their reward</p>
+                <div class="ca-glass-sm p-4 mb-6 border border-emerald-500/20">
+                    <p class="text-emerald-300 font-bold text-sm mb-1">Reward proof</p>
+                    <p class="ca-muted text-xs mb-3">Proof winner received reward</p>
                     <input type="file" name="reward_screenshot" accept="image/*"
-                           class="w-full p-2.5 bg-gray-800 border border-gray-700 rounded text-gray-400 text-sm">
+                           class="ca-input text-sm py-2">
                 </div>
 
-                <div class="rounded-lg px-4 py-3 mb-5 border"
-                     style="background: rgba(234,179,8,0.08); border-color: rgba(234,179,8,0.3);">
-                    <p class="text-yellow-400 text-xs">
-                        ⚠️ Uploading results will mark this tournament as <strong>Completed</strong> and notify all participants.
+                <div class="ca-glass-sm border border-amber-500/25 px-4 py-3 mb-5">
+                    <p class="text-amber-100/90 text-xs leading-relaxed">
+                        Uploading marks this tournament <strong class="text-white">completed</strong> and notifies all participants.
                     </p>
                 </div>
 
-                <button type="submit"
-                        class="w-full py-3 rounded-xl font-bold text-white text-base transition hover:opacity-90"
-                        style="background: linear-gradient(90deg, #06b6d4, #3b82f6, #8b5cf6);">
-                    📸 Upload & Complete Tournament
+                <button type="submit" class="ca-btn w-full">
+                    Submit & complete
                 </button>
-
-                <a href="/tournament/{{ tournament.id }}/"
-                   class="block text-center text-gray-500 text-sm mt-4 hover:text-gray-400">
-                    ← Back to Tournament
-                </a>
-
             </form>
+
         </div>
 
+        <p class="text-center">
+            <a href="/tournament/{{ tournament.id }}/" class="ca-muted text-sm hover:text-white transition">← Back to tournament</a>
+        </p>
+
     </div>
+
 </div>
 
 {% endblock %}

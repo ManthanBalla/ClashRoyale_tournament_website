@@ -3,14 +3,14 @@
 
 {% block content %}
 
-<div class="max-w-4xl mx-auto px-4 py-6">
+<div class="max-w-4xl mx-auto px-3 sm:px-4 py-6 sm:py-8">
 
     <!-- BACK -->
-    <a href="/" class="text-cyan-400 hover:underline mb-4 inline-block text-sm">← Back</a>
+    <a href="/" class="ca-muted hover:text-white mb-4 inline-block text-sm font-medium transition">← Back</a>
 
     <!-- HEADER -->
     <div class="mb-5">
-        <h1 class="text-2xl font-bold text-cyan-400 mb-2">{{ tournament.name }}</h1>
+        <h1 class="text-2xl sm:text-3xl font-extrabold text-white mb-2 tracking-tight">{{ tournament.name }}</h1>
 
         <!-- STATUS BADGE -->
         <div class="mb-3">
@@ -38,50 +38,50 @@
         </div>
 
         <!-- ACTION BUTTONS -->
-        <div class="flex flex-wrap gap-2">
+        <div class="flex flex-col sm:flex-row flex-wrap gap-3">
 
-            <button onclick="openGuide()"
-                    class="bg-cyan-400 text-black px-4 py-2 rounded-lg font-bold text-sm hover:bg-cyan-300 transition">
-                📘 How to Join
+            <button type="button" onclick="openGuide()"
+                    class="ca-btn text-sm w-full sm:w-auto justify-center">
+                How to join
             </button>
 
             {% if user.is_authenticated %}
                 {% if user == tournament.creator or user.profile.is_admin %}
 
                     <a href="/edit-tournament/{{ tournament.id }}/"
-                       class="bg-yellow-400 text-black px-4 py-2 rounded-lg font-bold text-sm hover:bg-yellow-300 transition">
-                        ✏️ Edit
+                       class="ca-btn-outline text-sm font-bold w-full sm:w-auto text-center min-h-[2.75rem] flex items-center justify-center">
+                        Edit
                     </a>
 
                     {% if tournament.status == 'upcoming' %}
-                    <form method="POST" action="/cancel-tournament/{{ tournament.id }}/" id="cancelForm">
+                    <form method="POST" action="/cancel-tournament/{{ tournament.id }}/" id="cancelForm" class="w-full sm:w-auto">
                         {% csrf_token %}
                         <input type="hidden" name="cancel_reason" id="cancelReasonInput" value="">
                         <button type="button" onclick="showCancelBox()"
-                                class="bg-orange-500 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-orange-400 transition">
-                            ❌ Cancel
+                                class="w-full min-h-[2.75rem] rounded-xl bg-orange-600/90 text-white px-4 py-2.5 font-bold text-sm hover:bg-orange-500 transition border border-orange-500/40">
+                            Cancel
                         </button>
                     </form>
                     {% endif %}
 
                     {% if tournament.status == 'ongoing' %}
                     <a href="/generate-matches/{{ tournament.id }}/"
-                       class="bg-green-500 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-green-400 transition">
-                        ⚔️ Generate Matches
+                       class="w-full sm:w-auto text-center min-h-[2.75rem] flex items-center justify-center rounded-xl bg-emerald-600/90 text-white px-4 py-2.5 font-bold text-sm hover:bg-emerald-500 transition border border-emerald-400/30">
+                        Generate matches
                     </a>
                     <a href="/upload-results/{{ tournament.id }}/"
-                       class="px-4 py-2 rounded-lg font-bold text-sm text-white transition hover:opacity-90"
-                       style="background: linear-gradient(90deg, #06b6d4, #8b5cf6);">
-                        📸 Upload Results
+                       class="w-full sm:w-auto text-center min-h-[2.75rem] flex items-center justify-center rounded-xl font-bold text-sm text-white border border-white/10 transition hover:opacity-95"
+                       style="background: linear-gradient(135deg, rgba(255,77,94,0.85), rgba(90,20,40,0.9));">
+                        Upload results
                     </a>
                     {% endif %}
 
                     <form method="POST" action="/delete-tournament/{{ tournament.id }}/"
-                          onsubmit="return confirm('Delete this tournament?')">
+                          onsubmit="return confirm('Delete this tournament?')" class="w-full sm:w-auto">
                         {% csrf_token %}
                         <button type="submit"
-                                class="bg-red-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-red-500 transition">
-                            🗑️ Delete
+                                class="w-full min-h-[2.75rem] rounded-xl bg-red-700/90 text-white px-4 py-2.5 font-bold text-sm hover:bg-red-600 transition border border-red-500/40">
+                            Delete
                         </button>
                     </form>
 
@@ -165,7 +165,7 @@
         <div class="grid grid-cols-3 gap-2 mb-3">
             <div class="rounded-lg p-2 text-center" style="background:rgba(0,0,0,0.3);">
                 <p class="text-gray-500 text-xs">Joined</p>
-                <p class="text-cyan-400 font-bold">{{ count }} / {{ tournament.max_players }}</p>
+                <p class="text-ca-accent font-bold">{{ count }} / {{ tournament.max_players }}</p>
             </div>
             <div class="rounded-lg p-2 text-center" style="background:rgba(0,0,0,0.3);">
                 <p class="text-gray-500 text-xs">Min Required</p>
@@ -197,7 +197,7 @@
 
     <!-- DISPUTE / REPORT -->
     {% if user.is_authenticated %}
-    <div class="rounded-xl p-4 mb-5 border border-gray-800 bg-gray-900">
+    <div class="ca-glass p-4 mb-5">
         <h2 class="text-lg font-bold text-red-400 mb-3">🚩 Report / Dispute</h2>
         <form method="POST" action="/tournament/{{ tournament.id }}/submit-dispute/" enctype="multipart/form-data" class="space-y-3">
             {% csrf_token %}
@@ -220,7 +220,7 @@
     {% endif %}
 
     <!-- BASIC INFO -->
-    <div class="rounded-xl p-4 mb-5 border border-gray-800 bg-gray-900">
+    <div class="ca-glass p-4 mb-5">
         <p class="text-gray-300 text-sm mb-3">{{ tournament.description }}</p>
 
         {% if tournament.reward and not tournament.is_paid %}
@@ -269,7 +269,7 @@
 
     <!-- RULES -->
     {% if tournament.rules %}
-    <div class="rounded-xl p-4 mb-5 border border-gray-800 bg-gray-900">
+    <div class="ca-glass p-4 mb-5">
         <p class="text-gray-400 text-xs uppercase tracking-widest mb-2">📋 Rules</p>
         <p class="text-gray-300 text-sm whitespace-pre-line">{{ tournament.rules }}</p>
     </div>
@@ -293,7 +293,7 @@
     <!-- PLAYERS -->
     {% if tournament.show_participants %}
     <h2 class="text-lg font-bold text-yellow-400 mb-3">👥 Players ({{ count }})</h2>
-    <div class="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden mb-5">
+    <div class="ca-panel mb-5">
         {% for p in participants %}
         <div class="flex items-center justify-between px-4 py-3 border-b border-gray-800">
             <span class="text-white text-sm">{{ p.user.username }}</span>
@@ -306,9 +306,9 @@
         {% endfor %}
     </div>
     {% else %}
-    <div class="bg-gray-900 rounded-xl border border-gray-800 p-4 mb-5 text-center">
+    <div class="ca-glass p-4 mb-5 text-center">
         <p class="text-gray-500 text-sm">👁️ Participant list is hidden</p>
-        <p class="text-cyan-400 font-bold mt-1">{{ count }} players joined</p>
+        <p class="text-ca-accent font-bold mt-1">{{ count }} players joined</p>
     </div>
     {% endif %}
 
@@ -355,27 +355,26 @@
 
     <div class="flex items-center justify-center min-h-screen px-4">
 
-        <div class="bg-gray-900 rounded-2xl w-full max-w-3xl p-4 sm:p-5 relative border border-gray-700 shadow-2xl">
+        <div class="ca-glass w-full max-w-3xl p-4 sm:p-5 relative max-h-[92dvh] overflow-y-auto">
 
             <button onclick="closeGuide()"
                     class="absolute top-3 right-4 text-gray-400 text-2xl hover:text-white leading-none">
                 ✖
             </button>
 
-            <h2 class="text-xl text-cyan-400 mb-2 text-center font-bold">📘 How to Join</h2>
+            <h2 class="text-xl text-white mb-2 text-center font-extrabold tracking-tight">How to join</h2>
 
             <!-- COPY NAME -->
-            <div class="flex items-center justify-center gap-3 mb-4 p-3 rounded-xl border"
-                 style="background:rgba(234,179,8,0.08); border-color:rgba(234,179,8,0.3);">
-                <span class="text-yellow-400 font-bold text-sm truncate">{{ tournament.name }}</span>
-                <button onclick="copyName()" id="copyBtn"
-                        class="bg-green-500 text-black text-xs px-3 py-1.5 rounded-lg font-bold hover:bg-green-400 transition flex-shrink-0">
-                    📋 Copy
+            <div class="ca-glass-sm flex items-center justify-center gap-3 mb-4 p-3 border border-amber-500/25">
+                <span class="text-amber-100 font-bold text-sm truncate flex-1 min-w-0">{{ tournament.name }}</span>
+                <button type="button" onclick="copyName()" id="copyBtn"
+                        class="ca-btn-outline text-xs px-3 py-2 min-h-0 shrink-0 font-bold">
+                    Copy
                 </button>
             </div>
 
             <!-- SLIDE IMAGE -->
-            <div class="w-full bg-black rounded-xl overflow-hidden mb-4 border border-gray-700 flex items-center justify-center h-[52vh] sm:h-[58vh] md:h-[62vh] max-h-[640px]">
+            <div class="w-full bg-black/80 rounded-xl overflow-hidden mb-4 border border-white/10 flex items-center justify-center h-[52vh] sm:h-[58vh] md:h-[62vh] max-h-[640px]">
                 <img id="slideImage"
                      class="w-full h-full object-contain"
                      style="image-rendering:auto;"
@@ -383,17 +382,17 @@
             </div>
 
             <!-- SLIDE TEXT -->
-            <p id="slideText" class="text-gray-300 text-sm text-center mb-4 min-h-[2rem]"></p>
+            <p id="slideText" class="ca-muted text-sm text-center mb-4 min-h-[2rem] leading-relaxed"></p>
 
             <!-- CONTROLS -->
-            <div class="flex justify-between items-center">
-                <button onclick="prevSlide()"
-                        class="bg-gray-800 text-white px-5 py-2 rounded-lg hover:bg-gray-700 transition font-bold">
+            <div class="flex justify-between items-center gap-3">
+                <button type="button" onclick="prevSlide()"
+                        class="ca-btn-outline min-w-[3rem] min-h-[2.75rem] px-4 font-bold">
                     ←
                 </button>
-                <span class="text-gray-400 text-sm">Step <span id="stepNum">1</span> / 3</span>
-                <button onclick="nextSlide()"
-                        class="bg-gray-800 text-white px-5 py-2 rounded-lg hover:bg-gray-700 transition font-bold">
+                <span class="ca-muted text-sm whitespace-nowrap">Step <span id="stepNum">1</span> / 3</span>
+                <button type="button" onclick="nextSlide()"
+                        class="ca-btn-outline min-w-[3rem] min-h-[2.75rem] px-4 font-bold">
                     →
                 </button>
             </div>

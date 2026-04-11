@@ -2,55 +2,40 @@
 
 {% block content %}
 
-<div class="flex items-center justify-center px-4 py-8">
+<div class="flex items-center justify-center px-3 sm:px-4 py-8 sm:py-12 min-h-[50vh]">
 
-    <form method="POST"
-          class="bg-gray-900 p-6 rounded-xl w-full max-w-md shadow-lg border border-gray-700">
+    <form method="POST" class="ca-glass p-5 sm:p-8 w-full max-w-md">
         {% csrf_token %}
 
-        <h2 class="text-2xl text-cyan-400 mb-2 text-center font-bold">📝 Create Account</h2>
+        <h2 class="text-xl sm:text-2xl text-white mb-1 text-center font-extrabold tracking-tight">Create account</h2>
+        <p class="ca-muted text-center text-sm mb-6">Join Clash Arena in seconds</p>
 
-        <!-- DISCLAIMER -->
-        <div class="bg-yellow-400/10 border border-yellow-400/40 rounded-lg px-4 py-3 mb-5">
-            <p class="text-yellow-400 text-xs text-center">
-                ⚠️ Use your <span class="font-bold">real email address</span>. Tournament rewards will be sent to this email.
+        <div class="ca-glass-sm border border-amber-500/25 px-4 py-3 mb-5">
+            <p class="text-amber-100/90 text-xs text-center leading-relaxed">
+                Use your <span class="font-bold text-white">real email</span>. Rewards are sent to this address.
             </p>
         </div>
 
-        <!-- ERROR -->
         {% if error %}
-        <div class="bg-red-500/10 border border-red-500/40 rounded-lg px-4 py-3 mb-4">
-            <p class="text-red-400 text-sm text-center">{{ error }}</p>
+        <div class="ca-glass-sm border border-red-500/35 px-4 py-3 mb-4">
+            <p class="text-red-200 text-sm text-center">{{ error }}</p>
         </div>
         {% endif %}
 
-        <!-- USERNAME -->
-        <label class="text-gray-400 text-sm mb-1 block">Username *</label>
-        <input type="text" name="username" placeholder="Choose a username"
-               required
-               class="w-full p-2.5 mb-3 bg-gray-800 border border-gray-700 rounded focus:outline-none focus:border-cyan-400 text-white text-sm">
+        <label class="ca-label text-xs font-medium mb-1.5 block">Username</label>
+        <input type="text" name="username" placeholder="Choose a username" required class="ca-input mb-4">
 
-        <!-- EMAIL -->
-        <label class="text-gray-400 text-sm mb-1 block">Email *</label>
-        <input type="email" name="email" placeholder="your@email.com"
-               required
-               class="w-full p-2.5 mb-3 bg-gray-800 border border-gray-700 rounded focus:outline-none focus:border-cyan-400 text-white text-sm">
+        <label class="ca-label text-xs font-medium mb-1.5 block">Email</label>
+        <input type="email" name="email" placeholder="your@email.com" required class="ca-input mb-4">
 
-        <!-- PASSWORD -->
-        <label class="text-gray-400 text-sm mb-1 block">Password *</label>
-        <input type="password" name="password" placeholder="Create a password"
-               required
-               class="w-full p-2.5 mb-5 bg-gray-800 border border-gray-700 rounded focus:outline-none focus:border-cyan-400 text-white text-sm">
+        <label class="ca-label text-xs font-medium mb-1.5 block">Password</label>
+        <input type="password" name="password" placeholder="Create a password" required class="ca-input mb-6">
 
-        <!-- SUBMIT -->
-        <button type="submit"
-                class="w-full bg-cyan-400 text-black py-2.5 rounded font-bold hover:bg-cyan-300 transition text-base">
-            Create Account
-        </button>
+        <button type="submit" class="ca-btn w-full">Create account</button>
 
-        <p class="text-gray-500 text-sm text-center mt-4">
-            Already have an account?
-            <a href="/login/" class="text-cyan-400 hover:underline">Login</a>
+        <p class="ca-muted text-sm text-center mt-6">
+            Already registered?
+            <a href="/login/" class="ca-link font-semibold">Sign in</a>
         </p>
 
     </form>

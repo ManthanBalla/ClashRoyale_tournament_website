@@ -2,84 +2,82 @@
 
 {% block content %}
 
-<div class="flex flex-col items-center justify-center text-center py-10">
+<div class="flex flex-col py-6 sm:py-10">
 
     {% if join_error %}
-    <div class="w-full max-w-4xl mb-4 rounded-xl px-4 py-3 border text-left"
-         style="background: rgba(248,113,113,0.08); border-color: rgba(248,113,113,0.4);">
+    <div class="w-full max-w-4xl mx-auto mb-4 ca-glass px-4 py-3 border border-red-500/25">
         {% if join_error == 'not_open' %}
-            <p class="text-red-400 text-sm font-semibold">⚠️ This tournament is not open for joining right now.</p>
+            <p class="text-red-300 text-sm font-semibold">This tournament is not open for joining right now.</p>
         {% elif join_error == 'deadline' %}
-            <p class="text-red-400 text-sm font-semibold">⏰ Join deadline has passed for this tournament.</p>
+            <p class="text-red-300 text-sm font-semibold">Join deadline has passed for this tournament.</p>
         {% elif join_error == 'full' %}
-            <p class="text-red-400 text-sm font-semibold">👥 This tournament is full.</p>
+            <p class="text-red-300 text-sm font-semibold">This tournament is full.</p>
         {% else %}
-            <p class="text-red-400 text-sm font-semibold">⚠️ Unable to join this tournament.</p>
+            <p class="text-red-300 text-sm font-semibold">Unable to join this tournament.</p>
         {% endif %}
     </div>
     {% endif %}
 
     <!-- HERO -->
-    <div class="mb-12">
-        <h1 class="text-5xl md:text-6xl font-extrabold">
-            <span class="text-gray-300">COMPETE.</span><br>
-            <span class="bg-gradient-to-r from-cyan-400 via-green-400 to-yellow-400 text-transparent bg-clip-text">
-                DOMINATE.
-            </span>
+    <div class="text-center mb-10 sm:mb-14 px-2">
+        <p class="text-[10px] sm:text-xs font-bold uppercase tracking-[0.25em] text-ca-accent mb-3">Clash Royale</p>
+        <h1 class="text-[clamp(2rem,6vw,3.5rem)] font-extrabold leading-tight tracking-tight text-white">
+            COMPETE.<br>
+            <span class="bg-gradient-to-r from-white via-white to-ca-accent bg-clip-text text-transparent">DOMINATE.</span>
         </h1>
-        <p class="text-gray-400 mt-4 max-w-xl mx-auto">
-            Join Clash Royale tournaments and prove you're the best.
+        <p class="ca-muted mt-4 max-w-lg mx-auto text-sm sm:text-base leading-relaxed">
+            Join tournaments, climb the ladder, and win rewards — built for mobile players first.
         </p>
     </div>
 
     <!-- TOURNAMENT LIST -->
-    <div class="w-full max-w-4xl">
+    <div class="w-full max-w-4xl mx-auto">
 
-        <h2 class="text-2xl font-bold text-cyan-400 mb-6 text-left">🏆 Active Tournaments</h2>
+        <div class="flex items-center justify-between gap-3 mb-5 sm:mb-6">
+            <h2 class="text-lg sm:text-xl font-bold text-white tracking-tight">Active tournaments</h2>
+            <span class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-white/40 hidden sm:inline">Live list</span>
+        </div>
 
         {% for item in tournament_data %}
-        <div class="bg-gray-900 p-5 rounded-xl mb-4 hover:scale-[1.01] transition">
+        <div class="ca-glass p-4 sm:p-5 mb-4 hover:border-white/[0.12] transition duration-200">
 
-            <!-- TOP ROW: name + button -->
-            <div class="flex justify-between items-start gap-3">
+            <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
 
-                <!-- LEFT: name + description + count -->
-                <div class="text-left flex-1 min-w-0">
+                <div class="text-left flex-1 min-w-0 order-2 sm:order-1">
                     <a href="/tournament/{{ item.tournament.id }}/"
-                       class="text-lg font-bold text-white hover:text-cyan-400 block truncate">
+                       class="text-base sm:text-lg font-bold text-white hover:text-ca-accent transition block truncate">
                         {{ item.tournament.name }}
                     </a>
-                    <p class="text-gray-400 text-sm mt-1 line-clamp-2">
+                    <p class="ca-muted text-sm mt-1.5 line-clamp-2 leading-relaxed">
                         {{ item.tournament.description }}
                     </p>
-                    <p class="text-green-400 text-sm mt-2">
-                        👥 {{ item.count }} players joined
+                    <p class="text-emerald-300/90 text-sm mt-2 font-medium">
+                        {{ item.count }} players joined
                     </p>
                 </div>
 
-                <!-- RIGHT: Join/Joined button — fixed size, never wraps -->
-                <div class="flex-shrink-0 mt-1">
+                <div class="w-full sm:w-auto sm:flex-shrink-0 order-1 sm:order-2 sm:mt-0">
                     {% if item.tournament.id in joined_tournaments %}
-                        <span class="bg-green-500/20 text-green-400 px-4 py-2 rounded font-semibold border border-green-500 text-sm whitespace-nowrap block">
-                            ✓ Joined
+                        <span class="block w-full sm:w-auto text-center ca-btn-outline border-emerald-500/35 text-emerald-300 py-3 sm:py-2.5 sm:min-w-[7.5rem]">
+                            Joined
                         </span>
                     {% elif item.tournament.status != 'upcoming' %}
                         {% if item.tournament.status == 'ongoing' %}
-                        <span class="bg-yellow-500/20 text-yellow-300 px-4 py-2 rounded font-semibold border border-yellow-500 text-sm whitespace-nowrap block">
-                            🔴 Live
+                        <span class="block w-full sm:w-auto text-center ca-btn-outline border-amber-500/35 text-amber-200 py-3 sm:py-2.5">
+                            Live
                         </span>
                         {% elif item.tournament.status == 'completed' %}
-                        <span class="bg-gray-700/40 text-gray-300 px-4 py-2 rounded font-semibold border border-gray-600 text-sm whitespace-nowrap block">
-                            🏆 Completed
+                        <span class="block w-full sm:w-auto text-center ca-btn-outline text-white/50 py-3 sm:py-2.5">
+                            Completed
                         </span>
                         {% else %}
-                        <span class="bg-gray-700/40 text-gray-300 px-4 py-2 rounded font-semibold border border-gray-600 text-sm whitespace-nowrap block">
-                            Not Open
+                        <span class="block w-full sm:w-auto text-center ca-btn-outline text-white/50 py-3 sm:py-2.5">
+                            Not open
                         </span>
                         {% endif %}
                     {% else %}
                         <a href="/join/{{ item.tournament.id }}/"
-                           class="bg-cyan-400 text-black px-4 py-2 rounded font-semibold hover:bg-cyan-300 text-sm whitespace-nowrap block text-center">
+                           class="ca-btn w-full sm:w-auto text-center no-underline">
                             Join
                         </a>
                     {% endif %}
@@ -89,7 +87,9 @@
 
         </div>
         {% empty %}
-            <p class="text-gray-500">No tournaments yet.</p>
+            <div class="ca-glass px-5 py-10 text-center">
+                <p class="ca-muted text-sm">No tournaments yet. Check back soon.</p>
+            </div>
         {% endfor %}
 
     </div>

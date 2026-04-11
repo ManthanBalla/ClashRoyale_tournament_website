@@ -29,7 +29,7 @@
         <p class="text-yellow-400 font-bold">🎉 Active Plan: {{ profile.get_creator_plan_display }}</p>
         <p class="text-gray-400 text-xs mt-1">Expires: <span class="local-time" data-utc="{{ profile.plan_expiry|date:'c' }}"></span></p>
         <p class="text-gray-400 text-xs mt-1">
-            Tournaments used: <span class="text-cyan-400 font-bold">{{ profile.tournaments_created_this_month }} / {{ profile.tournament_limit }}</span>
+            Tournaments used: <span class="text-ca-accent font-bold">{{ profile.tournaments_created_this_month }} / {{ profile.tournament_limit }}</span>
         </p>
     </div>
     {% endif %}
@@ -165,7 +165,7 @@
             <!-- UPI -->
             <div class="rounded-xl p-4 mb-5 border"
                  style="background: linear-gradient(135deg, rgba(6,182,212,0.1), rgba(59,130,246,0.1)); border-color: rgba(6,182,212,0.3);">
-                <p class="text-cyan-400 font-bold text-sm mb-2">📱 Pay via UPI</p>
+                <p class="text-ca-accent font-bold text-sm mb-2">📱 Pay via UPI</p>
                 <div class="bg-black/30 rounded-lg py-3 px-4 text-center mb-2">
                     <p class="text-white font-mono text-base font-bold">manthanballa08@okicici</p>
                 </div>

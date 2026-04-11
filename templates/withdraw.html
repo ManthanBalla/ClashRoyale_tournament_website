@@ -2,57 +2,49 @@
 
 {% block content %}
 
-<div class="flex items-center justify-center px-4 py-8">
+<div class="flex items-center justify-center px-3 sm:px-4 py-8 sm:py-12 min-h-[50vh]">
 
-    <div class="bg-gray-900 rounded-xl border border-gray-700 p-6 w-full max-w-md">
+    <div class="ca-glass p-5 sm:p-8 w-full max-w-md">
 
-        <h1 class="text-2xl font-bold text-yellow-400 mb-2 text-center">💸 Withdraw Rewards</h1>
-        <p class="text-gray-400 text-sm text-center mb-6">Funds will be sent to your UPI ID</p>
+        <h1 class="text-xl sm:text-2xl font-extrabold text-white mb-1 text-center tracking-tight">Withdraw</h1>
+        <p class="ca-muted text-sm text-center mb-6">Funds are sent to your UPI ID</p>
 
-        <!-- BALANCE -->
-        <div class="bg-gray-800 rounded-xl p-4 mb-6 text-center border border-gray-700">
-            <p class="text-gray-400 text-sm">Available Balance</p>
-            <p class="text-3xl font-bold text-yellow-400 mt-1">₹{{ profile.reward_balance }}</p>
-            <p class="text-gray-500 text-xs mt-1">UPI: {{ profile.upi_id }}</p>
+        <div class="ca-glass-sm border border-ca-accent/20 p-4 mb-6 text-center">
+            <p class="ca-muted text-sm">Available balance</p>
+            <p class="text-3xl font-extrabold text-white mt-1 tabular-nums">₹{{ profile.reward_balance }}</p>
+            <p class="text-white/40 text-xs mt-2 break-all">UPI: {{ profile.upi_id }}</p>
         </div>
 
-        <!-- ERROR -->
         {% if error %}
-        <div class="bg-red-500/10 border border-red-500/40 rounded-lg px-4 py-3 mb-4">
-            <p class="text-red-400 text-sm">⚠️ {{ error }}</p>
+        <div class="ca-glass-sm border border-red-500/35 px-4 py-3 mb-4">
+            <p class="text-red-200 text-sm">{{ error }}</p>
         </div>
         {% endif %}
 
-        <!-- FORM -->
         <form method="POST">
             {% csrf_token %}
 
-            <label class="text-gray-400 text-sm mb-1 block">Amount to Withdraw (₹) *</label>
+            <label class="ca-label text-xs font-medium mb-1.5 block">Amount (₹)</label>
             <input type="number" name="amount"
                    placeholder="Enter amount"
                    min="1"
                    max="{{ profile.reward_balance }}"
                    required
-                   class="w-full p-2.5 mb-3 bg-gray-800 border border-gray-700 rounded focus:outline-none focus:border-yellow-400 text-white text-sm">
+                   class="ca-input mb-4">
 
-            <div class="bg-yellow-400/10 border border-yellow-400/30 rounded-lg px-4 py-3 mb-5">
-                <p class="text-yellow-400 text-xs">
-                    ⚠️ Withdrawal will be sent to <span class="font-bold">{{ profile.upi_id }}</span>.
-                    If this is wrong, <a href="/profile/" class="underline">update your profile</a> first.
+            <div class="ca-glass-sm border border-amber-500/25 px-4 py-3 mb-5">
+                <p class="text-amber-100/90 text-xs leading-relaxed">
+                    Sent to <span class="font-bold text-white">{{ profile.upi_id }}</span>.
+                    Wrong UPI? <a href="/profile/" class="ca-link font-semibold">Update profile</a> first.
                 </p>
             </div>
 
-            <button type="submit"
-                    class="w-full bg-yellow-400 text-black py-2.5 rounded font-bold hover:bg-yellow-300 transition">
-                Request Withdrawal
+            <button type="submit" class="ca-btn w-full">
+                Request withdrawal
             </button>
-
-            <a href="/profile/"
-               class="block text-center text-gray-500 text-sm mt-4 hover:text-gray-400">
-                ← Back to Profile
-            </a>
-
         </form>
+
+        <p class="ca-muted text-xs text-center mt-5">Admin processes requests manually.</p>
 
     </div>
 

@@ -85,91 +85,88 @@
     </div>
     {% endif %}
 
-    <h1 class="text-2xl font-bold text-cyan-400 mb-6">👤 My Profile</h1>
+    <h1 class="text-2xl sm:text-3xl font-extrabold text-white mb-1 tracking-tight">My profile</h1>
+    <p class="ca-muted text-sm mb-6">Wallet, withdrawals, and account</p>
 
     <!-- WALLET CARD -->
-    <div class="rounded-xl border p-5 mb-6 flex items-center justify-between"
-         style="background: linear-gradient(135deg, #1a1200, #2d1f00); border-color: rgba(234,179,8,0.4);">
+    <div class="ca-glass p-5 sm:p-6 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border border-ca-accent/20">
         <div>
-            <p class="text-gray-400 text-sm">💰 Reward Balance</p>
-            <p class="text-3xl font-bold text-yellow-400 mt-1">₹{{ profile.reward_balance }}</p>
+            <p class="ca-muted text-sm font-medium">Reward balance</p>
+            <p class="text-3xl sm:text-4xl font-extrabold text-white mt-1 tabular-nums">₹{{ profile.reward_balance }}</p>
         </div>
-        <a href="/withdraw/"
-           class="bg-yellow-400 text-black px-4 py-2 rounded-lg font-bold text-sm hover:bg-yellow-300 transition">
-            💸 Withdraw
+        <a href="/withdraw/" class="ca-btn-outline text-center min-h-[2.75rem] sm:min-w-[10rem] font-bold text-sm shrink-0">
+            Withdraw
         </a>
     </div>
 
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <div class="bg-gray-900 border border-gray-700 rounded-xl p-3">
-            <p class="text-xs text-gray-400">Credits</p>
-            <p class="text-sm font-bold text-green-400">₹{{ wallet_breakdown.credit }}</p>
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        <div class="ca-glass-sm p-3 sm:p-4">
+            <p class="text-[10px] sm:text-xs ca-muted uppercase tracking-wider font-semibold">Credits</p>
+            <p class="text-sm sm:text-base font-bold text-emerald-300 mt-1 tabular-nums">₹{{ wallet_breakdown.credit }}</p>
         </div>
-        <div class="bg-gray-900 border border-gray-700 rounded-xl p-3">
-            <p class="text-xs text-gray-400">Debits</p>
-            <p class="text-sm font-bold text-red-400">₹{{ wallet_breakdown.debit }}</p>
+        <div class="ca-glass-sm p-3 sm:p-4">
+            <p class="text-[10px] sm:text-xs ca-muted uppercase tracking-wider font-semibold">Debits</p>
+            <p class="text-sm sm:text-base font-bold text-red-300 mt-1 tabular-nums">₹{{ wallet_breakdown.debit }}</p>
         </div>
-        <div class="bg-gray-900 border border-gray-700 rounded-xl p-3">
-            <p class="text-xs text-gray-400">Refunds</p>
-            <p class="text-sm font-bold text-cyan-400">₹{{ wallet_breakdown.refund }}</p>
+        <div class="ca-glass-sm p-3 sm:p-4">
+            <p class="text-[10px] sm:text-xs ca-muted uppercase tracking-wider font-semibold">Refunds</p>
+            <p class="text-sm sm:text-base font-bold text-ca-accent mt-1 tabular-nums">₹{{ wallet_breakdown.refund }}</p>
         </div>
-        <div class="bg-gray-900 border border-gray-700 rounded-xl p-3">
-            <p class="text-xs text-gray-400">Winnings</p>
-            <p class="text-sm font-bold text-yellow-400">₹{{ wallet_breakdown.winning }}</p>
+        <div class="ca-glass-sm p-3 sm:p-4">
+            <p class="text-[10px] sm:text-xs ca-muted uppercase tracking-wider font-semibold">Winnings</p>
+            <p class="text-sm sm:text-base font-bold text-amber-200 mt-1 tabular-nums">₹{{ wallet_breakdown.winning }}</p>
         </div>
     </div>
 
     <!-- RAZORPAY WALLET TOP-UP -->
-    <div class="rounded-xl border p-5 mb-6 bg-gray-900 border-gray-700">
-        <h2 class="text-lg font-bold text-cyan-400 mb-3">➕ Add Money to Wallet</h2>
-        <p class="text-gray-400 text-sm mb-4">Secure top-up via Razorpay (cards, UPI, netbanking).</p>
+    <div class="ca-glass p-5 sm:p-6 mb-6">
+        <h2 class="text-lg font-bold text-white mb-1">Add money</h2>
+        <p class="ca-muted text-sm mb-4">Secure top-up via Razorpay (cards, UPI, netbanking).</p>
 
         <div class="flex flex-col sm:flex-row gap-3">
-            <input id="topupAmount" type="number" min="10" step="1" placeholder="Enter amount (min ₹10)"
-                   class="flex-1 p-2.5 bg-gray-800 border border-gray-700 rounded focus:outline-none focus:border-cyan-400 text-white text-sm">
-            <button id="topupBtn" type="button"
-                    class="bg-cyan-400 text-black px-5 py-2.5 rounded font-bold hover:bg-cyan-300 transition">
+            <input id="topupAmount" type="number" min="10" step="1" placeholder="Amount (min ₹10)"
+                   class="ca-input flex-1">
+            <button id="topupBtn" type="button" class="ca-btn shrink-0 w-full sm:w-auto min-w-[11rem]">
                 Pay with Razorpay
             </button>
         </div>
-        <p id="topupMsg" class="text-xs mt-3 text-gray-400"></p>
+        <p id="topupMsg" class="text-xs mt-3 ca-muted"></p>
     </div>
 
     <!-- PLAN STATUS -->
     {% if profile.plan_active %}
-    <div class="rounded-xl border p-4 mb-6"
-         style="background: linear-gradient(135deg, rgba(124,58,237,0.1), rgba(37,99,235,0.1)); border-color: rgba(124,58,237,0.4);">
-        <p class="text-purple-400 font-bold text-sm">👑 Active Plan: {{ profile.get_creator_plan_display }}</p>
-        <p class="text-gray-400 text-xs mt-1">Expires: <span class="local-time" data-utc="{{ profile.plan_expiry|date:'c' }}"></span></p>
-        <p class="text-gray-400 text-xs mt-1">
-            Tournaments used: <span class="text-cyan-400 font-bold">{{ profile.tournaments_created_this_month }} / {{ profile.tournament_limit }}</span>
+    <div class="ca-glass-sm border border-ca-accent/25 p-4 mb-6">
+        <p class="text-white font-bold text-sm">Active plan: {{ profile.get_creator_plan_display }}</p>
+        <p class="ca-muted text-xs mt-1">Expires: <span class="local-time text-white/80" data-utc="{{ profile.plan_expiry|date:'c' }}"></span></p>
+        <p class="ca-muted text-xs mt-1">
+            Tournaments used: <span class="text-ca-accent font-bold">{{ profile.tournaments_created_this_month }} / {{ profile.tournament_limit }}</span>
         </p>
     </div>
     {% endif %}
 
     <!-- PROFILE FORM -->
-    <form method="POST" class="rounded-xl border border-gray-700 p-6 mb-6 bg-gray-900">
+    <form method="POST" class="ca-glass p-6 mb-6">
         {% csrf_token %}
 
-        <h2 class="text-lg font-bold text-white mb-4">✏️ Edit Profile</h2>
+        <h2 class="text-lg font-bold text-white mb-4">Edit profile</h2>
 
-        <label class="text-gray-400 text-sm mb-1 block">Full Name</label>
+        <label class="ca-label text-sm mb-1.5 block">Full name</label>
         <input type="text" name="first_name"
                value="{{ request.user.first_name }}"
                placeholder="Your real name"
-               class="w-full p-2.5 mb-3 bg-gray-800 border border-gray-700 rounded focus:outline-none focus:border-cyan-400 text-white text-sm">
+               class="ca-input mb-3">
 
-        <label class="text-gray-400 text-sm mb-1 block">Email *</label>
+        <label class="ca-label text-sm mb-1.5 block">Email *</label>
         <input type="email" name="email"
                value="{{ request.user.email }}"
                placeholder="your@email.com" required
-               class="w-full p-2.5 mb-3 bg-gray-800 border border-gray-700 rounded focus:outline-none focus:border-cyan-400 text-white text-sm">
+               class="ca-input mb-3">
 
-        <label class="text-gray-400 text-sm mb-1 block">UPI ID <span class="text-gray-500">(for reward withdrawals)</span></label>
+        <label class="ca-label text-sm mb-1.5 block">UPI ID <span class="text-white/35">(withdrawals)</span></label>
         <input type="text" name="upi_id"
                value="{{ profile.upi_id }}"
                placeholder="yourname@upi"
-               class="w-full p-2.5 mb-3 bg-gray-800 border border-gray-700 rounded focus:outline-none focus:border-cyan-400 text-white text-sm">
+               class="ca-input mb-3">
 
         <div class="rounded-lg px-4 py-3 mb-5 border"
              style="background: rgba(234,179,8,0.08); border-color: rgba(234,179,8,0.3);">
@@ -179,16 +176,16 @@
         </div>
 
         <button type="submit"
-                class="w-full bg-cyan-400 text-black py-2.5 rounded font-bold hover:bg-cyan-300 transition">
+                class="w-full ca-btn w-full">
             💾 Save Profile
         </button>
     </form>
 
     <!-- WITHDRAWAL HISTORY -->
     <h2 class="text-lg font-bold text-white mb-3">💸 Withdrawal History</h2>
-    <div class="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-6">
+    <div class="ca-panel mb-6">
         {% for w in withdrawal_requests %}
-        <div class="flex items-center justify-between p-4 border-b border-gray-800">
+        <div class="flex items-center justify-between p-4 border-b border-white/[0.06]">
             <div>
                 <p class="text-white font-bold text-sm">₹{{ w.amount }}</p>
                 <p class="text-gray-500 text-xs">{{ w.upi_id }}</p>
@@ -209,9 +206,9 @@
 
     <!-- TRANSACTION HISTORY -->
     <h2 class="text-lg font-bold text-white mb-3">📊 Transaction History</h2>
-    <div class="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-6">
+    <div class="ca-panel mb-6">
         {% for t in transactions %}
-        <div class="flex items-center justify-between p-4 border-b border-gray-800 gap-2">
+        <div class="flex items-center justify-between p-4 border-b border-white/[0.06] gap-2">
             <div class="flex-1 min-w-0">
                 <p class="text-white text-sm truncate">{{ t.description }}</p>
                 <p class="text-gray-500 text-xs">{{ t.created_at|date:"d M Y, H:i" }}</p>
@@ -230,9 +227,9 @@
     <!-- MEMBERSHIP HISTORY -->
     {% if memberships %}
     <h2 class="text-lg font-bold text-white mb-3">👑 Membership History</h2>
-    <div class="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-6">
+    <div class="ca-panel mb-6">
         {% for m in memberships %}
-        <div class="flex items-center justify-between p-4 border-b border-gray-800">
+        <div class="flex items-center justify-between p-4 border-b border-white/[0.06]">
             <div>
                 <p class="font-bold text-white text-sm">{{ m.get_plan_display }}</p>
                 <p class="text-gray-500 text-xs">Started: {{ m.started_at|date:"d M Y" }}</p>
