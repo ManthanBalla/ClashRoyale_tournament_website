@@ -3,7 +3,6 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.db.models import Count, Sum, Q
 from django.http import JsonResponse
 from django.utils import timezone
 from django.utils.timezone import localtime
@@ -93,31 +92,11 @@ def send_notification(user, notification_type, title, message, tournament=None):
     )
 
 
-# OPTIMIZATION: notify_all_participants
-# BEFORE: Iterated Participant queryset calling send_notification() per user → N individual INSERTs.
-# AFTER:  Build Notification objects in memory, then bulk_create() → 1 INSERT for all participants.
-#         values_list('user_id') avoids loading full User/Participant objects unnecessarily.
 def notify_all_participants(tournament, notification_type, title, message):
-    participant_user_ids = list(
-        Participant.objects.filter(tournament=tournament)
-        .values_list('user_id', flat=True)
-    )
-
-    all_user_ids = participant_user_ids
-    if tournament.creator_id not in all_user_ids:
-        all_user_ids = all_user_ids + [tournament.creator_id]
-
-    notifications = [
-        Notification(
-            user_id=uid,
-            notification_type=notification_type,
-            title=title,
-            message=message,
-            tournament=tournament
-        )
-        for uid in all_user_ids
-    ]
-    Notification.objects.bulk_create(notifications)
+    participants = Participant.objects.filter(tournament=tournament)
+    for p in participants:
+        send_notification(p.user, notification_type, title, message, tournament)
+    send_notification(tournament.creator, notification_type, title, message, tournament)
 
 
 def parse_and_convert(dt_str, tz_choice):
@@ -176,29 +155,18 @@ def check_rate_limit(key, limit=20, window_seconds=60):
 
 # ─── AUTH ──────────────────────────────────────────────────────────────────
 
-# OPTIMIZATION: home()
-# BEFORE: Participant.objects.filter(tournament=t).count() called inside loop → N queries.
-# AFTER:  annotate(participant_count=Count('participant')) fetches counts in 1 query.
-#         joined_tournaments uses values_list — avoids loading full Participant objects.
 def home(request):
-    tournaments = (
-        Tournament.objects
-        .exclude(status='cancelled')
-        .annotate(participant_count=Count('participant'))
-        .order_by('-created_at')
-    )
-
+    tournaments = Tournament.objects.exclude(status='cancelled').order_by('-created_at')
     joined_tournaments = []
     if request.user.is_authenticated:
-        joined_tournaments = list(
-            Participant.objects.filter(user=request.user)
-            .values_list('tournament_id', flat=True)
-        )
+        joined_tournaments = Participant.objects.filter(
+            user=request.user
+        ).values_list('tournament_id', flat=True)
 
     tournament_data = []
     for t in tournaments:
         sync_tournament_status(t)
-        count = t.participant_count  # annotated — no extra DB query
+        count = Participant.objects.filter(tournament=t).count()
         tournament_data.append({
             'tournament': t,
             'count': count,
@@ -278,10 +246,6 @@ def mark_notification_read(request, notification_id):
 
 # ─── PROFILE ───────────────────────────────────────────────────────────────
 
-# OPTIMIZATION: profile_view()
-# BEFORE: Transaction.objects.filter(user=request.user) loaded ALL transactions into memory,
-#         then a Python loop summed them by category → O(N) memory + N rows fetched.
-# AFTER:  Single ORM aggregate query with conditional Sum() computes breakdown in the DB → O(1) memory.
 @login_required
 def profile_view(request):
     profile = request.user.profile
@@ -295,19 +259,10 @@ def profile_view(request):
         user=request.user
     ).order_by('-created_at')[:30]
 
-    # Single aggregation query replaces Python loop over all transactions
-    agg = Transaction.objects.filter(user=request.user).aggregate(
-        total_credit=Sum('amount', filter=Q(category='credit')),
-        total_debit=Sum('amount', filter=Q(category='debit')),
-        total_refund=Sum('amount', filter=Q(category='refund')),
-        total_winning=Sum('amount', filter=Q(category='winning')),
-    )
-    breakdown = {
-        'credit': agg['total_credit'] or Decimal('0.00'),
-        'debit': agg['total_debit'] or Decimal('0.00'),
-        'refund': agg['total_refund'] or Decimal('0.00'),
-        'winning': agg['total_winning'] or Decimal('0.00'),
-    }
+    breakdown = {'credit': Decimal('0.00'), 'debit': Decimal('0.00'), 'refund': Decimal('0.00'), 'winning': Decimal('0.00')}
+    all_tx = Transaction.objects.filter(user=request.user)
+    for tx in all_tx:
+        breakdown[tx.category] = breakdown.get(tx.category, Decimal('0.00')) + tx.amount
 
     recent_topup = Transaction.objects.filter(
         user=request.user,
@@ -783,19 +738,24 @@ def join_tournament(request, tournament_id):
     sync_tournament_status(tournament)
     now = localtime()
 
+    # LOCK: already joined
     if Participant.objects.filter(user=request.user, tournament=tournament).exists():
         return redirect(f'/tournament/{tournament.id}/')
 
+    # LOCK: not upcoming
     if tournament.status != 'upcoming':
         return redirect('/?join_error=not_open')
 
+    # LOCK: deadline passed
     if tournament.join_deadline and now > localtime(tournament.join_deadline):
         return redirect('/?join_error=deadline')
 
+    # LOCK: max players reached
     current_count = Participant.objects.filter(tournament=tournament).count()
     if current_count >= tournament.max_players:
         return redirect('/?join_error=full')
 
+    # PAID TOURNAMENT
     if tournament.is_paid:
         if request.method == "POST":
             agreed = request.POST.get('agreed')
@@ -811,6 +771,7 @@ def join_tournament(request, tournament_id):
                     'error': f'Insufficient balance. You need ₹{tournament.entry_fee} to join. Your balance is ₹{profile.reward_balance}.'
                 })
 
+            # deduct fee
             try:
                 debit_wallet(
                     request.user,
@@ -827,6 +788,7 @@ def join_tournament(request, tournament_id):
                     'error': f'Insufficient balance. You need ₹{tournament.entry_fee} to join. Your balance is ₹{request.user.profile.reward_balance}.'
                 })
 
+            # notify deduction
             send_notification(
                 request.user,
                 'wallet_credit',
@@ -852,6 +814,8 @@ def join_tournament(request, tournament_id):
 
         return redirect(f'/rules/{tournament.id}/')
 
+    # FREE TOURNAMENT
+    # FREE TOURNAMENT — password reveal
     show_password = False
     if tournament.start_time:
         now_utc = timezone.now()
@@ -893,9 +857,11 @@ def join_tournament(request, tournament_id):
 def create_tournament(request):
     profile = request.user.profile
 
+    # ADMIN: unlimited access, no restrictions
     if not profile.is_admin and not profile.is_creator:
         return redirect('/')
 
+    # CREATOR: check plan limits only
     if not profile.is_admin and not profile.can_create_tournament():
         return render(request, 'create_tournament.html', {
             'error': 'You have reached your tournament limit or your plan has expired. Please upgrade your plan.'
@@ -942,6 +908,7 @@ def create_tournament(request):
             show_participants=show_participants,
         )
 
+        # only increment for non-admin creators
         if not profile.is_admin:
             profile.tournaments_created_this_month += 1
             profile.save()
@@ -951,9 +918,6 @@ def create_tournament(request):
     return render(request, 'create_tournament.html')
 
 
-# OPTIMIZATION: delete_tournament()
-# BEFORE: Participant loop loaded plain objects; credit_wallet had to re-fetch user.
-# AFTER:  select_related('user') pre-joins user data, reducing per-iteration queries.
 @login_required
 def delete_tournament(request, tournament_id):
     tournament = get_object_or_404(Tournament, id=tournament_id)
@@ -963,9 +927,7 @@ def delete_tournament(request, tournament_id):
 
     if request.method == "POST":
         if tournament.is_paid:
-            participants = Participant.objects.filter(
-                tournament=tournament, fee_paid=True
-            ).select_related('user')
+            participants = Participant.objects.filter(tournament=tournament, fee_paid=True)
             for p in participants:
                 credit_wallet(
                     p.user,
@@ -1018,20 +980,11 @@ def edit_tournament(request, tournament_id):
     return render(request, 'edit_tournament.html', {'tournament': tournament})
 
 
-# OPTIMIZATION: tournament_detail()
-# BEFORE: participants loaded without select_related → template access to participant.user triggered N queries.
-#         matches loaded without select_related → player1/player2/winner access triggered more queries.
-#         joined_tournaments loaded full Participant objects.
-# AFTER:  select_related on both querysets. values_list for joined_tournaments.
 def tournament_detail(request, tournament_id):
     tournament = get_object_or_404(Tournament, id=tournament_id)
     sync_tournament_status(tournament)
-    participants = Participant.objects.filter(
-        tournament=tournament
-    ).select_related('user')
-    matches = Match.objects.filter(
-        tournament=tournament
-    ).select_related('player1', 'player2', 'winner')
+    participants = Participant.objects.filter(tournament=tournament)
+    matches = Match.objects.filter(tournament=tournament)
     now = localtime()
     count = participants.count()
 
@@ -1044,10 +997,9 @@ def tournament_detail(request, tournament_id):
     joined_tournaments = []
     is_participant = False
     if request.user.is_authenticated:
-        joined_tournaments = list(
-            Participant.objects.filter(user=request.user)
-            .values_list('tournament_id', flat=True)
-        )
+        joined_tournaments = Participant.objects.filter(
+            user=request.user
+        ).values_list('tournament_id', flat=True)
         is_participant = Participant.objects.filter(
             user=request.user, tournament=tournament
         ).exists()
@@ -1059,9 +1011,7 @@ def tournament_detail(request, tournament_id):
         'participants': participants,
         'matches': matches,
         'match_options': matches,
-        'open_disputes': DisputeReport.objects.filter(
-            tournament=tournament, status='open'
-        ).select_related('user').order_by('-created_at')[:10],
+        'open_disputes': DisputeReport.objects.filter(tournament=tournament, status='open').order_by('-created_at')[:10],
         'show_password': show_password,
         'joined_tournaments': joined_tournaments,
         'count': count,
@@ -1127,9 +1077,6 @@ def upload_results(request, tournament_id):
     return render(request, 'upload_results.html', {'tournament': tournament})
 
 
-# OPTIMIZATION: cancel_tournament()
-# BEFORE: Participant loop without select_related.
-# AFTER:  select_related('user') avoids extra user lookups inside credit_wallet.
 @login_required
 def cancel_tournament(request, tournament_id):
     tournament = get_object_or_404(Tournament, id=tournament_id)
@@ -1141,9 +1088,7 @@ def cancel_tournament(request, tournament_id):
         reason = request.POST.get('cancel_reason', 'Cancelled by organizer')
 
         if tournament.is_paid:
-            participants = Participant.objects.filter(
-                tournament=tournament, fee_paid=True
-            ).select_related('user')
+            participants = Participant.objects.filter(tournament=tournament, fee_paid=True)
             for p in participants:
                 credit_wallet(
                     p.user,
@@ -1169,11 +1114,6 @@ def cancel_tournament(request, tournament_id):
     return redirect('/')
 
 
-# OPTIMIZATION: generate_matches()
-# BEFORE: User.objects.get(id=uid) inside loop → N separate SELECT queries for N participants.
-#         Match.objects.create() inside loop → N separate INSERT queries.
-# AFTER:  User.objects.filter(id__in=participants) fetches all users in 1 query.
-#         Match.objects.bulk_create() inserts all matches in 1 query.
 @login_required
 def generate_matches(request, tournament_id):
     tournament = get_object_or_404(Tournament, id=tournament_id)
@@ -1182,14 +1122,14 @@ def generate_matches(request, tournament_id):
         return redirect('/')
 
     participants = list(
-        Participant.objects.filter(tournament=tournament).values_list('user_id', flat=True)
+        Participant.objects.filter(tournament=tournament).values_list('user', flat=True)
     )
 
+    # check minimum players
     if len(participants) < tournament.min_players:
         if tournament.is_paid:
-            # Single query for all users instead of per-iteration User.objects.get()
-            users = User.objects.filter(id__in=participants)
-            for u in users:
+            for uid in participants:
+                u = User.objects.get(id=uid)
                 credit_wallet(
                     u,
                     tournament.entry_fee,
@@ -1215,21 +1155,19 @@ def generate_matches(request, tournament_id):
     random.shuffle(participants)
     Match.objects.filter(tournament=tournament).delete()
 
-    # Build all Match objects in memory, then bulk insert — replaces N individual INSERTs
-    matches_to_create = []
     for i in range(0, len(participants), 2):
         if i + 1 < len(participants):
-            matches_to_create.append(Match(
+            Match.objects.create(
                 tournament=tournament,
                 player1_id=participants[i],
                 player2_id=participants[i + 1],
                 round_number=1
-            ))
-    Match.objects.bulk_create(matches_to_create)
+            )
 
     tournament.status = 'ongoing'
     tournament.save()
 
+    # notify start + end time if set
     end_msg = ''
     if tournament.end_time:
         end_msg = f' Tournament ends at {tournament.end_time.strftime("%d %b %Y, %I:%M %p")} UTC.'
@@ -1244,11 +1182,6 @@ def generate_matches(request, tournament_id):
     return redirect(f'/tournament/{tournament.id}/')
 
 
-# OPTIMIZATION: submit_result()
-# BEFORE: all_matches queryset evaluated twice (once for all(), once in Counter).
-#         User.objects.get(id=top_winner_id) issued a separate DB SELECT.
-# AFTER:  Evaluate matches once into a list with select_related('winner').
-#         Reuse already-loaded winner objects — no extra DB query for winner lookup.
 @login_required
 def submit_result(request, match_id):
     match = get_object_or_404(Match, id=match_id)
@@ -1263,24 +1196,14 @@ def submit_result(request, match_id):
         match.save()
 
         tournament = match.tournament
-        # Evaluate once into list — prevents double queryset evaluation
-        all_matches = list(
-            Match.objects.filter(tournament=tournament).select_related('winner')
-        )
+        all_matches = Match.objects.filter(tournament=tournament)
 
-        if len(all_matches) > 0 and all(m.winner_id for m in all_matches):
+        if all_matches.count() > 0 and all(m.winner for m in all_matches):
             if tournament.is_paid and tournament.status == 'ongoing':
                 from collections import Counter
-                wins = Counter(m.winner_id for m in all_matches if m.winner_id)
+                wins = Counter(m.winner_id for m in all_matches if m.winner)
                 top_winner_id = wins.most_common(1)[0][0]
-
-                # Reuse winner from already-loaded list — avoids extra User.objects.get()
-                top_winner = next(
-                    (m.winner for m in all_matches if m.winner_id == top_winner_id),
-                    None
-                )
-                if top_winner is None:
-                    top_winner = User.objects.get(id=top_winner_id)
+                top_winner = User.objects.get(id=top_winner_id)
 
                 total_players = Participant.objects.filter(tournament=tournament).count()
                 total_collection = tournament.entry_fee * total_players
@@ -1289,6 +1212,7 @@ def submit_result(request, match_id):
                 creator_share = (remaining * Decimal('0.60')).quantize(Decimal('0.01'))
                 admin_share = remaining - creator_share
 
+                # pay winner
                 credit_wallet(
                     top_winner, prize_pool,
                     'tournament_win',
@@ -1302,6 +1226,7 @@ def submit_result(request, match_id):
                     tournament
                 )
 
+                # pay creator
                 credit_wallet(
                     tournament.creator, creator_share,
                     'creator_share',
@@ -1315,6 +1240,7 @@ def submit_result(request, match_id):
                     tournament
                 )
 
+                # pay admin
                 admin = User.objects.filter(profile__is_admin=True).first()
                 if admin:
                     credit_wallet(
@@ -1339,56 +1265,24 @@ def submit_result(request, match_id):
 
 # ─── ADMIN ─────────────────────────────────────────────────────────────────
 
-# OPTIMIZATION: creator_admin()
-# BEFORE: Participant.objects.filter(tournament=t).count() inside loop → N+1 queries for N tournaments.
-#         No select_related on related models → implicit FK lookups in templates.
-# AFTER:  annotate(participant_count=Count('participant')) fetches all counts in 1 query.
-#         select_related on all querysets to avoid template-triggered FK hits.
 @login_required
 def creator_admin(request):
     if not request.user.profile.is_admin:
         return redirect('/')
 
-    tournaments = (
-        Tournament.objects.all()
-        .annotate(participant_count=Count('participant'))
-        .select_related('creator')
-        .order_by('-created_at')
-    )
-    users = User.objects.all().select_related('profile').order_by('-date_joined')
-    withdrawal_requests = (
-        WithdrawalRequest.objects.all()
-        .select_related('user')
-        .order_by('-requested_at')
-    )
-    reward_codes = (
-        RewardCode.objects.all()
-        .select_related('assigned_to')
-        .order_by('-created_at')
-    )
-    memberships = (
-        CreatorMembership.objects.all()
-        .select_related('user')
-        .order_by('-started_at')
-    )
-    all_transactions = (
-        Transaction.objects.all()
-        .select_related('user', 'tournament')
-        .order_by('-created_at')[:50]
-    )
-    open_disputes = (
-        DisputeReport.objects.filter(status='open')
-        .select_related('user', 'tournament', 'match')
-        .order_by('-created_at')[:50]
-    )
+    tournaments = Tournament.objects.all().order_by('-created_at')
+    users = User.objects.all().order_by('-date_joined')
+    withdrawal_requests = WithdrawalRequest.objects.all().order_by('-requested_at')
+    reward_codes = RewardCode.objects.all().order_by('-created_at')
+    memberships = CreatorMembership.objects.all().order_by('-started_at')
+    all_transactions = Transaction.objects.all().order_by('-created_at')[:50]
+    open_disputes = DisputeReport.objects.filter(status='open').order_by('-created_at')[:50]
 
     tournament_data = []
     for t in tournaments:
         sync_tournament_status(t)
-        tournament_data.append({
-            'tournament': t,
-            'count': t.participant_count  # annotated — no extra query per tournament
-        })
+        count = Participant.objects.filter(tournament=t).count()
+        tournament_data.append({'tournament': t, 'count': count})
 
     return render(request, 'admin_panel.html', {
         'tournament_data': tournament_data,
