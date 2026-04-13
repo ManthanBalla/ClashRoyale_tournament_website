@@ -20,9 +20,13 @@ def check_rate_limit(key, limit=20, window_seconds=60):
     return True
 
 
-@shared_task(bind=True, max_retries=3, default_retry_delay=30)
-def send_reward_code_email_task(self, user_email, username, code_text, description, code_id):
+@shared_task
+def send_reward_code_email_task(user_email, username, code_text, description, code_id):
     if not user_email:
+        return
+    smtp_block_key = "smtp_unreachable_block"
+    if cache.get(smtp_block_key):
+        logger.warning("Skipping reward email due to temporary SMTP block code_id=%s", code_id)
         return
     try:
         send_mail(
@@ -35,15 +39,17 @@ def send_reward_code_email_task(self, user_email, username, code_text, descripti
             ),
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[user_email],
-            fail_silently=False,
+            fail_silently=True,
         )
-    except Exception as exc:
+    except OSError:
+        cache.set(smtp_block_key, True, timeout=600)
+        logger.exception("SMTP unreachable. Temporarily blocking email attempts code_id=%s", code_id)
+    except Exception:
         logger.exception("Reward email task failed code_id=%s", code_id)
-        raise self.retry(exc=exc)
 
 
-@shared_task(bind=True, max_retries=2, default_retry_delay=15)
-def notify_creator_followers_task(self, creator_id, tournament_id):
+@shared_task
+def notify_creator_followers_task(creator_id, tournament_id):
     try:
         tournament = Tournament.objects.select_related('creator').get(id=tournament_id, creator_id=creator_id)
         follows = CreatorFollow.objects.filter(
@@ -61,6 +67,5 @@ def notify_creator_followers_task(self, creator_id, tournament_id):
                 message=f'{tournament.creator.username} created "{tournament.name}". Join now!',
                 tournament=tournament
             )
-    except Exception as exc:
+    except Exception:
         logger.exception("Follower notify task failed creator_id=%s tournament_id=%s", creator_id, tournament_id)
-        raise self.retry(exc=exc)

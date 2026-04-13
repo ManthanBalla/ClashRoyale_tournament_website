@@ -17,6 +17,7 @@ from decimal import Decimal
 import json
 import logging
 import random
+import threading
 import pytz
 import razorpay
 from django.contrib.auth.views import PasswordResetConfirmView
@@ -178,6 +179,15 @@ def check_rate_limit(key, limit=20, window_seconds=60):
 def is_google_reward_code(code):
     text = f"{code.code} {code.description}".lower()
     return 'google' in text or 'play' in text
+
+
+def enqueue_task(task_func, *args):
+    if getattr(settings, 'CELERY_TASK_ALWAYS_EAGER', False):
+        # In eager mode on low-CPU/free hosts, run task in daemon thread
+        # so request-response is not blocked by network calls.
+        threading.Thread(target=lambda: task_func.delay(*args), daemon=True).start()
+    else:
+        task_func.delay(*args)
 
 
 # ─── AUTH ──────────────────────────────────────────────────────────────────
@@ -1143,7 +1153,7 @@ def create_tournament(request):
         if check_rate_limit(f"creator_new_tournament_notify:{request.user.id}", limit=20, window_seconds=3600):
             try:
                 from .tasks import notify_creator_followers_task
-                notify_creator_followers_task.delay(request.user.id, tournament.id)
+                enqueue_task(notify_creator_followers_task, request.user.id, tournament.id)
             except Exception:
                 logger.exception("Failed to enqueue follower notifications creator_id=%s", request.user.id)
 
@@ -1757,7 +1767,7 @@ def send_reward_code(request, code_id=None):
         if user.email:
             try:
                 from .tasks import send_reward_code_email_task
-                send_reward_code_email_task.delay(user.email, user.username, code.code, code.description, code.id)
+                enqueue_task(send_reward_code_email_task, user.email, user.username, code.code, code.description, code.id)
             except Exception:
                 logger.exception("Failed to enqueue reward email code_id=%s", code.id)
         send_notification(
@@ -1816,7 +1826,7 @@ def send_reward_code(request, code_id=None):
         if user.email:
             try:
                 from .tasks import send_reward_code_email_task
-                send_reward_code_email_task.delay(user.email, user.username, code.code, code.description, code.id)
+                enqueue_task(send_reward_code_email_task, user.email, user.username, code.code, code.description, code.id)
             except Exception:
                 logger.exception("Failed to enqueue reward email code_id=%s", code.id)
         send_notification(
