@@ -39,7 +39,7 @@ def send_reward_code_email_task(user_email, username, code_text, description, co
             ),
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[user_email],
-            fail_silently=True,
+            fail_silently=False,
         )
     except OSError:
         cache.set(smtp_block_key, True, timeout=600)
