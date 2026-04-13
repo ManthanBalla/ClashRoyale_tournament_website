@@ -168,6 +168,11 @@
                placeholder="yourname@upi"
                class="ca-input mb-3">
 
+        <label class="flex items-center gap-2 text-sm text-gray-300 mb-3">
+            <input type="checkbox" name="notify_new_tournaments" {% if profile.notify_new_tournaments %}checked{% endif %}>
+            Notify me when followed creators publish tournaments
+        </label>
+
         <div class="rounded-lg px-4 py-3 mb-5 border"
              style="background: rgba(234,179,8,0.08); border-color: rgba(234,179,8,0.3);">
             <p class="text-yellow-400 text-xs">

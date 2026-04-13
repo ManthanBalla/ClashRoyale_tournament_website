@@ -94,6 +94,53 @@
 
     </div>
 
+    <div class="w-full max-w-4xl mx-auto mt-8">
+        <h2 class="text-lg sm:text-xl font-bold text-white tracking-tight mb-4">Creators with active membership</h2>
+        <div class="ca-panel mb-6">
+            {% for creator in active_creators %}
+            <div class="flex items-center justify-between p-4 border-b border-white/[0.06]">
+                <div>
+                    <p class="text-white font-semibold text-sm">{{ creator.username }}</p>
+                    <p class="text-gray-500 text-xs">Plan active till {{ creator.profile.plan_expiry|date:"d M Y" }}</p>
+                </div>
+                {% if user.is_authenticated and user.id != creator.id %}
+                <div class="flex gap-2">
+                    <form method="POST" action="/creator/follow/{{ creator.id }}/">
+                        {% csrf_token %}
+                        <button type="submit" class="ca-btn-outline text-xs">
+                            {% if creator.id in followed_creator_ids %}Unfollow{% else %}Follow{% endif %}
+                        </button>
+                    </form>
+                    {% if creator.id in followed_creator_ids %}
+                    <form method="POST" action="/creator/follow-notifications/{{ creator.id }}/">
+                        {% csrf_token %}
+                        <button type="submit" class="ca-btn-outline text-xs">Toggle alerts</button>
+                    </form>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+            {% empty %}
+            <p class="text-gray-500 text-sm p-5">No active creators right now.</p>
+            {% endfor %}
+        </div>
+
+        <h2 class="text-lg sm:text-xl font-bold text-white tracking-tight mb-4">Global leaderboard</h2>
+        <div class="ca-panel">
+            {% for p in global_leaderboard %}
+            <div class="flex items-center justify-between p-4 border-b border-white/[0.06]">
+                <div>
+                    <p class="text-white text-sm font-semibold">{{ p.username }}</p>
+                    <p class="text-gray-500 text-xs">Wins: {{ p.tournament_wins|default:0 }}</p>
+                </div>
+                <span class="text-emerald-300 font-bold text-sm">₹{{ p.total_winnings|default:"0.00" }}</span>
+            </div>
+            {% empty %}
+            <p class="text-gray-500 text-sm p-5">Leaderboard will appear after match results are submitted.</p>
+            {% endfor %}
+        </div>
+    </div>
+
 </div>
 
 {% endblock %}

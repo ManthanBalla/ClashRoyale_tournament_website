@@ -3,6 +3,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
+from django.db.models import Count, Sum, Q
 from django.http import JsonResponse
 from django.utils import timezone
 from django.utils.timezone import localtime
@@ -18,11 +19,32 @@ import logging
 import random
 import pytz
 import razorpay
+from django.contrib.auth.views import PasswordResetConfirmView
 
-from .models import Tournament, Participant, Match, Profile, WithdrawalRequest, RewardCode, CreatorMembership, Transaction, Notification, Payment, DisputeReport
+from .models import Tournament, Participant, Match, Profile, WithdrawalRequest, RewardCode, CreatorMembership, Transaction, Notification, Payment, DisputeReport, CreatorFollow
+from .forms import NoReuseSetPasswordForm
 
 
 logger = logging.getLogger(__name__)
+
+SUBSCRIPTION_PLAN_AMOUNT = {
+    '1month': Decimal('499.00'),
+    '3month': Decimal('999.00'),
+    '1year': Decimal('4000.00'),
+}
+
+SUBSCRIPTION_PLAN_DAYS = {
+    '1month': 30,
+    '3month': 90,
+    '1year': 365,
+}
+
+MAX_REWARD_CODES_PER_TOURNAMENT = 200
+
+
+class CustomPasswordResetConfirmView(PasswordResetConfirmView):
+    template_name = 'auth/password_reset_confirm.html'
+    form_class = NoReuseSetPasswordForm
 
 
 # ─── HELPERS ───────────────────────────────────────────────────────────────
@@ -153,29 +175,62 @@ def check_rate_limit(key, limit=20, window_seconds=60):
     return True
 
 
+def is_google_reward_code(code):
+    text = f"{code.code} {code.description}".lower()
+    return 'google' in text or 'play' in text
+
+
 # ─── AUTH ──────────────────────────────────────────────────────────────────
 
 def home(request):
-    tournaments = Tournament.objects.exclude(status='cancelled').order_by('-created_at')
+    tournaments = Tournament.objects.exclude(status='cancelled').select_related('creator').order_by('-created_at')
     joined_tournaments = []
     if request.user.is_authenticated:
         joined_tournaments = Participant.objects.filter(
             user=request.user
         ).values_list('tournament_id', flat=True)
 
+    participant_counts = {
+        row['tournament']: row['cnt']
+        for row in Participant.objects.filter(tournament__in=tournaments).values('tournament').annotate(cnt=Count('id'))
+    }
     tournament_data = []
     for t in tournaments:
         sync_tournament_status(t)
-        count = Participant.objects.filter(tournament=t).count()
+        count = participant_counts.get(t.id, 0)
         tournament_data.append({
             'tournament': t,
             'count': count,
             'prize_pool': t.entry_fee * count if t.is_paid else None
         })
 
+    global_leaderboard = User.objects.annotate(
+        total_winnings=Sum(
+            'transactions__amount',
+            filter=Q(transactions__reason='tournament_win', transactions__transaction_type='credit')
+        ),
+        tournament_wins=Count('winner', distinct=True)
+    ).filter(
+        Q(total_winnings__gt=0) | Q(tournament_wins__gt=0)
+    ).order_by('-total_winnings', '-tournament_wins', 'username')[:20]
+
+    active_creators = User.objects.filter(
+        profile__is_creator=True,
+        profile__plan_expiry__gt=timezone.now()
+    ).select_related('profile').order_by('username')
+
+    followed_creator_ids = set()
+    if request.user.is_authenticated:
+        followed_creator_ids = set(
+            CreatorFollow.objects.filter(follower=request.user).values_list('creator_id', flat=True)
+        )
+
     return render(request, 'home.html', {
         'tournament_data': tournament_data,
         'joined_tournaments': joined_tournaments,
+        'global_leaderboard': global_leaderboard,
+        'active_creators': active_creators,
+        'followed_creator_ids': followed_creator_ids,
         'join_error': request.GET.get('join_error'),
     })
 
@@ -273,6 +328,7 @@ def profile_view(request):
         first_name = request.POST.get('first_name', '').strip()
         email = request.POST.get('email', '').strip()
         upi_id = request.POST.get('upi_id', '').strip()
+        notify_new_tournaments = request.POST.get('notify_new_tournaments') == 'on'
 
         if email and email != request.user.email:
             if User.objects.filter(email=email).exclude(id=request.user.id).exists():
@@ -291,6 +347,7 @@ def profile_view(request):
         request.user.email = email
         request.user.save()
         profile.upi_id = upi_id
+        profile.notify_new_tournaments = notify_new_tournaments
         profile.save()
 
         return render(request, 'profile.html', {
@@ -680,38 +737,202 @@ def subscription_view(request):
     memberships = CreatorMembership.objects.filter(
         user=request.user
     ).order_by('-started_at')
-
-    if request.method == "POST":
-        plan = request.POST.get('plan')
-        upi_ref = request.POST.get('upi_ref', '').strip()
-
-        if not upi_ref:
-            return render(request, 'subscription.html', {
-                'profile': profile,
-                'memberships': memberships,
-                'error': 'Please enter your UPI transaction reference number.'
-            })
-
-        try:
-            send_mail(
-                subject=f'🆕 Subscription Request - {request.user.username}',
-                message=f'User: {request.user.username}\nEmail: {request.user.email}\nPlan: {plan}\nUPI Ref: {upi_ref}\n\nPlease verify and grant membership.',
-                from_email=None,
-                recipient_list=['manthanballa08@gmail.com'],
-            )
-        except Exception:
-            pass
-
-        return render(request, 'subscription.html', {
-            'profile': profile,
-            'memberships': memberships,
-            'success': f'Your {plan} subscription request has been submitted! We will activate it within 24 hours after payment verification.'
-        })
-
     return render(request, 'subscription.html', {
         'profile': profile,
         'memberships': memberships,
+        'razorpay_key_id': settings.RAZORPAY_KEY_ID,
+        'plan_amounts': SUBSCRIPTION_PLAN_AMOUNT,
     })
+
+
+@login_required
+@require_POST
+def create_subscription_order(request):
+    try:
+        payload = json.loads(request.body.decode('utf-8') or '{}')
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'Invalid JSON payload.'}, status=400)
+
+    plan = payload.get('plan')
+    if plan not in SUBSCRIPTION_PLAN_AMOUNT:
+        return JsonResponse({'ok': False, 'error': 'Invalid plan selected.'}, status=400)
+
+    client = _get_razorpay_client()
+    if not client:
+        return JsonResponse({'ok': False, 'error': 'Payment gateway not configured.'}, status=500)
+
+    amount_decimal = SUBSCRIPTION_PLAN_AMOUNT[plan]
+    amount_paise = int(amount_decimal * 100)
+    receipt = f"sub_{request.user.id}_{plan}_{int(timezone.now().timestamp())}"
+
+    try:
+        order = client.order.create({
+            'amount': amount_paise,
+            'currency': 'INR',
+            'receipt': receipt,
+            'payment_capture': 1,
+            'notes': {
+                'user_id': str(request.user.id),
+                'purpose': 'creator_membership',
+                'plan': plan,
+            }
+        })
+    except Exception:
+        logger.exception("Subscription order creation failed user_id=%s plan=%s", request.user.id, plan)
+        return JsonResponse({'ok': False, 'error': 'Could not create subscription order.'}, status=502)
+
+    payment = Payment.objects.create(
+        user=request.user,
+        amount=amount_decimal,
+        razorpay_order_id=order.get('id'),
+        status='pending',
+        raw_payload={
+            'purpose': 'creator_membership',
+            'plan': plan,
+            'create_order_response': order,
+        }
+    )
+    logger.info("Subscription order created payment_id=%s user_id=%s plan=%s", payment.id, request.user.id, plan)
+    return JsonResponse({
+        'ok': True,
+        'order_id': order.get('id'),
+        'amount_paise': amount_paise,
+        'currency': 'INR',
+        'key_id': settings.RAZORPAY_KEY_ID,
+        'plan': plan,
+    })
+
+
+@login_required
+@require_POST
+def verify_subscription_payment(request):
+    try:
+        payload = json.loads(request.body.decode('utf-8') or '{}')
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'Invalid JSON payload.'}, status=400)
+
+    order_id = payload.get('razorpay_order_id')
+    payment_id = payload.get('razorpay_payment_id')
+    signature = payload.get('razorpay_signature')
+    plan = payload.get('plan')
+
+    if not order_id or not payment_id or not signature or plan not in SUBSCRIPTION_PLAN_AMOUNT:
+        return JsonResponse({'ok': False, 'error': 'Missing payment verification fields.'}, status=400)
+
+    client = _get_razorpay_client()
+    if not client:
+        return JsonResponse({'ok': False, 'error': 'Payment gateway not configured.'}, status=500)
+
+    try:
+        client.utility.verify_payment_signature({
+            'razorpay_order_id': order_id,
+            'razorpay_payment_id': payment_id,
+            'razorpay_signature': signature,
+        })
+    except Exception:
+        Payment.objects.filter(user=request.user, razorpay_order_id=order_id).update(
+            status='failed', failure_reason='subscription_signature_verification_failed'
+        )
+        return JsonResponse({'ok': False, 'error': 'Signature verification failed.'}, status=400)
+
+    try:
+        gateway_payment = client.payment.fetch(payment_id)
+    except Exception:
+        logger.exception("Could not fetch subscription payment payment_id=%s", payment_id)
+        return JsonResponse({'ok': False, 'error': 'Unable to validate payment details.'}, status=502)
+
+    expected_amount_paise = int(SUBSCRIPTION_PLAN_AMOUNT[plan] * 100)
+
+    try:
+        with transaction.atomic():
+            payment = Payment.objects.select_for_update().get(
+                user=request.user,
+                razorpay_order_id=order_id
+            )
+            payment_purpose = (payment.raw_payload or {}).get('purpose')
+            payment_plan = (payment.raw_payload or {}).get('plan')
+
+            if payment.wallet_credited:
+                return JsonResponse({'ok': True, 'message': 'Membership already activated.'})
+
+            if payment_purpose != 'creator_membership' or payment_plan != plan:
+                payment.status = 'failed'
+                payment.failure_reason = 'subscription_plan_or_purpose_mismatch'
+                payment.save(update_fields=['status', 'failure_reason', 'updated_at'])
+                return JsonResponse({'ok': False, 'error': 'Payment metadata mismatch.'}, status=400)
+
+            if (
+                gateway_payment.get('status') != 'captured'
+                or gateway_payment.get('order_id') != order_id
+                or int(gateway_payment.get('amount', 0)) != expected_amount_paise
+            ):
+                payment.status = 'failed'
+                payment.failure_reason = 'subscription_payment_mismatch_or_not_captured'
+                payment.raw_payload = {
+                    **(payment.raw_payload or {}),
+                    'verify_payload': payload,
+                    'gateway_payment': gateway_payment,
+                }
+                payment.save(update_fields=['status', 'failure_reason', 'raw_payload', 'updated_at'])
+                return JsonResponse({'ok': False, 'error': 'Payment validation failed.'}, status=400)
+
+            profile = Profile.objects.select_for_update().get(user=request.user)
+            now = timezone.now()
+            days = SUBSCRIPTION_PLAN_DAYS[plan]
+            start_base = profile.plan_expiry if profile.plan_expiry and profile.plan_expiry > now else now
+            new_expiry = start_base + timedelta(days=days)
+
+            CreatorMembership.objects.create(
+                user=request.user,
+                plan=plan,
+                expires_at=new_expiry,
+                is_active=True
+            )
+
+            profile.is_creator = True
+            profile.creator_plan = plan
+            profile.plan_expiry = new_expiry
+            profile.tournaments_created_this_month = 0
+            profile.save(update_fields=['is_creator', 'creator_plan', 'plan_expiry', 'tournaments_created_this_month'])
+
+            payment.razorpay_payment_id = payment_id
+            payment.razorpay_signature = signature
+            payment.status = 'success'
+            payment.wallet_credited = True
+            payment.failure_reason = None
+            payment.raw_payload = {
+                **(payment.raw_payload or {}),
+                'verify_payload': payload,
+                'gateway_payment': gateway_payment,
+            }
+            payment.save(update_fields=[
+                'razorpay_payment_id',
+                'razorpay_signature',
+                'status',
+                'wallet_credited',
+                'failure_reason',
+                'raw_payload',
+                'updated_at',
+            ])
+
+            add_transaction(
+                request.user,
+                'debit',
+                'membership_purchase',
+                SUBSCRIPTION_PLAN_AMOUNT[plan],
+                f'💎 Creator membership purchase ({plan}) via Razorpay',
+                category='debit',
+                payment=payment
+            )
+    except Payment.DoesNotExist:
+        return JsonResponse({'ok': False, 'error': 'Subscription order not found.'}, status=404)
+
+    send_notification(
+        request.user, 'general',
+        '✅ Membership Activated Instantly',
+        f'Your {plan} creator membership is active now.'
+    )
+    return JsonResponse({'ok': True, 'message': 'Membership activated successfully.'})
 
 
 # ─── TOURNAMENT ────────────────────────────────────────────────────────────
@@ -889,29 +1110,42 @@ def create_tournament(request):
         end_time = parse_and_convert(end_time_raw, timezone_choice)
         join_deadline = parse_and_convert(join_deadline_raw, timezone_choice)
 
-        Tournament.objects.create(
-            name=name,
-            description=description,
-            rules=rules,
-            password=password,
-            reward=reward,
-            reward_type=reward_type,
-            start_time=start_time,
-            end_time=end_time,
-            join_deadline=join_deadline,
-            proof_image=proof_image,
-            creator=request.user,
-            is_paid=is_paid,
-            entry_fee=entry_fee,
-            min_players=min_players,
-            max_players=max_players,
-            show_participants=show_participants,
-        )
+        try:
+            tournament = Tournament.objects.create(
+                name=name,
+                description=description,
+                rules=rules,
+                password=password,
+                reward=reward,
+                reward_type=reward_type,
+                start_time=start_time,
+                end_time=end_time,
+                join_deadline=join_deadline,
+                proof_image=proof_image,
+                creator=request.user,
+                is_paid=is_paid,
+                entry_fee=entry_fee,
+                min_players=min_players,
+                max_players=max_players,
+                show_participants=show_participants,
+            )
+        except Exception:
+            logger.exception("Tournament creation failed user_id=%s", request.user.id)
+            return render(request, 'create_tournament.html', {
+                'error': 'Could not create tournament right now. Please try again.'
+            })
 
         # only increment for non-admin creators
         if not profile.is_admin:
             profile.tournaments_created_this_month += 1
             profile.save()
+
+        if check_rate_limit(f"creator_new_tournament_notify:{request.user.id}", limit=20, window_seconds=3600):
+            try:
+                from .tasks import notify_creator_followers_task
+                notify_creator_followers_task.delay(request.user.id, tournament.id)
+            except Exception:
+                logger.exception("Failed to enqueue follower notifications creator_id=%s", request.user.id)
 
         return redirect('/')
 
@@ -983,8 +1217,8 @@ def edit_tournament(request, tournament_id):
 def tournament_detail(request, tournament_id):
     tournament = get_object_or_404(Tournament, id=tournament_id)
     sync_tournament_status(tournament)
-    participants = Participant.objects.filter(tournament=tournament)
-    matches = Match.objects.filter(tournament=tournament)
+    participants = Participant.objects.filter(tournament=tournament).select_related('user')
+    matches = Match.objects.filter(tournament=tournament).select_related('player1', 'player2', 'winner')
     now = localtime()
     count = participants.count()
 
@@ -996,6 +1230,12 @@ def tournament_detail(request, tournament_id):
 
     joined_tournaments = []
     is_participant = False
+    can_manage_rewards = False
+    reward_codes = RewardCode.objects.none()
+    reward_recipients = []
+    creator_tournaments = Tournament.objects.none()
+    creator_leaderboard = User.objects.none()
+    likely_winner = None
     if request.user.is_authenticated:
         joined_tournaments = Participant.objects.filter(
             user=request.user
@@ -1003,6 +1243,39 @@ def tournament_detail(request, tournament_id):
         is_participant = Participant.objects.filter(
             user=request.user, tournament=tournament
         ).exists()
+        can_manage_rewards = request.user.profile.is_admin or request.user == tournament.creator
+        if can_manage_rewards:
+            reward_codes = RewardCode.objects.filter(sent=False).order_by('-created_at')[:50]
+            reward_recipients = User.objects.filter(
+                participant__tournament=tournament
+            ).distinct().order_by('username')
+            creator_tournaments = Tournament.objects.filter(creator=tournament.creator).order_by('-created_at')
+
+    creator_leaderboard = User.objects.annotate(
+        creator_scope_winnings=Sum(
+            'transactions__amount',
+            filter=Q(
+                transactions__reason='tournament_win',
+                transactions__transaction_type='credit',
+                transactions__tournament__creator=tournament.creator
+            )
+        ),
+        creator_scope_wins=Count(
+            'winner',
+            filter=Q(winner__tournament__creator=tournament.creator),
+            distinct=True
+        )
+    ).filter(
+        Q(creator_scope_winnings__gt=0) | Q(creator_scope_wins__gt=0)
+    ).order_by('-creator_scope_winnings', '-creator_scope_wins', 'username')[:20]
+
+    winner_tx = Transaction.objects.filter(
+        tournament=tournament,
+        reason='tournament_win',
+        transaction_type='credit'
+    ).select_related('user').order_by('-created_at').first()
+    if winner_tx:
+        likely_winner = winner_tx.user
 
     prize_pool = tournament.entry_fee * count if tournament.is_paid else None
 
@@ -1012,6 +1285,12 @@ def tournament_detail(request, tournament_id):
         'matches': matches,
         'match_options': matches,
         'open_disputes': DisputeReport.objects.filter(tournament=tournament, status='open').order_by('-created_at')[:10],
+        'can_manage_rewards': can_manage_rewards,
+        'reward_codes': reward_codes,
+        'reward_recipients': reward_recipients,
+        'creator_tournaments': creator_tournaments,
+        'creator_leaderboard': creator_leaderboard,
+        'likely_winner': likely_winner,
         'show_password': show_password,
         'joined_tournaments': joined_tournaments,
         'count': count,
@@ -1397,41 +1676,186 @@ def reject_withdrawal(request, withdrawal_id):
 
 @login_required
 def add_reward_code(request):
-    if not request.user.profile.is_admin:
+    if not request.user.profile.is_admin and not request.user.profile.is_creator:
         return redirect('/')
     if request.method == "POST":
         code = request.POST.get('code')
         description = request.POST.get('description', '')
-        RewardCode.objects.create(code=code, description=description)
-    return redirect('/creator-admin/')
+        tournament_id = request.POST.get('tournament_id')
+        tournament = None
+        if tournament_id:
+            tournament_qs = Tournament.objects.filter(id=tournament_id)
+            if not request.user.profile.is_admin:
+                tournament_qs = tournament_qs.filter(creator=request.user)
+            tournament = tournament_qs.first()
+        if code:
+            if request.user.profile.is_creator and not request.user.profile.is_admin:
+                if 'google' not in f"{code} {description}".lower() and 'play' not in f"{code} {description}".lower():
+                    return redirect(request.META.get('HTTP_REFERER', '/'))
+            RewardCode.objects.create(
+                code=code,
+                description=description,
+                tournament=tournament,
+                sent_by=request.user
+            )
+    return redirect(request.META.get('HTTP_REFERER', '/'))
 
 
 @login_required
-def send_reward_code(request, code_id):
-    if not request.user.profile.is_admin:
+def tournament_participants_api(request, tournament_id):
+    tournament = get_object_or_404(Tournament, id=tournament_id)
+    if not request.user.profile.is_admin and tournament.creator != request.user:
+        return JsonResponse({'ok': False, 'error': 'Unauthorized'}, status=403)
+
+    participants = Participant.objects.filter(tournament=tournament).select_related('user').order_by('user__username')
+    return JsonResponse({
+        'ok': True,
+        'participants': [
+            {'id': p.user_id, 'username': p.user.username, 'email': p.user.email}
+            for p in participants
+        ]
+    })
+
+
+@login_required
+@require_POST
+def send_reward_code(request, code_id=None):
+    if not request.user.profile.is_admin and not request.user.profile.is_creator:
         return redirect('/')
-    if request.method == "POST":
-        code = get_object_or_404(RewardCode, id=code_id)
-        user_id = request.POST.get('user_id')
-        user = get_object_or_404(User, id=user_id)
+    tournament_id = request.POST.get('tournament_id')
+    single_user_id = request.POST.get('user_id')
+
+    # Legacy/admin path: send a specific code to one user.
+    if code_id is not None:
+        code = get_object_or_404(RewardCode, id=code_id, sent=False)
+        if not single_user_id:
+            return redirect(request.META.get('HTTP_REFERER', '/'))
+
+        user = get_object_or_404(User, id=single_user_id)
+        tournament = None
+
+        if request.user.profile.is_creator and not request.user.profile.is_admin:
+            if not tournament_id:
+                return redirect(request.META.get('HTTP_REFERER', '/'))
+            tournament = get_object_or_404(Tournament, id=tournament_id, creator=request.user)
+            if tournament.status != 'completed':
+                return redirect(f"/tournament/{tournament.id}/?reward_error=not_completed")
+            if not Participant.objects.filter(tournament=tournament, user=user).exists():
+                return redirect(request.META.get('HTTP_REFERER', '/'))
+            if not is_google_reward_code(code):
+                return redirect(f"/tournament/{tournament.id}/?reward_error=google_only")
+        elif tournament_id:
+            tournament = Tournament.objects.filter(id=tournament_id).first()
+
         code.assigned_to = user
+        code.tournament = tournament
+        code.sent_by = request.user
         code.sent = True
-        code.save()
-        try:
-            send_mail(
-                subject='🎁 Your Reward Code - Clash Arena',
-                message=f'Hi {user.username},\n\nYour reward code is: {code.code}\n\nDescription: {code.description}\n\nThank you for playing on Clash Arena!',
-                from_email=None,
-                recipient_list=[user.email],
-            )
-        except Exception:
-            pass
+        code.sent_at = timezone.now()
+        code.save(update_fields=['assigned_to', 'tournament', 'sent_by', 'sent', 'sent_at'])
+
+        if user.email:
+            try:
+                from .tasks import send_reward_code_email_task
+                send_reward_code_email_task.delay(user.email, user.username, code.code, code.description, code.id)
+            except Exception:
+                logger.exception("Failed to enqueue reward email code_id=%s", code.id)
         send_notification(
-            user, 'general',
-            '🎁 Reward Code Received!',
-            f'You received a reward code: {code.code}. Check your email for details.'
+            user,
+            'general',
+            'Reward Code Received',
+            'You received a reward code. Check your email for full details.',
+            tournament=tournament
         )
-    return redirect('/creator-admin/')
+        return redirect(request.META.get('HTTP_REFERER', '/'))
+
+    # Bulk creator flow: map tournament participants -> unsent codes.
+    user_ids = request.POST.getlist('user_ids')
+    if single_user_id and single_user_id not in user_ids:
+        user_ids.append(single_user_id)
+    if not tournament_id or not user_ids:
+        return redirect(request.META.get('HTTP_REFERER', '/'))
+
+    tournament_qs = Tournament.objects.filter(id=tournament_id)
+    if not request.user.profile.is_admin:
+        tournament_qs = tournament_qs.filter(creator=request.user)
+    tournament = get_object_or_404(tournament_qs)
+    if request.user.profile.is_creator and not request.user.profile.is_admin and tournament.status != 'completed':
+        return redirect(f"/tournament/{tournament.id}/?reward_error=not_completed")
+
+    if not check_rate_limit(f"reward_send_creator:{request.user.id}", limit=30, window_seconds=3600):
+        return redirect(f"/tournament/{tournament.id}/?reward_error=rate")
+
+    eligible_users = list(User.objects.filter(id__in=user_ids, participant__tournament=tournament).distinct())
+    if not eligible_users:
+        return redirect(f"/tournament/{tournament.id}/?reward_error=no_participants")
+
+    sent_count = RewardCode.objects.filter(tournament=tournament, sent=True).count()
+    available_quota = MAX_REWARD_CODES_PER_TOURNAMENT - sent_count
+    if available_quota <= 0:
+        return redirect(f"/tournament/{tournament.id}/?reward_error=maxed")
+
+    users_to_reward = eligible_users[:available_quota]
+    codes_qs = RewardCode.objects.filter(sent=False)
+    if request.user.profile.is_creator and not request.user.profile.is_admin:
+        codes_qs = codes_qs.filter(Q(description__icontains='google') | Q(description__icontains='play') | Q(code__icontains='google') | Q(code__icontains='play'))
+    available_codes = list(codes_qs.order_by('created_at')[:len(users_to_reward)])
+    if not available_codes:
+        return redirect(f"/tournament/{tournament.id}/?reward_error=no_codes")
+
+    pair_count = min(len(users_to_reward), len(available_codes))
+    for idx in range(pair_count):
+        user = users_to_reward[idx]
+        code = available_codes[idx]
+        code.assigned_to = user
+        code.tournament = tournament
+        code.sent_by = request.user
+        code.sent = True
+        code.sent_at = timezone.now()
+        code.save(update_fields=['assigned_to', 'tournament', 'sent_by', 'sent', 'sent_at'])
+        if user.email:
+            try:
+                from .tasks import send_reward_code_email_task
+                send_reward_code_email_task.delay(user.email, user.username, code.code, code.description, code.id)
+            except Exception:
+                logger.exception("Failed to enqueue reward email code_id=%s", code.id)
+        send_notification(
+            user,
+            'general',
+            'Reward Code Received',
+            f'You received a reward code for {tournament.name}. Check your email for full details.',
+            tournament=tournament
+        )
+
+    return redirect(f"/tournament/{tournament.id}/?reward_sent={pair_count}")
+
+
+@login_required
+@require_POST
+def toggle_creator_follow(request, creator_id):
+    creator = get_object_or_404(User, id=creator_id)
+    if creator_id == request.user.id:
+        return redirect('/')
+    if not creator.profile.is_creator:
+        return redirect('/')
+
+    follow, created = CreatorFollow.objects.get_or_create(
+        follower=request.user,
+        creator=creator,
+        defaults={'notifications_enabled': True}
+    )
+    if not created:
+        follow.delete()
+    return redirect(request.META.get('HTTP_REFERER', '/'))
+
+
+@login_required
+@require_POST
+def toggle_follow_notifications(request, creator_id):
+    follow = get_object_or_404(CreatorFollow, follower=request.user, creator_id=creator_id)
+    follow.notifications_enabled = not follow.notifications_enabled
+    follow.save(update_fields=['notifications_enabled'])
+    return redirect(request.META.get('HTTP_REFERER', '/'))
 
 
 @login_required

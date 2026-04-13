@@ -191,38 +191,24 @@
                 </div>
             </div>
 
-            <!-- FORM -->
-            <form method="POST">
-                {% csrf_token %}
-                <input type="hidden" name="plan" id="planInput">
-
-                <label class="text-gray-400 text-sm mb-1 block">UPI Transaction Reference *</label>
-                <input type="text" name="upi_ref"
-                       placeholder="e.g. 123456789012"
-                       required
-                       class="w-full p-3 mb-4 rounded-xl text-white text-sm focus:outline-none"
-                       style="background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.15);">
-
-                <div class="rounded-xl px-4 py-3 mb-5 border"
-                     style="background: rgba(234,179,8,0.08); border-color: rgba(234,179,8,0.3);">
-                    <p class="text-yellow-400 text-xs">
-                        ⚠️ Your plan will be activated within 24 hours after payment verification. Make sure your UPI reference is correct.
-                    </p>
-                </div>
-
-                <button type="submit"
-                        class="w-full py-3 rounded-xl font-bold text-white text-base mb-3 transition hover:opacity-90"
-                        style="background: linear-gradient(90deg, #7c3aed, #2563eb, #059669);">
-                    🚀 Submit Payment Reference
-                </button>
-
-                <button type="button" onclick="cancelPlan()"
-                        class="w-full py-2.5 rounded-xl font-semibold text-gray-400 text-sm transition hover:text-white border"
-                        style="border-color: rgba(255,255,255,0.1); background: rgba(255,255,255,0.03);">
-                    ← Choose Different Plan
-                </button>
-
-            </form>
+            <input type="hidden" id="planInput">
+            <div class="rounded-xl px-4 py-3 mb-5 border"
+                 style="background: rgba(234,179,8,0.08); border-color: rgba(234,179,8,0.3);">
+                <p class="text-yellow-400 text-xs">
+                    Membership activates only after backend signature verification.
+                </p>
+            </div>
+            <button type="button" id="payMembershipBtn"
+                    class="w-full py-3 rounded-xl font-bold text-white text-base mb-3 transition hover:opacity-90"
+                    style="background: linear-gradient(90deg, #7c3aed, #2563eb, #059669);">
+                Pay with Razorpay
+            </button>
+            <button type="button" onclick="cancelPlan()"
+                    class="w-full py-2.5 rounded-xl font-semibold text-gray-400 text-sm transition hover:text-white border"
+                    style="border-color: rgba(255,255,255,0.1); background: rgba(255,255,255,0.03);">
+                ← Choose Different Plan
+            </button>
+            <p id="membershipMsg" class="text-xs text-gray-400 mt-3"></p>
         </div>
     </div>
 
@@ -251,6 +237,7 @@
 
 </div>
 
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <script>
 const planNames = {
     '1month': '⚡ Starter Plan — 1 Month',
@@ -295,6 +282,89 @@ function cancelPlan() {
     document.querySelectorAll('.plan-card').forEach(card => {
         card.style.transform = 'scale(1)';
         card.style.boxShadow = 'none';
+    });
+}
+
+function getCsrfToken() {
+    const name = 'csrftoken=';
+    const decoded = decodeURIComponent(document.cookie);
+    const parts = decoded.split(';');
+    for (let i = 0; i < parts.length; i++) {
+        const c = parts[i].trim();
+        if (c.indexOf(name) === 0) return c.substring(name.length, c.length);
+    }
+    return '';
+}
+
+async function createSubscriptionOrder(plan) {
+    const res = await fetch('/payments/subscription/create-order/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+        body: JSON.stringify({ plan: plan })
+    });
+    return res.json();
+}
+
+async function verifySubscription(payload) {
+    const res = await fetch('/payments/subscription/verify/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+        body: JSON.stringify(payload)
+    });
+    return res.json();
+}
+
+const payMembershipBtn = document.getElementById('payMembershipBtn');
+const membershipMsg = document.getElementById('membershipMsg');
+if (payMembershipBtn) {
+    payMembershipBtn.addEventListener('click', async function() {
+        const plan = document.getElementById('planInput').value;
+        if (!plan) {
+            membershipMsg.textContent = 'Please select a plan first.';
+            return;
+        }
+        payMembershipBtn.disabled = true;
+        membershipMsg.textContent = 'Creating payment order...';
+        try {
+            const order = await createSubscriptionOrder(plan);
+            if (!order.ok) throw new Error(order.error || 'Unable to create subscription order.');
+
+            const rzp = new Razorpay({
+                key: order.key_id,
+                amount: order.amount_paise,
+                currency: order.currency,
+                order_id: order.order_id,
+                name: 'Clash Arena',
+                description: 'Creator Membership',
+                handler: async function(resp) {
+                    membershipMsg.textContent = 'Verifying payment...';
+                    const verify = await verifySubscription({
+                        razorpay_order_id: resp.razorpay_order_id,
+                        razorpay_payment_id: resp.razorpay_payment_id,
+                        razorpay_signature: resp.razorpay_signature,
+                        plan: plan
+                    });
+                    if (verify.ok) {
+                        membershipMsg.textContent = 'Membership activated. Reloading...';
+                        setTimeout(() => window.location.reload(), 900);
+                    } else {
+                        membershipMsg.textContent = verify.error || 'Payment verification failed.';
+                        payMembershipBtn.disabled = false;
+                    }
+                },
+                modal: {
+                    ondismiss: function() {
+                        membershipMsg.textContent = 'Checkout closed.';
+                        payMembershipBtn.disabled = false;
+                    }
+                },
+                theme: { color: '#7c3aed' }
+            });
+            rzp.open();
+        } catch (e) {
+            membershipMsg.textContent = e.message || 'Something went wrong.';
+            payMembershipBtn.disabled = false;
+        }
     });
 }
 </script>

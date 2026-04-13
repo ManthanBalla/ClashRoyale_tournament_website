@@ -20,6 +20,7 @@ class Profile(models.Model):
     creator_plan = models.CharField(max_length=20, choices=PLAN_CHOICES, default='none')
     plan_expiry = models.DateTimeField(null=True, blank=True)
     tournaments_created_this_month = models.IntegerField(default=0)
+    notify_new_tournaments = models.BooleanField(default=True)
 
     def is_complete(self):
         return bool(self.upi_id and self.user.first_name and self.user.email)
@@ -144,8 +145,11 @@ class WithdrawalRequest(models.Model):
 class RewardCode(models.Model):
     code = models.CharField(max_length=200)
     description = models.CharField(max_length=200, blank=True)
+    tournament = models.ForeignKey('Tournament', on_delete=models.SET_NULL, null=True, blank=True)
+    sent_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='sent_reward_codes')
     assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     sent = models.BooleanField(default=False)
+    sent_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -179,6 +183,7 @@ class Transaction(models.Model):
         ('tournament_win', 'Tournament Win'),
         ('creator_share', 'Creator Share'),
         ('admin_share', 'Admin Share'),
+        ('membership_purchase', 'Membership Purchase'),
         ('withdrawal', 'Withdrawal'),
         ('withdrawal_refund', 'Withdrawal Refund'),
         ('admin_topup', 'Admin Top Up'),
@@ -268,6 +273,19 @@ class DisputeReport(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.tournament.name} - {self.status}"
+
+
+class CreatorFollow(models.Model):
+    follower = models.ForeignKey(User, on_delete=models.CASCADE, related_name='creator_follows')
+    creator = models.ForeignKey(User, on_delete=models.CASCADE, related_name='creator_followers')
+    notifications_enabled = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('follower', 'creator')
+
+    def __str__(self):
+        return f"{self.follower.username} -> {self.creator.username}"
 
 
 @receiver(post_save, sender=User)

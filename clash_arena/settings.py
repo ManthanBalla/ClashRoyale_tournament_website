@@ -8,6 +8,28 @@ import os
 # Base directory
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+
+def load_local_env():
+    env_file = BASE_DIR / '.env'
+    if not env_file.exists():
+        return
+    try:
+        with env_file.open('r', encoding='utf-8') as fh:
+            for raw_line in fh:
+                line = raw_line.strip()
+                if not line or line.startswith('#') or '=' not in line:
+                    continue
+                key, value = line.split('=', 1)
+                key = key.strip()
+                value = value.strip().strip('"').strip("'")
+                if key and key not in os.environ:
+                    os.environ[key] = value
+    except Exception:
+        pass
+
+
+load_local_env()
+
 # Security
 SECRET_KEY = 'django-insecure-_9-vjmac341mn=_d0540u=@t9j_g-b@2=gs-#t9m=n1q*nojmv'
 DEBUG = True
@@ -108,8 +130,8 @@ EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 
-EMAIL_HOST_USER = 'manthanballa08@gmail.com'
-EMAIL_HOST_PASSWORD = 'mlob tbpo oeno rruz'
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
@@ -119,9 +141,19 @@ STATICFILES_DIRS = [
     BASE_DIR / "static"
 ]
 
-RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID', '')
-RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET', '')
+RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID') or os.getenv('RAZORPAY_TEST_KEY_ID', '')
+RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET') or os.getenv('RAZORPAY_TEST_KEY_SECRET', '')
 RAZORPAY_WEBHOOK_SECRET = os.getenv('RAZORPAY_WEBHOOK_SECRET', '')
+
+CELERY_BROKER_URL = os.getenv('REDIS_URL', '')
+CELERY_RESULT_BACKEND = os.getenv('REDIS_URL', '')
+CELERY_TASK_ALWAYS_EAGER = (
+    os.getenv('CELERY_TASK_ALWAYS_EAGER', 'False').lower() == 'true'
+    or not CELERY_BROKER_URL
+)
+CELERY_TASK_TIME_LIMIT = 30
+CELERY_TASK_SOFT_TIME_LIMIT = 20
+EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', '10'))
 
 ALLOWED_HOSTS = ['*']
 

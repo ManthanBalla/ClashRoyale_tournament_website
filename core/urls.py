@@ -11,8 +11,10 @@ from .views import (
     topup_wallet, notifications_view, mark_notification_read,
     upload_results, create_razorpay_order, verify_razorpay_payment,
     mark_razorpay_payment_failed, mark_razorpay_payment_abandoned,
-    razorpay_webhook, submit_dispute, resolve_dispute,
-    terms_page, privacy_page, refund_policy_page
+    create_subscription_order, verify_subscription_payment,
+    razorpay_webhook, submit_dispute, resolve_dispute, tournament_participants_api,
+    toggle_creator_follow, toggle_follow_notifications,
+    terms_page, privacy_page, refund_policy_page, CustomPasswordResetConfirmView
 )
 from django.contrib.auth import views as auth_views
 
@@ -28,6 +30,8 @@ urlpatterns = [
     path('notifications/read/<int:notification_id>/', mark_notification_read, name='mark_read'),
     path('payments/create-order/', create_razorpay_order, name='create_razorpay_order'),
     path('payments/verify/', verify_razorpay_payment, name='verify_razorpay_payment'),
+    path('payments/subscription/create-order/', create_subscription_order, name='create_subscription_order'),
+    path('payments/subscription/verify/', verify_subscription_payment, name='verify_subscription_payment'),
     path('payments/mark-failed/', mark_razorpay_payment_failed, name='mark_razorpay_payment_failed'),
     path('payments/mark-abandoned/', mark_razorpay_payment_abandoned, name='mark_razorpay_payment_abandoned'),
     path('payments/webhook/', razorpay_webhook, name='razorpay_webhook'),
@@ -59,12 +63,16 @@ urlpatterns = [
     path('reject-withdrawal/<int:withdrawal_id>/', reject_withdrawal, name='reject_withdrawal'),
     path('add-reward-code/', add_reward_code, name='add_reward_code'),
     path('send-reward-code/<int:code_id>/', send_reward_code, name='send_reward_code'),
+    path('send-reward-code/', send_reward_code, name='send_reward_code_bulk'),
+    path('creator/tournament-participants/<int:tournament_id>/', tournament_participants_api, name='tournament_participants_api'),
+    path('creator/follow/<int:creator_id>/', toggle_creator_follow, name='toggle_creator_follow'),
+    path('creator/follow-notifications/<int:creator_id>/', toggle_follow_notifications, name='toggle_follow_notifications'),
     path('grant-membership/<int:user_id>/', grant_membership, name='grant_membership'),
     path('deactivate-membership/<int:membership_id>/', deactivate_membership, name='deactivate_membership'),
     path('reactivate-membership/<int:membership_id>/', reactivate_membership, name='reactivate_membership'),
 
     path('password-reset/', auth_views.PasswordResetView.as_view(template_name='auth/password_reset.html'), name='password_reset'),
     path('password-reset/done/', auth_views.PasswordResetDoneView.as_view(template_name='auth/password_reset_done.html'), name='password_reset_done'),
-    path('reset/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(template_name='auth/password_reset_confirm.html'), name='password_reset_confirm'),
+    path('reset/<uidb64>/<token>/', CustomPasswordResetConfirmView.as_view(), name='password_reset_confirm'),
     path('reset/done/', auth_views.PasswordResetCompleteView.as_view(template_name='auth/password_reset_complete.html'), name='password_reset_complete'),
 ]

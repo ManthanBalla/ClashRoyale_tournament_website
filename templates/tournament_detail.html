@@ -143,6 +143,20 @@
         <p class="text-red-400 font-bold text-sm">⚠️ Please enter dispute details before submitting.</p>
     </div>
     {% endif %}
+    {% if request.GET.reward_error %}
+    <div class="rounded-xl p-4 mb-5 border"
+         style="background:rgba(248,113,113,0.08); border-color:rgba(248,113,113,0.4);">
+        {% if request.GET.reward_error == 'not_completed' %}
+        <p class="text-red-400 font-bold text-sm">Rewards can be sent only after this tournament is completed.</p>
+        {% elif request.GET.reward_error == 'google_only' %}
+        <p class="text-red-400 font-bold text-sm">Creators can send only Google Play reward codes.</p>
+        {% elif request.GET.reward_error == 'no_codes' %}
+        <p class="text-red-400 font-bold text-sm">No eligible reward codes available to send.</p>
+        {% else %}
+        <p class="text-red-400 font-bold text-sm">Could not send reward codes. Please check inputs.</p>
+        {% endif %}
+    </div>
+    {% endif %}
 
     <!-- PAID INFO CARD -->
     {% if tournament.is_paid %}
@@ -346,6 +360,55 @@
         {% endif %}
     {% endif %}
 
+    {% if can_manage_rewards %}
+    <div class="ca-glass p-4 mb-5">
+        <h2 class="text-lg font-bold text-yellow-400 mb-3">Reward dispatch</h2>
+        <p class="text-xs text-gray-400 mb-3">Only participants of your selected tournament are eligible.</p>
+        <form method="POST" action="/add-reward-code/" class="space-y-2 mb-4">
+            {% csrf_token %}
+            <input type="hidden" name="tournament_id" value="{{ tournament.id }}">
+            <input type="text" name="code" placeholder="Enter reward code" required
+                   class="w-full p-2.5 bg-gray-800 border border-gray-700 rounded text-white text-sm">
+            <input type="text" name="description" placeholder="Description (optional)"
+                   class="w-full p-2.5 bg-gray-800 border border-gray-700 rounded text-white text-sm">
+            <button type="submit" class="ca-btn-outline text-sm">+ Add Code</button>
+        </form>
+        <form method="POST" action="/send-reward-code/" class="space-y-3">
+            {% csrf_token %}
+            <select name="tournament_id" id="rewardTournamentSelect" class="w-full p-2.5 bg-gray-800 border border-gray-700 rounded text-white text-sm">
+                {% for ct in creator_tournaments %}
+                <option value="{{ ct.id }}" {% if ct.id == tournament.id %}selected{% endif %}>{{ ct.name }}</option>
+                {% endfor %}
+            </select>
+            <select name="user_ids" id="rewardUsersSelect" multiple class="w-full p-2.5 bg-gray-800 border border-gray-700 rounded text-white text-sm min-h-[120px]">
+                {% for rr in reward_recipients %}
+                <option value="{{ rr.id }}">{{ rr.username }}</option>
+                {% endfor %}
+            </select>
+            {% if likely_winner %}
+            <p class="text-xs text-emerald-300">Winner detected: {{ likely_winner.username }} (already credited).</p>
+            {% endif %}
+            <p class="text-[11px] text-gray-500">Hold Ctrl/Cmd to select multiple players.</p>
+            <button type="submit" class="ca-btn text-sm">Send reward codes by email</button>
+        </form>
+    </div>
+    {% endif %}
+
+    <div class="ca-glass p-4 mb-5">
+        <h2 class="text-lg font-bold text-ca-accent mb-3">Creator leaderboard</h2>
+        {% for player in creator_leaderboard %}
+        <div class="flex items-center justify-between py-2 border-b border-white/10">
+            <div>
+                <p class="text-sm text-white font-semibold">{{ player.username }}</p>
+                <p class="text-xs text-gray-500">Wins: {{ player.creator_scope_wins|default:0 }}</p>
+            </div>
+            <span class="text-sm font-bold text-green-400">₹{{ player.creator_scope_winnings|default:"0.00" }}</span>
+        </div>
+        {% empty %}
+        <p class="text-sm text-gray-500">Leaderboard updates automatically after results and winnings are credited.</p>
+        {% endfor %}
+    </div>
+
 </div>
 
 <!-- HOW TO JOIN MODAL -->
@@ -466,6 +529,26 @@ function showCancelBox() {
         document.getElementById('cancelReasonInput').value = reason;
         document.getElementById('cancelForm').submit();
     }
+}
+
+const rewardTournamentSelect = document.getElementById('rewardTournamentSelect');
+const rewardUsersSelect = document.getElementById('rewardUsersSelect');
+if (rewardTournamentSelect && rewardUsersSelect) {
+    rewardTournamentSelect.addEventListener('change', async function() {
+        rewardUsersSelect.innerHTML = '';
+        const tid = rewardTournamentSelect.value;
+        try {
+            const res = await fetch(`/creator/tournament-participants/${tid}/`);
+            const data = await res.json();
+            if (!data.ok) return;
+            data.participants.forEach((p) => {
+                const option = document.createElement('option');
+                option.value = p.id;
+                option.textContent = p.username;
+                rewardUsersSelect.appendChild(option);
+            });
+        } catch (e) {}
+    });
 }
 </script>
 
