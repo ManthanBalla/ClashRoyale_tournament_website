@@ -126,7 +126,13 @@ LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
 RESEND_API_KEY = os.getenv('RESEND_API_KEY', '')
-if RESEND_API_KEY:
+BREVO_API_KEY = os.getenv('BREVO_API_KEY', '')
+EMAIL_BACKEND_OVERRIDE = os.getenv('EMAIL_BACKEND', '').strip()
+if EMAIL_BACKEND_OVERRIDE:
+    EMAIL_BACKEND = EMAIL_BACKEND_OVERRIDE
+elif BREVO_API_KEY:
+    EMAIL_BACKEND = 'core.email_backends.BrevoAPIEmailBackend'
+elif RESEND_API_KEY:
     EMAIL_BACKEND = 'core.email_backends.ResendEmailBackend'
 else:
     EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
