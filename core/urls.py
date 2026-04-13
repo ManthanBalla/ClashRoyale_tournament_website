@@ -14,7 +14,8 @@ from .views import (
     create_subscription_order, verify_subscription_payment,
     razorpay_webhook, submit_dispute, resolve_dispute, tournament_participants_api,
     toggle_creator_follow, toggle_follow_notifications,
-    terms_page, privacy_page, refund_policy_page, CustomPasswordResetConfirmView
+    terms_page, privacy_page, refund_policy_page, CustomPasswordResetConfirmView,
+    legacy_send_reward_code_redirect
 )
 from django.contrib.auth import views as auth_views
 
@@ -64,6 +65,7 @@ urlpatterns = [
     path('add-reward-code/', add_reward_code, name='add_reward_code'),
     path('send-reward-code/<int:code_id>/', send_reward_code, name='send_reward_code'),
     path('send-reward-code/', send_reward_code, name='send_reward_code_bulk'),
+    path('send_reward_code/<str:code_ref>/', legacy_send_reward_code_redirect, name='legacy_send_reward_code_redirect'),
     path('creator/tournament-participants/<int:tournament_id>/', tournament_participants_api, name='tournament_participants_api'),
     path('creator/follow/<int:creator_id>/', toggle_creator_follow, name='toggle_creator_follow'),
     path('creator/follow-notifications/<int:creator_id>/', toggle_follow_notifications, name='toggle_follow_notifications'),

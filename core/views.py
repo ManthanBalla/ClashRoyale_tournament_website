@@ -1831,6 +1831,12 @@ def send_reward_code(request, code_id=None):
 
 
 @login_required
+def legacy_send_reward_code_redirect(request, code_ref):
+    # Backward-compatible handler for old URLs like /send_reward_code/<code>/
+    return redirect('/creator-admin/')
+
+
+@login_required
 @require_POST
 def toggle_creator_follow(request, creator_id):
     creator = get_object_or_404(User, id=creator_id)
