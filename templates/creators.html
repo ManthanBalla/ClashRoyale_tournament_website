@@ -2,7 +2,7 @@
 {% block content %}
 <div class="max-w-4xl mx-auto py-6">
     <h1 class="text-2xl font-extrabold text-white mb-2">Creators</h1>
-    <p class="ca-muted text-sm mb-5">Follow creators to get tournament hosting notifications.</p>
+    <p class="ca-muted text-sm mb-5">Follow creators to get tournament hosting notifications. Turn alerts ON to receive host notifications.</p>
     <div class="ca-panel">
         {% for creator in active_creators %}
         <div class="flex items-center justify-between p-4 border-b border-white/[0.06]">
@@ -20,7 +20,9 @@
                 </form>
                 <form method="POST" action="/creator/follow-notifications/{{ creator.id }}/">
                     {% csrf_token %}
-                    <button type="submit" class="ca-btn-outline text-xs">Alert on/off</button>
+                    <button type="submit" class="ca-btn-outline text-xs">
+                        Alerts: {% if creator.id in follow_alert_on_ids %}ON{% else %}OFF{% endif %}
+                    </button>
                 </form>
             </div>
             {% endif %}

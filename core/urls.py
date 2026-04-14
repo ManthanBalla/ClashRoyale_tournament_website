@@ -14,7 +14,7 @@ from .views import (
     create_subscription_order, verify_subscription_payment,
     razorpay_webhook, submit_dispute, resolve_dispute, tournament_participants_api,
     toggle_creator_follow, toggle_follow_notifications, creators_view, creator_rewards_view,
-    terms_page, privacy_page, refund_policy_page, CustomPasswordResetConfirmView,
+    terms_page, privacy_page, refund_policy_page, help_page, CustomPasswordResetConfirmView,
     legacy_send_reward_code_redirect
 )
 from django.contrib.auth import views as auth_views
@@ -42,6 +42,7 @@ urlpatterns = [
     path('terms/', terms_page, name='terms'),
     path('privacy/', privacy_page, name='privacy'),
     path('refund-policy/', refund_policy_page, name='refund_policy'),
+    path('help/', help_page, name='help'),
 
     path('join/<int:tournament_id>/', join_tournament, name='join_tournament'),
     path('rules/<int:tournament_id>/', tournament_rules, name='tournament_rules'),

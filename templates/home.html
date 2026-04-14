@@ -116,7 +116,9 @@
                     </form>
                     <form method="POST" action="/creator/follow-notifications/{{ creator.id }}/">
                         {% csrf_token %}
-                        <button type="submit" class="ca-btn-outline text-xs">Alert: on/off</button>
+                        <button type="submit" class="ca-btn-outline text-xs">
+                            Alerts: {% if creator.id in follow_alert_on_ids %}ON{% else %}OFF{% endif %}
+                        </button>
                     </form>
                 </div>
                 {% endif %}

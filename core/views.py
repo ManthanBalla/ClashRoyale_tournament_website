@@ -362,9 +362,12 @@ def home(request):
     ).select_related('profile').order_by('username')
 
     followed_creator_ids = set()
+    follow_alert_on_ids = set()
     if request.user.is_authenticated:
-        followed_creator_ids = set(
-            CreatorFollow.objects.filter(follower=request.user).values_list('creator_id', flat=True)
+        follows = CreatorFollow.objects.filter(follower=request.user)
+        followed_creator_ids = set(follows.values_list('creator_id', flat=True))
+        follow_alert_on_ids = set(
+            follows.filter(notifications_enabled=True).values_list('creator_id', flat=True)
         )
 
     return render(request, 'home.html', {
@@ -373,6 +376,7 @@ def home(request):
         'global_leaderboard': global_leaderboard,
         'active_creators': active_creators,
         'followed_creator_ids': followed_creator_ids,
+        'follow_alert_on_ids': follow_alert_on_ids,
         'join_error': request.GET.get('join_error'),
     })
 
@@ -1712,6 +1716,10 @@ def refund_policy_page(request):
     return render(request, 'refund_policy.html')
 
 
+def help_page(request):
+    return render(request, 'help.html')
+
+
 @login_required
 def topup_wallet(request, user_id):
     if not request.user.profile.is_admin:
@@ -2028,13 +2036,17 @@ def creators_view(request):
         profile__plan_expiry__gt=timezone.now()
     ).select_related('profile').order_by('username')
     followed_creator_ids = set()
+    follow_alert_on_ids = set()
     if request.user.is_authenticated:
-        followed_creator_ids = set(
-            CreatorFollow.objects.filter(follower=request.user).values_list('creator_id', flat=True)
+        follows = CreatorFollow.objects.filter(follower=request.user)
+        followed_creator_ids = set(follows.values_list('creator_id', flat=True))
+        follow_alert_on_ids = set(
+            follows.filter(notifications_enabled=True).values_list('creator_id', flat=True)
         )
     return render(request, 'creators.html', {
         'active_creators': active_creators,
-        'followed_creator_ids': followed_creator_ids
+        'followed_creator_ids': followed_creator_ids,
+        'follow_alert_on_ids': follow_alert_on_ids,
     })
 
 
