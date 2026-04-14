@@ -95,7 +95,10 @@
     </div>
 
     <div class="w-full max-w-4xl mx-auto mt-8">
-        <h2 class="text-lg sm:text-xl font-bold text-white tracking-tight mb-4">Creators with active membership</h2>
+        <div class="flex items-center justify-between gap-3 mb-4">
+            <h2 class="text-lg sm:text-xl font-bold text-white tracking-tight">Creators with active membership</h2>
+            <a href="/creators/" class="ca-btn-outline text-xs">See creators</a>
+        </div>
         <div class="ca-panel mb-6">
             {% for creator in active_creators %}
             <div class="flex items-center justify-between p-4 border-b border-white/[0.06]">
@@ -111,12 +114,10 @@
                             {% if creator.id in followed_creator_ids %}Unfollow{% else %}Follow{% endif %}
                         </button>
                     </form>
-                    {% if creator.id in followed_creator_ids %}
                     <form method="POST" action="/creator/follow-notifications/{{ creator.id }}/">
                         {% csrf_token %}
-                        <button type="submit" class="ca-btn-outline text-xs">Toggle alerts</button>
+                        <button type="submit" class="ca-btn-outline text-xs">Alert: on/off</button>
                     </form>
-                    {% endif %}
                 </div>
                 {% endif %}
             </div>

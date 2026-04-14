@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-4xl mx-auto py-6">
+    <h1 class="text-2xl font-extrabold text-white mb-2">My Tournaments</h1>
+    <p class="ca-muted text-sm mb-5">Track tournaments you joined and tournaments you created.</p>
+
+    <div class="ca-glass p-4 mb-5">
+        <h2 class="text-lg font-bold text-white mb-3">Joined Tournaments</h2>
+        <div class="space-y-2">
+            {% for t in joined_tournaments %}
+            <a href="/tournament/{{ t.id }}/" class="block ca-glass-sm px-4 py-3 hover:border-white/20 transition">
+                <p class="text-sm font-semibold text-white">{{ t.name }}</p>
+                <p class="text-xs text-gray-400 mt-1">Creator: {{ t.creator.username }} · Status: {{ t.get_status_display }}</p>
+            </a>
+            {% empty %}
+            <p class="text-sm text-gray-500">You have not joined any tournaments yet.</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    {% if user.profile.is_creator or user.profile.is_admin %}
+    <div class="ca-glass p-4">
+        <h2 class="text-lg font-bold text-white mb-3">Recently Created by You</h2>
+        <div class="space-y-2">
+            {% for t in created_tournaments %}
+            <a href="/tournament/{{ t.id }}/" class="block ca-glass-sm px-4 py-3 hover:border-white/20 transition">
+                <p class="text-sm font-semibold text-white">{{ t.name }}</p>
+                <p class="text-xs text-gray-400 mt-1">Status: {{ t.get_status_display }} · Created: {{ t.created_at|date:"d M Y" }}</p>
+            </a>
+            {% empty %}
+            <p class="text-sm text-gray-500">You have not created any tournaments recently.</p>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

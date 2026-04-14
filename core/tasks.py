@@ -21,7 +21,15 @@ def check_rate_limit(key, limit=20, window_seconds=60):
 
 
 @shared_task
-def send_reward_code_email_task(user_email, username, code_text, description, code_id):
+def send_reward_code_email_task(
+    user_email,
+    username,
+    code_text,
+    description,
+    code_id,
+    tournament_name='Clash Arena Tournament',
+    rank_label='Winner'
+):
     if not user_email:
         return
     smtp_block_key = "smtp_unreachable_block"
@@ -29,14 +37,19 @@ def send_reward_code_email_task(user_email, username, code_text, description, co
         logger.warning("Skipping reward email due to temporary SMTP block code_id=%s", code_id)
         return
     try:
+        subject = f'🎁 Congratulations! Reward from {tournament_name}'
+        message = (
+            f'Hi {username},\n\n'
+            f'🎉 You have won {tournament_name}!\n'
+            f'🏅 Your Rank: {rank_label}\n\n'
+            f'🎁 Reward Code: {code_text}\n'
+            f'📝 Reward Details: {description or "Tournament reward"}\n\n'
+            'Please redeem your code as soon as possible.\n'
+            'Thank you for competing on Clash Arena! 💥'
+        )
         send_mail(
-            subject='Your Reward Code - Clash Arena',
-            message=(
-                f'Hi {username},\n\n'
-                f'Your reward code is: {code_text}\n\n'
-                f'Description: {description}\n\n'
-                'Thank you for playing on Clash Arena!'
-            ),
+            subject=subject,
+            message=message,
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[user_email],
             fail_silently=False,

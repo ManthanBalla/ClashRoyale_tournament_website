@@ -162,7 +162,61 @@ def sync_tournament_status(tournament, now=None):
         tournament.status = expected_status
         tournament.save(update_fields=['status'])
 
+    if tournament.status == 'ongoing':
+        maybe_auto_start_tournament(tournament)
+
     return tournament.status
+
+
+def maybe_auto_start_tournament(tournament):
+    if Match.objects.filter(tournament=tournament).exists():
+        return
+
+    participant_ids = list(
+        Participant.objects.filter(tournament=tournament).values_list('user_id', flat=True)
+    )
+    if len(participant_ids) < tournament.min_players:
+        if tournament.is_paid:
+            for uid in participant_ids:
+                user = User.objects.filter(id=uid).first()
+                if user:
+                    credit_wallet(
+                        user,
+                        tournament.entry_fee,
+                        'tournament_refund',
+                        f'♻️ Refund — {tournament.name} cancelled (minimum players not reached)',
+                        tournament=tournament
+                    )
+        tournament.status = 'cancelled'
+        tournament.cancel_reason = (
+            f'Minimum {tournament.min_players} players required but only '
+            f'{len(participant_ids)} joined.'
+        )
+        tournament.save(update_fields=['status', 'cancel_reason'])
+        notify_all_participants(
+            tournament,
+            'tournament_cancel',
+            f'❌ Tournament Cancelled — {tournament.name}',
+            f'Not enough players joined. Minimum {tournament.min_players} required.'
+        )
+        return
+
+    random.shuffle(participant_ids)
+    for i in range(0, len(participant_ids), 2):
+        if i + 1 < len(participant_ids):
+            Match.objects.create(
+                tournament=tournament,
+                player1_id=participant_ids[i],
+                player2_id=participant_ids[i + 1],
+                round_number=1
+            )
+
+    notify_all_participants(
+        tournament,
+        'tournament_start',
+        f'🔴 {tournament.name} is Now Live!',
+        'The tournament has started automatically because start time is live.'
+    )
 
 
 def check_rate_limit(key, limit=20, window_seconds=60):
@@ -242,6 +296,24 @@ def home(request):
         'active_creators': active_creators,
         'followed_creator_ids': followed_creator_ids,
         'join_error': request.GET.get('join_error'),
+    })
+
+
+@login_required
+def my_tournaments_view(request):
+    joined_tournaments = Tournament.objects.filter(
+        participant__user=request.user
+    ).distinct().select_related('creator').order_by('-created_at')[:30]
+
+    created_tournaments = Tournament.objects.none()
+    if request.user.profile.is_creator or request.user.profile.is_admin:
+        created_tournaments = Tournament.objects.filter(
+            creator=request.user
+        ).select_related('creator').order_by('-created_at')[:30]
+
+    return render(request, 'my_tournaments.html', {
+        'joined_tournaments': joined_tournaments,
+        'created_tournaments': created_tournaments,
     })
 
 
@@ -1244,7 +1316,6 @@ def tournament_detail(request, tournament_id):
     reward_codes = RewardCode.objects.none()
     reward_recipients = []
     creator_tournaments = Tournament.objects.none()
-    creator_leaderboard = User.objects.none()
     likely_winner = None
     if request.user.is_authenticated:
         joined_tournaments = Participant.objects.filter(
@@ -1260,24 +1331,6 @@ def tournament_detail(request, tournament_id):
                 participant__tournament=tournament
             ).distinct().order_by('username')
             creator_tournaments = Tournament.objects.filter(creator=tournament.creator).order_by('-created_at')
-
-    creator_leaderboard = User.objects.annotate(
-        creator_scope_winnings=Sum(
-            'transactions__amount',
-            filter=Q(
-                transactions__reason='tournament_win',
-                transactions__transaction_type='credit',
-                transactions__tournament__creator=tournament.creator
-            )
-        ),
-        creator_scope_wins=Count(
-            'winner',
-            filter=Q(winner__tournament__creator=tournament.creator),
-            distinct=True
-        )
-    ).filter(
-        Q(creator_scope_winnings__gt=0) | Q(creator_scope_wins__gt=0)
-    ).order_by('-creator_scope_winnings', '-creator_scope_wins', 'username')[:20]
 
     winner_tx = Transaction.objects.filter(
         tournament=tournament,
@@ -1299,7 +1352,6 @@ def tournament_detail(request, tournament_id):
         'reward_codes': reward_codes,
         'reward_recipients': reward_recipients,
         'creator_tournaments': creator_tournaments,
-        'creator_leaderboard': creator_leaderboard,
         'likely_winner': likely_winner,
         'show_password': show_password,
         'joined_tournaments': joined_tournaments,
@@ -1410,64 +1462,7 @@ def generate_matches(request, tournament_id):
     if request.user != tournament.creator and not request.user.profile.is_admin:
         return redirect('/')
 
-    participants = list(
-        Participant.objects.filter(tournament=tournament).values_list('user', flat=True)
-    )
-
-    # check minimum players
-    if len(participants) < tournament.min_players:
-        if tournament.is_paid:
-            for uid in participants:
-                u = User.objects.get(id=uid)
-                credit_wallet(
-                    u,
-                    tournament.entry_fee,
-                    'tournament_refund',
-                    f'♻️ Refund — {tournament.name} cancelled (min players not reached)',
-                    tournament=tournament
-                )
-
-        tournament.status = 'cancelled'
-        tournament.cancel_reason = f'Minimum {tournament.min_players} players required but only {len(participants)} joined.'
-        tournament.save()
-
-        notify_all_participants(
-            tournament,
-            'tournament_cancel',
-            f'❌ Tournament Cancelled — {tournament.name}',
-            f'Not enough players joined. Minimum {tournament.min_players} required but only {len(participants)} joined.' +
-            (f'\n♻️ ₹{tournament.entry_fee} has been refunded to your wallet.' if tournament.is_paid else '')
-        )
-
-        return redirect(f'/tournament/{tournament.id}/?cancelled=1')
-
-    random.shuffle(participants)
-    Match.objects.filter(tournament=tournament).delete()
-
-    for i in range(0, len(participants), 2):
-        if i + 1 < len(participants):
-            Match.objects.create(
-                tournament=tournament,
-                player1_id=participants[i],
-                player2_id=participants[i + 1],
-                round_number=1
-            )
-
-    tournament.status = 'ongoing'
-    tournament.save()
-
-    # notify start + end time if set
-    end_msg = ''
-    if tournament.end_time:
-        end_msg = f' Tournament ends at {tournament.end_time.strftime("%d %b %Y, %I:%M %p")} UTC.'
-
-    notify_all_participants(
-        tournament,
-        'tournament_start',
-        f'🔴 {tournament.name} is Now Live!',
-        f'Your tournament has started! Check your match and play now.{end_msg}'
-    )
-
+    maybe_auto_start_tournament(tournament)
     return redirect(f'/tournament/{tournament.id}/')
 
 
@@ -1701,14 +1696,20 @@ def add_reward_code(request):
         if code:
             if request.user.profile.is_creator and not request.user.profile.is_admin:
                 if 'google' not in f"{code} {description}".lower() and 'play' not in f"{code} {description}".lower():
-                    return redirect(request.META.get('HTTP_REFERER', '/'))
+                    target = '/creator/rewards/'
+                    if tournament_id:
+                        target += f'?tournament_id={tournament_id}&reward_error=google_only'
+                    return redirect(target)
             RewardCode.objects.create(
                 code=code,
                 description=description,
                 tournament=tournament,
                 sent_by=request.user
             )
-    return redirect(request.META.get('HTTP_REFERER', '/'))
+    target = '/creator/rewards/'
+    if tournament_id:
+        target += f'?tournament_id={tournament_id}&code_added=1'
+    return redirect(target)
 
 
 @login_required
@@ -1764,10 +1765,20 @@ def send_reward_code(request, code_id=None):
         code.sent_at = timezone.now()
         code.save(update_fields=['assigned_to', 'tournament', 'sent_by', 'sent', 'sent_at'])
 
+        rank_label = request.POST.get('rank') or 'Winner'
         if user.email:
             try:
                 from .tasks import send_reward_code_email_task
-                enqueue_task(send_reward_code_email_task, user.email, user.username, code.code, code.description, code.id)
+                enqueue_task(
+                    send_reward_code_email_task,
+                    user.email,
+                    user.username,
+                    code.code,
+                    code.description,
+                    code.id,
+                    tournament.name if tournament else 'Clash Arena Tournament',
+                    rank_label
+                )
             except Exception:
                 logger.exception("Failed to enqueue reward email code_id=%s", code.id)
         send_notification(
@@ -1777,6 +1788,13 @@ def send_reward_code(request, code_id=None):
             'You received a reward code. Check your email for full details.',
             tournament=tournament
         )
+        send_notification(
+            request.user,
+            'general',
+            '✅ Reward Sent Successfully',
+            f'Reward code was sent to {user.username} for {tournament.name if tournament else "selected tournament"}.',
+            tournament=tournament
+        )
         return redirect(request.META.get('HTTP_REFERER', '/'))
 
     # Bulk creator flow: map tournament participants -> unsent codes.
@@ -1784,39 +1802,52 @@ def send_reward_code(request, code_id=None):
     if single_user_id and single_user_id not in user_ids:
         user_ids.append(single_user_id)
     if not tournament_id or not user_ids:
-        return redirect(request.META.get('HTTP_REFERER', '/'))
+        return redirect('/creator/rewards/?reward_error=no_participants')
 
     tournament_qs = Tournament.objects.filter(id=tournament_id)
     if not request.user.profile.is_admin:
         tournament_qs = tournament_qs.filter(creator=request.user)
     tournament = get_object_or_404(tournament_qs)
     if request.user.profile.is_creator and not request.user.profile.is_admin and tournament.status != 'completed':
-        return redirect(f"/tournament/{tournament.id}/?reward_error=not_completed")
+        return redirect(f"/creator/rewards/?tournament_id={tournament.id}&reward_error=not_completed")
 
     if not check_rate_limit(f"reward_send_creator:{request.user.id}", limit=30, window_seconds=3600):
-        return redirect(f"/tournament/{tournament.id}/?reward_error=rate")
+        return redirect(f"/creator/rewards/?tournament_id={tournament.id}&reward_error=rate")
 
     eligible_users = list(User.objects.filter(id__in=user_ids, participant__tournament=tournament).distinct())
     if not eligible_users:
-        return redirect(f"/tournament/{tournament.id}/?reward_error=no_participants")
+        return redirect(f"/creator/rewards/?tournament_id={tournament.id}&reward_error=no_participants")
 
     sent_count = RewardCode.objects.filter(tournament=tournament, sent=True).count()
     available_quota = MAX_REWARD_CODES_PER_TOURNAMENT - sent_count
     if available_quota <= 0:
-        return redirect(f"/tournament/{tournament.id}/?reward_error=maxed")
+        return redirect(f"/creator/rewards/?tournament_id={tournament.id}&reward_error=maxed")
 
     users_to_reward = eligible_users[:available_quota]
-    codes_qs = RewardCode.objects.filter(sent=False)
+    selected_code_ids = request.POST.getlist('code_ids')
+    if not selected_code_ids:
+        return redirect(f"/creator/rewards/?tournament_id={tournament.id}&reward_error=no_code_selected")
+
+    codes_qs = RewardCode.objects.filter(sent=False, tournament=tournament, id__in=selected_code_ids)
     if request.user.profile.is_creator and not request.user.profile.is_admin:
-        codes_qs = codes_qs.filter(Q(description__icontains='google') | Q(description__icontains='play') | Q(code__icontains='google') | Q(code__icontains='play'))
-    available_codes = list(codes_qs.order_by('created_at')[:len(users_to_reward)])
+        codes_qs = codes_qs.filter(
+            Q(description__icontains='google') |
+            Q(description__icontains='play') |
+            Q(code__icontains='google') |
+            Q(code__icontains='play')
+        )
+    available_codes = list(codes_qs.order_by('created_at'))
     if not available_codes:
-        return redirect(f"/tournament/{tournament.id}/?reward_error=no_codes")
+        return redirect(f"/creator/rewards/?tournament_id={tournament.id}&reward_error=no_codes")
 
     pair_count = min(len(users_to_reward), len(available_codes))
+    if pair_count < len(users_to_reward):
+        return redirect(f"/creator/rewards/?tournament_id={tournament.id}&reward_error=codes_short")
+
     for idx in range(pair_count):
         user = users_to_reward[idx]
         code = available_codes[idx]
+        rank_label = request.POST.get(f'rank_{user.id}') or 'Winner'
         code.assigned_to = user
         code.tournament = tournament
         code.sent_by = request.user
@@ -1826,7 +1857,16 @@ def send_reward_code(request, code_id=None):
         if user.email:
             try:
                 from .tasks import send_reward_code_email_task
-                enqueue_task(send_reward_code_email_task, user.email, user.username, code.code, code.description, code.id)
+                enqueue_task(
+                    send_reward_code_email_task,
+                    user.email,
+                    user.username,
+                    code.code,
+                    code.description,
+                    code.id,
+                    tournament.name,
+                    rank_label
+                )
             except Exception:
                 logger.exception("Failed to enqueue reward email code_id=%s", code.id)
         send_notification(
@@ -1837,7 +1877,15 @@ def send_reward_code(request, code_id=None):
             tournament=tournament
         )
 
-    return redirect(f"/tournament/{tournament.id}/?reward_sent={pair_count}")
+    send_notification(
+        request.user,
+        'general',
+        '✅ Rewards Sent Successfully',
+        f'{pair_count} reward code(s) were sent for {tournament.name}.',
+        tournament=tournament
+    )
+
+    return redirect(f"/creator/rewards/?tournament_id={tournament.id}&reward_sent={pair_count}")
 
 
 @login_required
@@ -1872,6 +1920,66 @@ def toggle_follow_notifications(request, creator_id):
     follow.notifications_enabled = not follow.notifications_enabled
     follow.save(update_fields=['notifications_enabled'])
     return redirect(request.META.get('HTTP_REFERER', '/'))
+
+
+def creators_view(request):
+    active_creators = User.objects.filter(
+        profile__is_creator=True,
+        profile__plan_expiry__gt=timezone.now()
+    ).select_related('profile').order_by('username')
+    followed_creator_ids = set()
+    if request.user.is_authenticated:
+        followed_creator_ids = set(
+            CreatorFollow.objects.filter(follower=request.user).values_list('creator_id', flat=True)
+        )
+    return render(request, 'creators.html', {
+        'active_creators': active_creators,
+        'followed_creator_ids': followed_creator_ids
+    })
+
+
+@login_required
+def creator_rewards_view(request):
+    if not request.user.profile.is_admin and not request.user.profile.is_creator:
+        return redirect('/')
+
+    tournaments_qs = Tournament.objects.all().order_by('-created_at')
+    if not request.user.profile.is_admin:
+        tournaments_qs = tournaments_qs.filter(creator=request.user)
+    tournaments = list(tournaments_qs[:100])
+
+    selected_tournament = None
+    participants = []
+    available_codes = RewardCode.objects.none()
+    sent_codes = RewardCode.objects.none()
+    if tournaments:
+        selected_id = request.GET.get('tournament_id')
+        if selected_id:
+            selected_tournament = next((t for t in tournaments if str(t.id) == str(selected_id)), tournaments[0])
+        else:
+            selected_tournament = tournaments[0]
+        participants = User.objects.filter(
+            participant__tournament=selected_tournament
+        ).distinct().order_by('username')
+        available_codes = RewardCode.objects.filter(
+            tournament=selected_tournament,
+            sent=False
+        ).select_related('sent_by').order_by('-created_at')
+        sent_codes = RewardCode.objects.filter(
+            tournament=selected_tournament,
+            sent=True
+        ).select_related('assigned_to', 'sent_by').order_by('-sent_at', '-created_at')[:50]
+
+    return render(request, 'creator_rewards.html', {
+        'tournaments': tournaments,
+        'selected_tournament': selected_tournament,
+        'participants': participants,
+        'available_codes': available_codes,
+        'sent_codes': sent_codes,
+        'reward_sent': request.GET.get('reward_sent'),
+        'code_added': request.GET.get('code_added'),
+        'reward_error': request.GET.get('reward_error'),
+    })
 
 
 @login_required

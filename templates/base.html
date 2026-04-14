@@ -56,6 +56,7 @@
         html {
             height: 100%;
             -webkit-tap-highlight-color: transparent;
+            background-color: #060508;
         }
 
         html, body {
@@ -81,20 +82,17 @@
                 radial-gradient(ellipse 80% 60% at 0% 100%, rgba(25, 15, 30, 0.9) 0%, transparent 45%),
                 linear-gradient(165deg, #120810 0%, #060508 35%, #0a0608 70%, #180c10 100%);
             background-attachment: fixed;
+            opacity: 0;
+            transition: opacity 0.12s ease;
+        }
+
+        body.page-ready {
+            opacity: 1;
         }
 
         main {
             min-height: calc(100dvh - 4.25rem);
-            max-height: calc(100dvh - 4.25rem);
-            overflow-y: auto;
             overflow-x: hidden;
-            -webkit-overflow-scrolling: touch;
-            scrollbar-width: none;
-            -ms-overflow-style: none;
-        }
-
-        main::-webkit-scrollbar {
-            display: none;
         }
 
         .ca-nav {
@@ -250,6 +248,7 @@
 
         <div class="hidden md:flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold items-center">
             <a href="/" class="ca-muted hover:text-white transition">Home</a>
+            <a href="/creators/" class="ca-muted hover:text-white transition">Creators</a>
             {% if user.is_authenticated %}
                 {% if user.profile.is_admin %}
                     <span class="text-ca-accent font-bold text-xs uppercase tracking-wider">Admin</span>
@@ -258,10 +257,12 @@
                 {% elif user.profile.is_creator %}
                     <span class="text-amber-200/90 font-semibold text-xs uppercase tracking-wider">Creator</span>
                     <a href="/create-tournament/" class="text-white/90 hover:text-ca-accent transition">Host</a>
+                    <a href="/creator/rewards/" class="text-white/90 hover:text-ca-accent transition">Send rewards</a>
                     <a href="/subscription/" class="ca-muted hover:text-white transition">Plan</a>
                 {% else %}
                     <a href="/subscription/" class="ca-muted hover:text-ca-accent transition">Become Creator</a>
                 {% endif %}
+                <a href="/my-tournaments/" class="ca-muted hover:text-white transition">My Tournaments</a>
                 <a href="/profile/" class="ca-muted hover:text-white transition">Profile</a>
                 <a href="/logout/" class="text-white/70 hover:text-ca-accent transition">Logout</a>
             {% else %}
@@ -295,6 +296,7 @@
              class="hidden absolute top-full right-2 sm:right-4 w-[min(100vw-1rem,18rem)] mt-2 rounded-2xl shadow-glass z-50 py-2 flex flex-col text-sm font-semibold overflow-hidden">
 
             <a href="/" class="px-4 py-3.5 hover:bg-white/5 text-white/95 block min-h-[2.75rem] flex items-center">Home</a>
+            <a href="/creators/" class="px-4 py-3.5 hover:bg-white/5 text-white/95 block min-h-[2.75rem] flex items-center">Creators</a>
 
             {% if user.is_authenticated %}
                 {% if user.profile.is_admin %}
@@ -307,6 +309,7 @@
                     <div class="border-t border-white/10 pt-1">
                         <p class="px-4 py-2 text-amber-200 text-[10px] uppercase tracking-widest font-bold">Creator</p>
                         <a href="/create-tournament/" class="px-4 py-3.5 hover:bg-white/5 block min-h-[2.75rem] flex items-center">Host tournament</a>
+                        <a href="/creator/rewards/" class="px-4 py-3.5 hover:bg-white/5 block min-h-[2.75rem] flex items-center">Send rewards</a>
                         <a href="/subscription/" class="px-4 py-3.5 hover:bg-white/5 block min-h-[2.75rem] flex items-center">Subscription</a>
                     </div>
                 {% else %}
@@ -315,6 +318,7 @@
                     </div>
                 {% endif %}
                 <div class="border-t border-white/10">
+                    <a href="/my-tournaments/" class="px-4 py-3.5 hover:bg-white/5 block min-h-[2.75rem] flex items-center">My tournaments</a>
                     <a href="/notifications/" class="px-4 py-3.5 hover:bg-white/5 flex items-center justify-between min-h-[2.75rem]">
                         Notifications
                         {% if unread_count > 0 %}
@@ -345,6 +349,10 @@
     </footer>
 
     <script>
+        window.addEventListener('load', function () {
+            document.body.classList.add('page-ready');
+        });
+
         function toggleMenu() {
             document.getElementById('mobileMenu').classList.toggle('hidden');
         }

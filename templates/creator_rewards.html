@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-3xl mx-auto py-6">
+    <h1 class="text-2xl font-extrabold text-white mb-2">Send Rewards</h1>
+    <p class="ca-muted text-sm mb-5">Select a tournament and players. Reward emails will be sent professionally.</p>
+
+    {% if code_added %}
+    <div class="mb-4 ca-glass px-4 py-3 border border-emerald-500/30">
+        <p class="text-sm text-emerald-300 font-semibold">Reward code added successfully.</p>
+    </div>
+    {% endif %}
+
+    {% if reward_sent %}
+    <div class="mb-4 ca-glass px-4 py-3 border border-emerald-500/30 bg-emerald-500/10">
+        <p class="text-sm text-emerald-200 font-semibold">✅ Rewards dispatched successfully.</p>
+        <p class="text-xs text-emerald-100/90 mt-1">
+            {{ reward_sent }} player{{ reward_sent|pluralize }} received reward email(s). A confirmation has also been added to your notifications.
+        </p>
+    </div>
+    {% endif %}
+
+    {% if reward_error %}
+    <div class="mb-4 ca-glass px-4 py-3 border border-red-500/30">
+        {% if reward_error == 'not_completed' %}
+        <p class="text-sm text-red-300 font-semibold">Tournament must be completed before sending rewards.</p>
+        {% elif reward_error == 'google_only' %}
+        <p class="text-sm text-red-300 font-semibold">Creators can add only Google Play reward codes.</p>
+        {% elif reward_error == 'no_codes' %}
+        <p class="text-sm text-red-300 font-semibold">No unused reward codes are available.</p>
+        {% elif reward_error == 'no_code_selected' %}
+        <p class="text-sm text-red-300 font-semibold">Select at least one reward code before sending.</p>
+        {% elif reward_error == 'codes_short' %}
+        <p class="text-sm text-red-300 font-semibold">Selected codes are fewer than selected players.</p>
+        {% elif reward_error == 'no_participants' %}
+        <p class="text-sm text-red-300 font-semibold">Select at least one valid tournament participant.</p>
+        {% elif reward_error == 'rate' %}
+        <p class="text-sm text-red-300 font-semibold">Too many reward sends. Please try again later.</p>
+        {% elif reward_error == 'maxed' %}
+        <p class="text-sm text-red-300 font-semibold">Tournament reward send limit has been reached.</p>
+        {% else %}
+        <p class="text-sm text-red-300 font-semibold">Could not process reward request.</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="ca-glass p-4">
+        {% if tournaments %}
+        <form method="GET" class="mb-4">
+            <label class="text-xs text-gray-400 block mb-1">Tournament</label>
+            <select name="tournament_id" onchange="this.form.submit()"
+                    class="w-full p-2.5 bg-gray-800 border border-gray-700 rounded text-white text-sm">
+                {% for t in tournaments %}
+                <option value="{{ t.id }}" {% if selected_tournament and selected_tournament.id == t.id %}selected{% endif %}>
+                    {{ t.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </form>
+
+        {% if selected_tournament %}
+        <form method="POST" action="/add-reward-code/" class="space-y-3 mb-6 border-b border-white/10 pb-5">
+            {% csrf_token %}
+            <input type="hidden" name="tournament_id" value="{{ selected_tournament.id }}">
+            <label class="text-xs text-gray-400 block">Add reward code</label>
+            <input type="text" name="code" required placeholder="Enter reward code"
+                   class="w-full p-2.5 bg-gray-800 border border-gray-700 rounded text-white text-sm">
+            <input type="text" name="description" placeholder="Example: 500 RS Google Play Recharge Code"
+                   class="w-full p-2.5 bg-gray-800 border border-gray-700 rounded text-white text-sm">
+            <button type="submit" class="ca-btn-outline text-sm">Add code</button>
+        </form>
+
+        <div class="mb-6 ca-glass-sm p-3 border border-white/10">
+            <p class="text-xs text-gray-300 font-semibold mb-2">Codes added for this tournament</p>
+            <div class="space-y-2 max-h-44 overflow-y-auto pr-1">
+                {% for c in available_codes %}
+                <div class="rounded-md bg-black/25 px-3 py-2 border border-white/10">
+                    <p class="text-xs text-white font-semibold break-all">{{ c.code }}</p>
+                    <p class="text-[11px] text-gray-400 mt-0.5">{{ c.description|default:"No description" }}</p>
+                </div>
+                {% empty %}
+                <p class="text-[11px] text-gray-500">No available unsent codes yet for this tournament.</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        <form method="POST" action="/send-reward-code/" class="space-y-3">
+            {% csrf_token %}
+            <input type="hidden" name="tournament_id" value="{{ selected_tournament.id }}">
+            <label class="text-xs text-gray-400 block">Select reward code(s) to send</label>
+            <div class="ca-glass-sm border border-white/10 p-3">
+                <input type="text" id="codeSearchInput" placeholder="Search code or description..."
+                       class="w-full p-2.5 mb-3 bg-gray-800 border border-gray-700 rounded text-white text-sm">
+                <div id="codeCardsWrap" class="max-h-56 overflow-y-auto space-y-2 pr-1">
+                    {% for c in available_codes %}
+                    <label class="code-card flex items-start justify-between gap-3 rounded-lg border border-white/10 bg-black/20 px-3 py-2.5 cursor-pointer hover:border-ca-accent/50 transition"
+                           data-code-text="{{ c.code|lower }} {{ c.description|default:''|lower }}">
+                        <div class="min-w-0">
+                            <p class="text-sm text-white font-semibold break-all">{{ c.code }}</p>
+                            <p class="text-[11px] text-gray-400 mt-0.5">{{ c.description|default:"No description" }}</p>
+                        </div>
+                        <input type="checkbox" name="code_ids" value="{{ c.id }}"
+                               class="h-4 w-4 accent-red-500 shrink-0 mt-1">
+                    </label>
+                    {% empty %}
+                    <p class="text-[11px] text-gray-500">No available reward codes for this tournament.</p>
+                    {% endfor %}
+                </div>
+            </div>
+            <p class="text-[11px] text-gray-500">Select exactly same number of codes as selected players.</p>
+
+            <label class="text-xs text-gray-400 block">Players</label>
+            <div class="ca-glass-sm border border-white/10 p-3">
+                <input type="text" id="playerSearchInput" placeholder="Search player..."
+                       class="w-full p-2.5 mb-3 bg-gray-800 border border-gray-700 rounded text-white text-sm">
+                <div id="playerCardsWrap" class="max-h-64 overflow-y-auto space-y-2 pr-1">
+                    {% for p in participants %}
+                    <label class="player-card flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-black/20 px-3 py-2.5 cursor-pointer hover:border-ca-accent/50 transition"
+                           data-player-name="{{ p.username|lower }}">
+                        <div class="min-w-0">
+                            <p class="text-sm text-white font-semibold truncate">{{ p.username }}</p>
+                        </div>
+                        <input type="checkbox" name="user_ids" value="{{ p.id }}"
+                               class="h-4 w-4 accent-red-500 shrink-0">
+                    </label>
+                    {% empty %}
+                    <p class="text-[11px] text-gray-500">No participants found for this tournament.</p>
+                    {% endfor %}
+                </div>
+            </div>
+            <p class="text-[11px] text-gray-500">Select players from the list above.</p>
+            <button type="submit" class="ca-btn text-sm">Send reward emails</button>
+        </form>
+
+        <div class="mt-6 ca-glass-sm p-3 border border-white/10">
+            <p class="text-xs text-gray-300 font-semibold mb-2">Recently sent codes</p>
+            <div class="space-y-2 max-h-52 overflow-y-auto pr-1">
+                {% for c in sent_codes %}
+                <div class="rounded-md bg-black/25 px-3 py-2 border border-white/10">
+                    <div class="flex items-center justify-between gap-2">
+                        <p class="text-xs text-white font-semibold break-all">{{ c.code }}</p>
+                        <span class="text-[10px] text-emerald-300">SENT</span>
+                    </div>
+                    <p class="text-[11px] text-gray-400 mt-0.5">{{ c.description|default:"No description" }}</p>
+                    <p class="text-[10px] text-gray-500 mt-1">
+                        To: {{ c.assigned_to.username|default:"-" }} · By: {{ c.sent_by.username|default:"-" }}
+                    </p>
+                </div>
+                {% empty %}
+                <p class="text-[11px] text-gray-500">No sent reward codes for this tournament yet.</p>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        {% else %}
+        <p class="text-sm text-gray-400">No tournaments available for reward dispatch.</p>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    (function () {
+        const searchInput = document.getElementById('playerSearchInput');
+        const cardsWrap = document.getElementById('playerCardsWrap');
+        const codeSearchInput = document.getElementById('codeSearchInput');
+        const codeCardsWrap = document.getElementById('codeCardsWrap');
+        if (!searchInput || !cardsWrap) return;
+
+        searchInput.addEventListener('input', function () {
+            const term = (this.value || '').trim().toLowerCase();
+            cardsWrap.querySelectorAll('.player-card').forEach(function (card) {
+                const name = card.getAttribute('data-player-name') || '';
+                card.style.display = name.includes(term) ? '' : 'none';
+            });
+        });
+
+        if (codeSearchInput && codeCardsWrap) {
+            codeSearchInput.addEventListener('input', function () {
+                const term = (this.value || '').trim().toLowerCase();
+                codeCardsWrap.querySelectorAll('.code-card').forEach(function (card) {
+                    const text = card.getAttribute('data-code-text') || '';
+                    card.style.display = text.includes(term) ? '' : 'none';
+                });
+            });
+        }
+    })();
+</script>
+
+{% endblock %}

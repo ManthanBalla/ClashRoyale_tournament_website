@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-4xl mx-auto py-6">
+    <h1 class="text-2xl font-extrabold text-white mb-2">Creators</h1>
+    <p class="ca-muted text-sm mb-5">Follow creators to get tournament hosting notifications.</p>
+    <div class="ca-panel">
+        {% for creator in active_creators %}
+        <div class="flex items-center justify-between p-4 border-b border-white/[0.06]">
+            <div>
+                <p class="text-white font-semibold text-sm">{{ creator.username }}</p>
+                <p class="text-gray-400 text-xs">Plan active till {{ creator.profile.plan_expiry|date:"d M Y" }}</p>
+            </div>
+            {% if user.is_authenticated and user.id != creator.id %}
+            <div class="flex gap-2">
+                <form method="POST" action="/creator/follow/{{ creator.id }}/">
+                    {% csrf_token %}
+                    <button type="submit" class="ca-btn-outline text-xs">
+                        {% if creator.id in followed_creator_ids %}Unfollow{% else %}Follow{% endif %}
+                    </button>
+                </form>
+                <form method="POST" action="/creator/follow-notifications/{{ creator.id }}/">
+                    {% csrf_token %}
+                    <button type="submit" class="ca-btn-outline text-xs">Alert on/off</button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+        {% empty %}
+        <p class="text-gray-500 text-sm p-5">No active creators right now.</p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import (
-    home, login_view, register_view, logout_view, profile_view,
+    home, login_view, register_view, logout_view, profile_view, my_tournaments_view,
     join_tournament, create_tournament, tournament_detail,
     generate_matches, submit_result, delete_tournament, edit_tournament,
     creator_admin, promote_user, demote_user, ban_user, unban_user,
@@ -13,7 +13,7 @@ from .views import (
     mark_razorpay_payment_failed, mark_razorpay_payment_abandoned,
     create_subscription_order, verify_subscription_payment,
     razorpay_webhook, submit_dispute, resolve_dispute, tournament_participants_api,
-    toggle_creator_follow, toggle_follow_notifications,
+    toggle_creator_follow, toggle_follow_notifications, creators_view, creator_rewards_view,
     terms_page, privacy_page, refund_policy_page, CustomPasswordResetConfirmView,
     legacy_send_reward_code_redirect
 )
@@ -25,6 +25,7 @@ urlpatterns = [
     path('register/', register_view, name='register'),
     path('logout/', logout_view, name='logout'),
     path('profile/', profile_view, name='profile'),
+    path('my-tournaments/', my_tournaments_view, name='my_tournaments'),
     path('withdraw/', withdraw_view, name='withdraw'),
     path('subscription/', subscription_view, name='subscription'),
     path('notifications/', notifications_view, name='notifications'),
@@ -69,6 +70,8 @@ urlpatterns = [
     path('creator/tournament-participants/<int:tournament_id>/', tournament_participants_api, name='tournament_participants_api'),
     path('creator/follow/<int:creator_id>/', toggle_creator_follow, name='toggle_creator_follow'),
     path('creator/follow-notifications/<int:creator_id>/', toggle_follow_notifications, name='toggle_follow_notifications'),
+    path('creators/', creators_view, name='creators'),
+    path('creator/rewards/', creator_rewards_view, name='creator_rewards'),
     path('grant-membership/<int:user_id>/', grant_membership, name='grant_membership'),
     path('deactivate-membership/<int:membership_id>/', deactivate_membership, name='deactivate_membership'),
     path('reactivate-membership/<int:membership_id>/', reactivate_membership, name='reactivate_membership'),
