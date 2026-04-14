@@ -152,8 +152,9 @@
 
         <label class="ca-label text-sm mb-1.5 block">Full name</label>
         <input type="text" name="first_name"
-               value="{{ request.user.first_name }}"
+               value="{{ request.user.first_name|default_if_none:'' }}"
                placeholder="Your real name"
+               required
                class="ca-input mb-3">
 
         <label class="ca-label text-sm mb-1.5 block">Email *</label>
@@ -164,8 +165,9 @@
 
         <label class="ca-label text-sm mb-1.5 block">UPI ID <span class="text-white/35">(withdrawals)</span></label>
         <input type="text" name="upi_id"
-               value="{{ profile.upi_id }}"
+               value="{{ profile.upi_id|default_if_none:'' }}"
                placeholder="yourname@upi"
+               required
                class="ca-input mb-3">
 
         <label class="flex items-center gap-2 text-sm text-gray-300 mb-3">

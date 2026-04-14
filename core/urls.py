@@ -76,7 +76,16 @@ urlpatterns = [
     path('deactivate-membership/<int:membership_id>/', deactivate_membership, name='deactivate_membership'),
     path('reactivate-membership/<int:membership_id>/', reactivate_membership, name='reactivate_membership'),
 
-    path('password-reset/', auth_views.PasswordResetView.as_view(template_name='auth/password_reset.html'), name='password_reset'),
+    path(
+        'password-reset/',
+        auth_views.PasswordResetView.as_view(
+            template_name='auth/password_reset.html',
+            subject_template_name='auth/password_reset_subject.txt',
+            email_template_name='auth/password_reset_email.txt',
+            html_email_template_name='auth/password_reset_email.html',
+        ),
+        name='password_reset'
+    ),
     path('password-reset/done/', auth_views.PasswordResetDoneView.as_view(template_name='auth/password_reset_done.html'), name='password_reset_done'),
     path('reset/<uidb64>/<token>/', CustomPasswordResetConfirmView.as_view(), name='password_reset_confirm'),
     path('reset/done/', auth_views.PasswordResetCompleteView.as_view(template_name='auth/password_reset_complete.html'), name='password_reset_complete'),

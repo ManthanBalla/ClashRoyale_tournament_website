@@ -33,6 +33,8 @@
         <p class="text-sm text-red-300 font-semibold">Selected codes are fewer than selected players.</p>
         {% elif reward_error == 'no_participants' %}
         <p class="text-sm text-red-300 font-semibold">Select at least one valid tournament participant.</p>
+        {% elif reward_error == 'incomplete_profiles' %}
+        <p class="text-sm text-red-300 font-semibold">Selected player profile is incomplete. Name, email and UPI are required.</p>
         {% elif reward_error == 'rate' %}
         <p class="text-sm text-red-300 font-semibold">Too many reward sends. Please try again later.</p>
         {% elif reward_error == 'maxed' %}
@@ -118,6 +120,15 @@
                            data-player-name="{{ p.username|lower }}">
                         <div class="min-w-0">
                             <p class="text-sm text-white font-semibold truncate">{{ p.username }}</p>
+                            <p class="text-[11px] text-gray-400 truncate">
+                                Name: {{ p.first_name|default:"Not set" }} · UPI: {{ p.profile.upi_id|default:"Not set" }}
+                            </p>
+                            <p class="text-[11px] text-gray-500 truncate">
+                                Email: {{ p.email|default:"Not set" }}
+                            </p>
+                            {% if not p.first_name or not p.profile.upi_id or not p.email %}
+                            <p class="text-[10px] text-amber-300 mt-1">Incomplete profile (name/email/UPI required)</p>
+                            {% endif %}
                         </div>
                         <input type="checkbox" name="user_ids" value="{{ p.id }}"
                                class="h-4 w-4 accent-red-500 shrink-0">

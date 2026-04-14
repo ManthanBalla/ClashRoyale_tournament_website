@@ -132,9 +132,9 @@
             <div class="flex items-center justify-between p-4 border-b border-white/[0.06]">
                 <div>
                     <p class="text-white text-sm font-semibold">{{ p.username }}</p>
-                    <p class="text-gray-500 text-xs">Wins: {{ p.tournament_wins|default:0 }}</p>
+                    <p class="text-gray-500 text-xs">Wins: {{ p.display_wins|default:0 }}</p>
                 </div>
-                <span class="text-emerald-300 font-bold text-sm">₹{{ p.total_winnings|default:"0.00" }}</span>
+                <span class="text-emerald-300 font-bold text-sm">₹{{ p.display_winnings|default:"0.00" }}</span>
             </div>
             {% empty %}
             <p class="text-gray-500 text-sm p-5">Leaderboard will appear after match results are submitted.</p>

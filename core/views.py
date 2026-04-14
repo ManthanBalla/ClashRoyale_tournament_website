@@ -17,6 +17,7 @@ from decimal import Decimal
 import json
 import logging
 import random
+import re
 import threading
 import pytz
 import razorpay
@@ -235,6 +236,26 @@ def is_google_reward_code(code):
     return 'google' in text or 'play' in text
 
 
+def extract_reward_amount(text):
+    if not text:
+        return Decimal('0.00')
+    normalized = str(text).replace(',', '')
+    # Prefer explicit currency markers to avoid parsing random code digits.
+    patterns = [
+        r'₹\s*(\d+(?:\.\d{1,2})?)',
+        r'rs\.?\s*(\d+(?:\.\d{1,2})?)',
+        r'inr\s*(\d+(?:\.\d{1,2})?)',
+    ]
+    for pat in patterns:
+        m = re.search(pat, normalized, flags=re.IGNORECASE)
+        if m:
+            try:
+                return Decimal(m.group(1))
+            except Exception:
+                return Decimal('0.00')
+    return Decimal('0.00')
+
+
 def enqueue_task(task_func, *args):
     if getattr(settings, 'CELERY_TASK_ALWAYS_EAGER', False):
         # In eager mode on low-CPU/free hosts, run task in daemon thread
@@ -268,15 +289,37 @@ def home(request):
             'prize_pool': t.entry_fee * count if t.is_paid else None
         })
 
-    global_leaderboard = User.objects.annotate(
+    global_leaderboard = list(User.objects.annotate(
         total_winnings=Sum(
             'transactions__amount',
             filter=Q(transactions__reason='tournament_win', transactions__transaction_type='credit')
         ),
-        tournament_wins=Count('winner', distinct=True)
+        tournament_wins=Count('winner', distinct=True),
+        reward_wins=Count('rewardcode', filter=Q(rewardcode__sent=True), distinct=True)
     ).filter(
-        Q(total_winnings__gt=0) | Q(tournament_wins__gt=0)
-    ).order_by('-total_winnings', '-tournament_wins', 'username')[:20]
+        Q(total_winnings__gt=0) | Q(tournament_wins__gt=0) | Q(reward_wins__gt=0)
+    ).order_by('-total_winnings', '-tournament_wins', '-reward_wins', 'username')[:50])
+
+    reward_codes = RewardCode.objects.filter(sent=True, assigned_to__isnull=False).only(
+        'assigned_to_id', 'description'
+    )
+    reward_amount_by_user = {}
+    for rc in reward_codes:
+        amount = extract_reward_amount(rc.description)
+        if amount > 0:
+            reward_amount_by_user[rc.assigned_to_id] = reward_amount_by_user.get(rc.assigned_to_id, Decimal('0.00')) + amount
+
+    for user in global_leaderboard:
+        tx_amount = user.total_winnings or Decimal('0.00')
+        reward_amount = reward_amount_by_user.get(user.id, Decimal('0.00'))
+        user.display_winnings = tx_amount + reward_amount
+        user.display_wins = (user.tournament_wins or 0) + (user.reward_wins or 0)
+
+    global_leaderboard.sort(
+        key=lambda u: (u.display_winnings, u.display_wins, -(u.id or 0)),
+        reverse=True
+    )
+    global_leaderboard = global_leaderboard[:20]
 
     active_creators = User.objects.filter(
         profile__is_creator=True,
@@ -411,6 +454,18 @@ def profile_view(request):
         email = request.POST.get('email', '').strip()
         upi_id = request.POST.get('upi_id', '').strip()
         notify_new_tournaments = request.POST.get('notify_new_tournaments') == 'on'
+
+        if not first_name or not email or not upi_id:
+            return render(request, 'profile.html', {
+                'profile': profile,
+                'withdrawal_requests': withdrawal_requests,
+                'memberships': memberships,
+                'transactions': transactions,
+                'recent_topup': recent_topup,
+                'wallet_breakdown': breakdown,
+                'razorpay_key_id': settings.RAZORPAY_KEY_ID,
+                'error': 'Full name, email and UPI ID are required to keep your profile complete.'
+            })
 
         if email and email != request.user.email:
             if User.objects.filter(email=email).exclude(id=request.user.id).exists():
@@ -1040,6 +1095,9 @@ def join_tournament(request, tournament_id):
     tournament = get_object_or_404(Tournament, id=tournament_id)
     sync_tournament_status(tournament)
     now = localtime()
+
+    if not request.user.profile.is_complete():
+        return redirect('/profile/?incomplete=1')
 
     # LOCK: already joined
     if Participant.objects.filter(user=request.user, tournament=tournament).exists():
@@ -1818,6 +1876,13 @@ def send_reward_code(request, code_id=None):
     if not eligible_users:
         return redirect(f"/creator/rewards/?tournament_id={tournament.id}&reward_error=no_participants")
 
+    incomplete_profiles = [
+        u for u in eligible_users
+        if not u.first_name or not u.email or not getattr(u.profile, 'upi_id', None)
+    ]
+    if incomplete_profiles:
+        return redirect(f"/creator/rewards/?tournament_id={tournament.id}&reward_error=incomplete_profiles")
+
     sent_count = RewardCode.objects.filter(tournament=tournament, sent=True).count()
     available_quota = MAX_REWARD_CODES_PER_TOURNAMENT - sent_count
     if available_quota <= 0:
@@ -1960,7 +2025,7 @@ def creator_rewards_view(request):
             selected_tournament = tournaments[0]
         participants = User.objects.filter(
             participant__tournament=selected_tournament
-        ).distinct().order_by('username')
+        ).select_related('profile').distinct().order_by('username')
         available_codes = RewardCode.objects.filter(
             tournament=selected_tournament,
             sent=False
