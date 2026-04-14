@@ -11,6 +11,7 @@ from django.core.cache import cache
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.core.mail import send_mail
+from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.conf import settings
 from datetime import timedelta, datetime
 from decimal import Decimal
@@ -19,8 +20,10 @@ import logging
 import random
 import re
 import threading
+from io import BytesIO
 import pytz
 import razorpay
+from PIL import Image
 from django.contrib.auth.views import PasswordResetConfirmView
 
 from .models import Tournament, Participant, Match, Profile, WithdrawalRequest, RewardCode, CreatorMembership, Transaction, Notification, Payment, DisputeReport, CreatorFollow
@@ -263,6 +266,38 @@ def enqueue_task(task_func, *args):
         threading.Thread(target=lambda: task_func.delay(*args), daemon=True).start()
     else:
         task_func.delay(*args)
+
+
+def optimize_uploaded_image(uploaded_file, max_dimension=1600, jpeg_quality=82):
+    if not uploaded_file or not getattr(uploaded_file, 'content_type', '').startswith('image/'):
+        return uploaded_file
+    try:
+        image = Image.open(uploaded_file)
+        if image.mode in ('RGBA', 'P'):
+            image = image.convert('RGB')
+
+        width, height = image.size
+        longest = max(width, height)
+        if longest > max_dimension:
+            ratio = max_dimension / float(longest)
+            new_size = (int(width * ratio), int(height * ratio))
+            image = image.resize(new_size, Image.Resampling.LANCZOS)
+
+        output = BytesIO()
+        image.save(output, format='JPEG', optimize=True, quality=jpeg_quality)
+        output.seek(0)
+
+        base_name = (uploaded_file.name.rsplit('.', 1)[0] if '.' in uploaded_file.name else uploaded_file.name)[:80]
+        return InMemoryUploadedFile(
+            file=output,
+            field_name=getattr(uploaded_file, 'field_name', None),
+            name=f"{base_name}.jpg",
+            content_type='image/jpeg',
+            size=output.getbuffer().nbytes,
+            charset=None,
+        )
+    except Exception:
+        return uploaded_file
 
 
 # ─── AUTH ──────────────────────────────────────────────────────────────────
@@ -1238,7 +1273,7 @@ def create_tournament(request):
         start_time_raw = request.POST.get('start_time')
         end_time_raw = request.POST.get('end_time') or None
         join_deadline_raw = request.POST.get('join_deadline') or None
-        proof_image = request.FILES.get('proof_image')
+        proof_image = optimize_uploaded_image(request.FILES.get('proof_image'))
         is_paid = request.POST.get('is_paid') == 'paid'
         entry_fee = request.POST.get('entry_fee', 0) or 0
         min_players = request.POST.get('min_players', 2) or 2
@@ -1346,7 +1381,7 @@ def edit_tournament(request, tournament_id):
         tournament.show_participants = request.POST.get('show_participants') == 'on'
 
         if request.FILES.get('proof_image'):
-            tournament.proof_image = request.FILES.get('proof_image')
+            tournament.proof_image = optimize_uploaded_image(request.FILES.get('proof_image'))
 
         tournament.save()
         return redirect(f'/tournament/{tournament.id}/')
@@ -1425,7 +1460,7 @@ def submit_dispute(request, tournament_id):
     tournament = get_object_or_404(Tournament, id=tournament_id)
     message = (request.POST.get('message') or '').strip()
     match_id = request.POST.get('match_id')
-    proof_image = request.FILES.get('proof_image')
+    proof_image = optimize_uploaded_image(request.FILES.get('proof_image'))
 
     if not message:
         return redirect(f'/tournament/{tournament.id}/?dispute_error=1')
@@ -1458,9 +1493,9 @@ def upload_results(request, tournament_id):
 
     if request.method == "POST":
         if request.FILES.get('result_screenshot'):
-            tournament.result_screenshot = request.FILES.get('result_screenshot')
+            tournament.result_screenshot = optimize_uploaded_image(request.FILES.get('result_screenshot'))
         if request.FILES.get('reward_screenshot'):
-            tournament.reward_screenshot = request.FILES.get('reward_screenshot')
+            tournament.reward_screenshot = optimize_uploaded_image(request.FILES.get('reward_screenshot'))
         tournament.status = 'completed'
         tournament.save()
 

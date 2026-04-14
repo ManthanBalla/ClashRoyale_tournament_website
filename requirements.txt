@@ -8,3 +8,5 @@ celery==5.4.0
 redis==5.0.7
 resend==2.4.0
 requests==2.32.5
+cloudinary
+django-cloudinary-storage
