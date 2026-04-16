@@ -21,9 +21,12 @@ class Profile(models.Model):
     plan_expiry = models.DateTimeField(null=True, blank=True)
     tournaments_created_this_month = models.IntegerField(default=0)
     notify_new_tournaments = models.BooleanField(default=True)
+    trophies = models.IntegerField(default=0)
+    ingame_username = models.CharField(max_length=100, blank=True, null=True)
+    trust_score = models.IntegerField(default=100)
 
     def is_complete(self):
-        return bool(self.upi_id and self.user.first_name and self.user.email)
+        return bool(self.upi_id and self.user.first_name and self.user.email and self.ingame_username)
 
     def plan_active(self):
         from django.utils import timezone
@@ -221,6 +224,7 @@ class Notification(models.Model):
     notification_type = models.CharField(max_length=30, choices=TYPE_CHOICES, default='general')
     title = models.CharField(max_length=200)
     message = models.TextField()
+    url = models.CharField(max_length=255, blank=True, default='')
     tournament = models.ForeignKey(Tournament, on_delete=models.CASCADE, null=True, blank=True)
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -286,6 +290,151 @@ class CreatorFollow(models.Model):
 
     def __str__(self):
         return f"{self.follower.username} -> {self.creator.username}"
+
+
+class Cup(models.Model):
+    REWARD_TYPE_CHOICES = [
+        ('cash', 'Cash'),
+        ('gift_card', 'Gift Card'),
+    ]
+    STATUS_CHOICES = [
+        ('upcoming', 'Upcoming'),
+        ('ongoing', 'Ongoing'),
+        ('completed', 'Completed'),
+        ('cancelled', 'Cancelled'),
+    ]
+
+    name = models.CharField(max_length=120)
+    creator = models.ForeignKey(User, on_delete=models.CASCADE, related_name='cups_created')
+    reward_type = models.CharField(max_length=20, choices=REWARD_TYPE_CHOICES)
+    prize_pool = models.DecimalField(max_digits=10, decimal_places=2)
+    rules = models.TextField()
+    eligibility_criteria = models.CharField(max_length=255, default='12000+ trophies')
+    min_trophies = models.IntegerField(default=12000)
+    start_time = models.DateTimeField()
+    end_time = models.DateTimeField()
+    max_players = models.IntegerField(default=32)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='upcoming')
+    bracket_generated = models.BooleanField(default=False)
+    is_bracket_generated = models.BooleanField(default=False)
+    bracket_locked = models.BooleanField(default=True)
+    shuffled_player_ids = models.JSONField(default=list, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name
+
+
+class CupJoinGuide(models.Model):
+    cup = models.OneToOneField(Cup, on_delete=models.CASCADE, related_name='join_guide')
+    clan_name = models.CharField(max_length=100)
+    clan_tag = models.CharField(max_length=50)
+    instructions = models.TextField(help_text='How players should join and play friendly matches.')
+
+    def __str__(self):
+        return f"Guide - {self.cup.name}"
+
+
+class CupParticipant(models.Model):
+    cup = models.ForeignKey(Cup, on_delete=models.CASCADE, related_name='participants')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='cup_participations')
+    ingame_username = models.CharField(max_length=100, default='')
+    trophies_snapshot = models.IntegerField(default=0)
+    kicked = models.BooleanField(default=False)
+    banned = models.BooleanField(default=False)
+    joined_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('cup', 'user')
+
+    def __str__(self):
+        return f"{self.user.username} - {self.cup.name}"
+
+
+class CupMatch(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('awaiting_confirmation', 'Awaiting Confirmation'),
+        ('disputed', 'Disputed'),
+        ('completed', 'Completed'),
+    ]
+    RESULT_SOURCE_CHOICES = [
+        ('creator_proof', 'Creator + Proof'),
+        ('dual_confirmation', 'Dual Confirmation'),
+        ('auto_bye', 'Auto BYE Advance'),
+        ('admin_override', 'Admin Override'),
+    ]
+
+    cup = models.ForeignKey(Cup, on_delete=models.CASCADE, related_name='cup_matches')
+    round_number = models.IntegerField()
+    match_number = models.IntegerField()
+    player1 = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='cup_player1_matches')
+    player2 = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='cup_player2_matches')
+    player1_label = models.CharField(max_length=100, blank=True, default='')
+    player2_label = models.CharField(max_length=100, blank=True, default='')
+    winner = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='cup_winner_matches')
+    winner_label = models.CharField(max_length=100, blank=True, default='')
+    proof_image = models.ImageField(upload_to='cup_results/', null=True, blank=True)
+    result_source = models.CharField(max_length=30, choices=RESULT_SOURCE_CHOICES, null=True, blank=True)
+    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='pending')
+    is_locked = models.BooleanField(default=False)
+    is_disputed = models.BooleanField(default=False)
+    dispute_reason = models.TextField(blank=True, default='')
+    deadline = models.DateTimeField(null=True, blank=True)
+    next_match = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='previous_matches')
+    next_slot = models.IntegerField(null=True, blank=True, help_text='1 for player1 slot, 2 for player2 slot')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('cup', 'round_number', 'match_number')
+        ordering = ['round_number', 'match_number']
+
+    def __str__(self):
+        return f"{self.cup.name} - R{self.round_number}M{self.match_number}"
+
+
+class CupMatchConfirmation(models.Model):
+    DECISION_CHOICES = [
+        ('accept', 'Accept Result'),
+        ('dispute', 'Dispute Result'),
+    ]
+    match = models.ForeignKey(CupMatch, on_delete=models.CASCADE, related_name='confirmations')
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    claimed_winner = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='claimed_cup_wins')
+    decision = models.CharField(max_length=20, choices=DECISION_CHOICES, default='accept')
+    dispute_reason = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('match', 'user')
+
+
+class CupActionLog(models.Model):
+    ACTION_CHOICES = [
+        ('create_cup', 'Create Cup'),
+        ('join_cup', 'Join Cup'),
+        ('generate_matches', 'Generate Matches'),
+        ('mark_winner', 'Mark Winner'),
+        ('dual_confirm', 'Dual Confirm Result'),
+        ('player_dispute', 'Player Dispute'),
+        ('resolve_dispute', 'Resolve Dispute'),
+        ('kick_player', 'Kick Player'),
+        ('ban_player', 'Ban Player'),
+        ('admin_override', 'Admin Override'),
+        ('auto_advance_bye', 'Auto Advance BYE'),
+    ]
+
+    cup = models.ForeignKey(Cup, on_delete=models.CASCADE, related_name='action_logs')
+    actor = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='cup_actions')
+    action_type = models.CharField(max_length=30, choices=ACTION_CHOICES)
+    match = models.ForeignKey(CupMatch, on_delete=models.SET_NULL, null=True, blank=True, related_name='action_logs')
+    target_user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='cup_target_actions')
+    message = models.TextField(blank=True, default='')
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
 
 
 @receiver(post_save, sender=User)

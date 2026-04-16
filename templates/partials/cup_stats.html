@@ -1,0 +1,11 @@
+<div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-3">
+    <div class="ca-glass-sm p-3"><p class="text-xs text-gray-400">Players</p><p class="text-lg font-bold text-white">{{ count }}</p></div>
+    <div class="ca-glass-sm p-3"><p class="text-xs text-gray-400">Matches</p><p class="text-lg font-bold text-white">{{ total_matches }}</p></div>
+    <div class="ca-glass-sm p-3"><p class="text-xs text-gray-400">Completed</p><p class="text-lg font-bold text-green-300">{{ completed_matches }}</p></div>
+    <div class="ca-glass-sm p-3"><p class="text-xs text-gray-400">Pending/Awaiting</p><p class="text-lg font-bold text-yellow-300">{{ pending_matches|add:awaiting_matches }}</p></div>
+    <div class="ca-glass-sm p-3"><p class="text-xs text-gray-400">Disputed</p><p class="text-lg font-bold text-red-300">{{ disputed_matches_count }}</p></div>
+</div>
+<div class="w-full h-2 rounded-full bg-white/10 overflow-hidden">
+    <div class="h-2 bg-green-400 transition-all duration-500" style="width: {{ completion_pct }}%;"></div>
+</div>
+<p class="text-xs text-gray-400 mt-2">Tournament completion: {{ completion_pct }}%</p>

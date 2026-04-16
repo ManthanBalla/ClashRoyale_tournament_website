@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="flex items-center justify-center py-8 px-4">
+    <form method="POST" class="ca-glass p-6 w-full max-w-2xl mx-auto">
+        {% csrf_token %}
+        <h2 class="text-2xl text-white mb-2 text-center font-extrabold">Create Your Cup</h2>
+        <p class="ca-muted text-sm text-center mb-6">Elite mode cup organizer with anti-cheat controls.</p>
+
+        {% if error %}
+        <div class="bg-red-500/10 border border-red-500/40 rounded-lg px-4 py-3 mb-4">
+            <p class="text-red-400 text-sm">{{ error }}</p>
+        </div>
+        {% endif %}
+
+        {% if elite_required %}
+        <div class="text-center">
+            <a href="/subscription/" class="ca-btn">Upgrade to Elite</a>
+        </div>
+        {% else %}
+        <div class="grid md:grid-cols-2 gap-3 mb-3">
+            <div>
+                <label class="text-gray-400 text-sm mb-1 block">Cup Name *</label>
+                <input name="name" required class="w-full p-2.5 bg-gray-800 border border-gray-700 rounded text-white text-sm">
+            </div>
+            <div>
+                <label class="text-gray-400 text-sm mb-1 block">Reward Type *</label>
+                <select name="reward_type" class="w-full p-2.5 bg-gray-800 border border-gray-700 rounded text-white text-sm">
+                    <option value="cash">UPI</option>
+                    <option value="gift_card">Gift Card</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-3 mb-3">
+            <div>
+                <label class="text-gray-400 text-sm mb-1 block">Prize Pool *</label>
+                <input type="number" min="1" step="0.01" name="prize_pool" required class="w-full p-2.5 bg-gray-800 border border-gray-700 rounded text-white text-sm">
+            </div>
+            <div>
+                <label class="text-gray-400 text-sm mb-1 block">Max Players *</label>
+                <input type="number" min="2" name="max_players" value="32" required class="w-full p-2.5 bg-gray-800 border border-gray-700 rounded text-white text-sm">
+            </div>
+        </div>
+
+        <label class="text-gray-400 text-sm mb-1 block">Eligibility Criteria *</label>
+        <input name="eligibility_criteria" value="12000+ trophies" required class="w-full p-2.5 mb-3 bg-gray-800 border border-gray-700 rounded text-white text-sm">
+
+        <label class="text-gray-400 text-sm mb-1 block">Minimum Trophies *</label>
+        <input type="number" name="min_trophies" value="12000" min="0" class="w-full p-2.5 mb-3 bg-gray-800 border border-gray-700 rounded text-white text-sm">
+
+        <div class="rounded-xl p-3 mb-4 border" style="background:rgba(248,113,113,0.08); border-color:rgba(248,113,113,0.3);">
+            <p class="text-red-400 text-xs">Warning: If player is below 12000 trophies, they risk permanent ban.</p>
+        </div>
+
+        <label class="text-gray-400 text-sm mb-1 block">Rules *</label>
+        <textarea name="rules" rows="4" required class="w-full p-2.5 mb-3 bg-gray-800 border border-gray-700 rounded text-white text-sm"></textarea>
+
+        <label class="text-gray-400 text-sm mb-1 block">Time Zone *</label>
+        <div class="grid grid-cols-2 gap-3 mb-3">
+            <div onclick="switchTZ('IST')" id="cardIST" class="cursor-pointer border-2 border-ca-accent bg-ca-accent/10 rounded-xl p-3 text-center transition">
+                <p class="text-ca-accent font-bold text-sm">IST</p>
+            </div>
+            <div onclick="switchTZ('UTC')" id="cardUTC" class="cursor-pointer border-2 border-gray-700 bg-gray-800 rounded-xl p-3 text-center transition">
+                <p class="text-gray-400 font-bold text-sm">UTC</p>
+            </div>
+        </div>
+        <input type="hidden" name="timezone_choice" id="timezoneInput" value="IST">
+
+        <div class="grid md:grid-cols-2 gap-3 mb-3">
+            <div>
+                <label class="text-gray-400 text-sm mb-1 block">Start Time *</label>
+                <input type="datetime-local" name="start_time" required class="w-full p-2.5 bg-gray-800 border border-gray-700 rounded text-white text-sm">
+            </div>
+            <div>
+                <label class="text-gray-400 text-sm mb-1 block">End Time *</label>
+                <input type="datetime-local" name="end_time" required class="w-full p-2.5 bg-gray-800 border border-gray-700 rounded text-white text-sm">
+            </div>
+        </div>
+
+        <p class="text-gray-500 text-xs uppercase tracking-widest mb-3">How To Join Details</p>
+        <div class="grid md:grid-cols-2 gap-3 mb-3">
+            <div>
+                <label class="text-gray-400 text-sm mb-1 block">Clan Name *</label>
+                <input name="clan_name" required class="w-full p-2.5 bg-gray-800 border border-gray-700 rounded text-white text-sm">
+            </div>
+            <div>
+                <label class="text-gray-400 text-sm mb-1 block">Clan Tag *</label>
+                <input name="clan_tag" required class="w-full p-2.5 bg-gray-800 border border-gray-700 rounded text-white text-sm">
+            </div>
+        </div>
+        <label class="text-gray-400 text-sm mb-1 block">Instructions for players *</label>
+        <textarea name="instructions" rows="3" required class="w-full p-2.5 mb-4 bg-gray-800 border border-gray-700 rounded text-white text-sm"></textarea>
+
+        <button type="submit" class="ca-btn w-full">Create Cup</button>
+        {% endif %}
+    </form>
+</div>
+
+<script>
+function switchTZ(tz) {
+    const cardIST = document.getElementById('cardIST');
+    const cardUTC = document.getElementById('cardUTC');
+    document.getElementById('timezoneInput').value = tz;
+    if (tz === 'IST') {
+        cardIST.className = 'cursor-pointer border-2 border-ca-accent bg-ca-accent/10 rounded-xl p-3 text-center transition';
+        cardUTC.className = 'cursor-pointer border-2 border-gray-700 bg-gray-800 rounded-xl p-3 text-center transition';
+    } else {
+        cardUTC.className = 'cursor-pointer border-2 border-ca-accent bg-ca-accent/10 rounded-xl p-3 text-center transition';
+        cardIST.className = 'cursor-pointer border-2 border-gray-700 bg-gray-800 rounded-xl p-3 text-center transition';
+    }
+}
+</script>
+{% endblock %}

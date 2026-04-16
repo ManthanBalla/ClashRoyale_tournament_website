@@ -200,6 +200,20 @@ CELERY_TASK_ALWAYS_EAGER = (
 CELERY_TASK_TIME_LIMIT = 30
 CELERY_TASK_SOFT_TIME_LIMIT = 20
 EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', '5'))
+CELERY_BEAT_SCHEDULE = {
+    'process-cup-deadlines-every-5-min': {
+        'task': 'core.tasks.process_cup_deadlines_task',
+        'schedule': 300.0,
+    },
+    'send-cup-reminders-every-10-min': {
+        'task': 'core.tasks.send_cup_confirmation_reminders_task',
+        'schedule': 600.0,
+    },
+    'notify-unresolved-cup-disputes-hourly': {
+        'task': 'core.tasks.notify_unresolved_cup_disputes_task',
+        'schedule': 3600.0,
+    },
+}
 
 ALLOWED_HOSTS = ['*']
 

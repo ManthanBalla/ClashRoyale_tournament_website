@@ -11,6 +11,7 @@ from django.core.cache import cache
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.core.mail import send_mail
+from django.template.loader import render_to_string
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.conf import settings
 from datetime import timedelta, datetime
@@ -26,7 +27,7 @@ import razorpay
 from PIL import Image
 from django.contrib.auth.views import PasswordResetConfirmView
 
-from .models import Tournament, Participant, Match, Profile, WithdrawalRequest, RewardCode, CreatorMembership, Transaction, Notification, Payment, DisputeReport, CreatorFollow
+from .models import Tournament, Participant, Match, Profile, WithdrawalRequest, RewardCode, CreatorMembership, Transaction, Notification, Payment, DisputeReport, CreatorFollow, Cup, CupJoinGuide, CupParticipant, CupMatch, CupMatchConfirmation, CupActionLog
 from .forms import NoReuseSetPasswordForm
 
 
@@ -463,6 +464,26 @@ def mark_notification_read(request, notification_id):
     return redirect('/notifications/')
 
 
+@login_required
+def notifications_summary_api(request):
+    notifications = Notification.objects.filter(user=request.user).order_by('-created_at')[:8]
+    unread = notifications.filter(is_read=False).count()
+    return JsonResponse({
+        'ok': True,
+        'unread_count': unread,
+        'items': [
+            {
+                'id': n.id,
+                'title': n.title,
+                'message': n.message[:100],
+                'is_read': n.is_read,
+                'url': n.url or '/notifications/',
+            }
+            for n in notifications
+        ]
+    })
+
+
 # ─── PROFILE ───────────────────────────────────────────────────────────────
 
 @login_required
@@ -492,9 +513,10 @@ def profile_view(request):
         first_name = request.POST.get('first_name', '').strip()
         email = request.POST.get('email', '').strip()
         upi_id = request.POST.get('upi_id', '').strip()
+        ingame_username = request.POST.get('ingame_username', '').strip()
         notify_new_tournaments = request.POST.get('notify_new_tournaments') == 'on'
 
-        if not first_name or not email or not upi_id:
+        if not first_name or not email or not upi_id or not ingame_username:
             return render(request, 'profile.html', {
                 'profile': profile,
                 'withdrawal_requests': withdrawal_requests,
@@ -503,7 +525,7 @@ def profile_view(request):
                 'recent_topup': recent_topup,
                 'wallet_breakdown': breakdown,
                 'razorpay_key_id': settings.RAZORPAY_KEY_ID,
-                'error': 'Full name, email and UPI ID are required to keep your profile complete.'
+                'error': 'Full name, real email, UPI ID and in-game username are required to keep your profile complete.'
             })
 
         if email and email != request.user.email:
@@ -523,6 +545,7 @@ def profile_view(request):
         request.user.email = email
         request.user.save()
         profile.upi_id = upi_id
+        profile.ingame_username = ingame_username
         profile.notify_new_tournaments = notify_new_tournaments
         profile.save()
 
@@ -1642,6 +1665,616 @@ def submit_result(request, match_id):
                 )
 
     return redirect(f'/tournament/{match.tournament.id}/')
+
+
+# ─── CUPS ──────────────────────────────────────────────────────────────────
+
+def is_elite_user(user):
+    if not user.is_authenticated:
+        return False
+    if user.profile.is_admin:
+        return True
+    return user.profile.creator_plan == '1year' and user.profile.plan_active()
+
+
+def _sync_cup_status(cup):
+    if cup.status in ('cancelled', 'completed'):
+        return
+    now = timezone.now()
+    if cup.end_time and now >= cup.end_time:
+        cup.status = 'completed'
+    elif cup.start_time and now >= cup.start_time:
+        cup.status = 'ongoing'
+    else:
+        cup.status = 'upcoming'
+    cup.save(update_fields=['status'])
+
+
+def _next_power_of_two(n):
+    power = 1
+    while power < max(1, n):
+        power *= 2
+    return power
+
+
+def _log_cup_action(cup, actor, action_type, message='', match=None, target_user=None, metadata=None):
+    CupActionLog.objects.create(
+        cup=cup,
+        actor=actor,
+        action_type=action_type,
+        match=match,
+        target_user=target_user,
+        message=message,
+        metadata=metadata or {}
+    )
+
+
+def _notify_cup_users(user_ids, message, url='/cups/'):
+    unique_ids = {uid for uid in user_ids if uid}
+    if not unique_ids:
+        return
+    users = User.objects.filter(id__in=unique_ids)
+    for user in users:
+        Notification.objects.create(
+            user=user,
+            notification_type='general',
+            title='Cup Update',
+            message=message,
+            url=url
+        )
+
+
+def _get_host_badge(trust_score):
+    if trust_score >= 80:
+        return 'trusted'
+    if trust_score >= 50:
+        return 'average'
+    return 'risky'
+
+
+def _advance_cup_winner(match, actor=None):
+    if not match.next_match:
+        match.cup.status = 'completed'
+        match.cup.save(update_fields=['status'])
+        if not match.cup.action_logs.filter(action_type='player_dispute').exists():
+            creator_profile = match.cup.creator.profile
+            creator_profile.trust_score = min(100, creator_profile.trust_score + 3)
+            creator_profile.save(update_fields=['trust_score'])
+        return
+    nxt = match.next_match
+    if match.next_slot == 1:
+        nxt.player1 = match.winner
+        nxt.player1_label = match.winner_label
+    else:
+        nxt.player2 = match.winner
+        nxt.player2_label = match.winner_label
+    nxt.save(update_fields=['player1', 'player2', 'player1_label', 'player2_label'])
+    if nxt.player1_id and nxt.player2_id:
+        _notify_cup_users(
+            [nxt.player1_id, nxt.player2_id],
+            f'Your next round match is ready in {nxt.cup.name} (Round {nxt.round_number}).',
+            url=f'/cups/{nxt.cup.id}/'
+        )
+    _auto_advance_bye_in_match(nxt, actor=actor)
+
+
+def _resolve_match_winner(match, winner_user=None, winner_label='', source='creator_proof', proof_image=None, actor=None, completed=False):
+    if match.is_locked:
+        return
+    match.winner = winner_user
+    match.winner_label = winner_label or (winner_user.username if winner_user else '')
+    match.result_source = source
+    if proof_image:
+        match.proof_image = optimize_uploaded_image(proof_image)
+    if completed:
+        match.status = 'completed'
+        match.is_locked = True
+        match.is_disputed = False
+        match.dispute_reason = ''
+    else:
+        match.status = 'awaiting_confirmation'
+    match.save()
+    _log_cup_action(
+        match.cup,
+        actor,
+        'mark_winner' if source != 'auto_bye' else 'auto_advance_bye',
+        message=f"Winner set for R{match.round_number}M{match.match_number}: {match.winner_label}",
+        match=match,
+        target_user=winner_user,
+        metadata={'source': source}
+    )
+
+    if completed:
+        _advance_cup_winner(match, actor=actor)
+
+
+def _auto_advance_bye_in_match(match, actor=None):
+    if match.winner or match.winner_label or match.is_locked:
+        return
+    p1_label = match.player1_label or (match.player1.username if match.player1 else '')
+    p2_label = match.player2_label or (match.player2.username if match.player2 else '')
+    if p1_label and p2_label:
+        if p1_label == 'BYE' and p2_label != 'BYE':
+            _resolve_match_winner(match, winner_user=match.player2, winner_label=p2_label, source='auto_bye', actor=actor, completed=True)
+        elif p2_label == 'BYE' and p1_label != 'BYE':
+            _resolve_match_winner(match, winner_user=match.player1, winner_label=p1_label, source='auto_bye', actor=actor, completed=True)
+
+
+def _status_badge_class(status):
+    mapping = {
+        'pending': 'bg-gray-500/20 text-gray-300 border border-gray-500/30',
+        'awaiting_confirmation': 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30',
+        'disputed': 'bg-red-500/20 text-red-300 border border-red-500/30',
+        'completed': 'bg-green-500/20 text-green-300 border border-green-500/30',
+    }
+    return mapping.get(status, mapping['pending'])
+
+
+@login_required
+def cups_view(request):
+    cups = Cup.objects.select_related('creator').order_by('-created_at')
+    cup_data = []
+    for cup in cups:
+        _sync_cup_status(cup)
+        current = cup.participants.filter(kicked=False, banned=False).count()
+        cup_data.append({'cup': cup, 'count': current})
+    return render(request, 'cups.html', {
+        'cup_data': cup_data,
+        'is_elite': is_elite_user(request.user),
+    })
+
+
+@login_required
+def create_cup(request):
+    if not is_elite_user(request.user):
+        return render(request, 'create_cup.html', {
+            'elite_required': True,
+            'error': 'Only Elite (₹4000/year) users can organize their own cup.',
+        })
+
+    if request.method == 'POST':
+        timezone_choice = request.POST.get('timezone_choice', 'IST')
+        start_time = parse_and_convert(request.POST.get('start_time'), timezone_choice)
+        end_time = parse_and_convert(request.POST.get('end_time'), timezone_choice)
+        cup = Cup.objects.create(
+            name=request.POST.get('name', '').strip(),
+            creator=request.user,
+            reward_type=request.POST.get('reward_type', 'cash'),
+            prize_pool=request.POST.get('prize_pool') or 0,
+            rules=request.POST.get('rules', '').strip(),
+            eligibility_criteria=request.POST.get('eligibility_criteria', '12000+ trophies').strip() or '12000+ trophies',
+            min_trophies=int(request.POST.get('min_trophies') or 12000),
+            start_time=start_time,
+            end_time=end_time,
+            max_players=int(request.POST.get('max_players') or 32),
+        )
+        CupJoinGuide.objects.create(
+            cup=cup,
+            clan_name=request.POST.get('clan_name', '').strip(),
+            clan_tag=request.POST.get('clan_tag', '').strip(),
+            instructions=request.POST.get('instructions', '').strip(),
+        )
+        _log_cup_action(cup, request.user, 'create_cup', message='Cup created by organizer.')
+        return redirect(f'/cups/{cup.id}/')
+
+    return render(request, 'create_cup.html', {'elite_required': False})
+
+
+@login_required
+def cup_detail(request, cup_id):
+    cup = get_object_or_404(Cup, id=cup_id)
+    _sync_cup_status(cup)
+    participants = cup.participants.select_related('user').order_by('joined_at')
+    count = participants.filter(kicked=False, banned=False).count()
+    can_manage = request.user == cup.creator or request.user.profile.is_admin
+    is_joined = participants.filter(user=request.user).exists()
+    bracket_visible = can_manage or timezone.now() >= cup.start_time
+    matches = cup.cup_matches.select_related('player1', 'player2', 'winner').all()
+    history = cup.action_logs.filter(action_type__in=['mark_winner', 'auto_advance_bye', 'dual_confirm', 'player_dispute', 'resolve_dispute']).order_by('created_at')
+    dispute_matches = matches.filter(status='disputed')
+    total_matches = matches.count()
+    completed_matches = matches.filter(status='completed').count()
+    pending_matches = matches.filter(status='pending').count()
+    awaiting_matches = matches.filter(status='awaiting_confirmation').count()
+    disputed_matches_count = dispute_matches.count()
+    rounds = sorted(set(matches.values_list('round_number', flat=True)))
+    round_cards = [{'round': r, 'matches': list(matches.filter(round_number=r))} for r in rounds]
+    creator_profile = cup.creator.profile
+    creator_total_cups = Cup.objects.filter(creator=cup.creator).count()
+    creator_total_disputes = CupMatch.objects.filter(cup__creator=cup.creator, status='disputed').count()
+    return render(request, 'cup_detail.html', {
+        'cup': cup,
+        'participants': participants,
+        'count': count,
+        'can_manage': can_manage,
+        'is_joined': is_joined,
+        'bracket_visible': bracket_visible,
+        'matches': matches,
+        'history': history,
+        'dispute_matches': dispute_matches,
+        'status_badges': {m.id: _status_badge_class(m.status) for m in matches},
+        'total_matches': total_matches,
+        'completed_matches': completed_matches,
+        'pending_matches': pending_matches,
+        'awaiting_matches': awaiting_matches,
+        'disputed_matches_count': disputed_matches_count,
+        'completion_pct': int((completed_matches * 100) / total_matches) if total_matches else 0,
+        'round_cards': round_cards,
+        'creator_trust_score': creator_profile.trust_score,
+        'creator_host_badge': _get_host_badge(creator_profile.trust_score),
+        'creator_total_cups': creator_total_cups,
+        'creator_total_disputes': creator_total_disputes,
+    })
+
+
+@login_required
+def cup_dispute_queue(request, cup_id):
+    cup = get_object_or_404(Cup, id=cup_id)
+    if request.user != cup.creator and not request.user.profile.is_admin:
+        return redirect('/')
+    disputed_matches = cup.cup_matches.select_related('player1', 'player2', 'winner').filter(status='disputed').order_by('round_number', 'match_number')
+    return render(request, 'cup_disputes.html', {
+        'cup': cup,
+        'disputed_matches': disputed_matches,
+    })
+
+
+@login_required
+@require_POST
+def join_cup(request, cup_id):
+    cup = get_object_or_404(Cup, id=cup_id)
+    _sync_cup_status(cup)
+    if cup.status != 'upcoming' or cup.is_bracket_generated or cup.bracket_generated:
+        return redirect(f'/cups/{cup.id}/')
+    if cup.participants.filter(user=request.user).exists():
+        return redirect(f'/cups/{cup.id}/')
+    active_count = cup.participants.filter(kicked=False, banned=False).count()
+    if active_count >= cup.max_players:
+        return redirect(f'/cups/{cup.id}/?error=full')
+    trophies = request.user.profile.trophies
+    if not request.user.profile.ingame_username:
+        return redirect('/profile/?incomplete=1')
+    if trophies < cup.min_trophies and request.POST.get('risk_ack') != 'on':
+        return redirect(f'/cups/{cup.id}/?error=risk_ack')
+
+    CupParticipant.objects.create(
+        cup=cup,
+        user=request.user,
+        ingame_username=request.user.profile.ingame_username,
+        trophies_snapshot=trophies
+    )
+    _log_cup_action(cup, request.user, 'join_cup', message=f'{request.user.username} joined the cup.')
+    return redirect(f'/cups/{cup.id}/')
+
+
+@login_required
+@require_POST
+def generate_cup_matches(request, cup_id):
+    cup = get_object_or_404(Cup, id=cup_id)
+    if request.user != cup.creator and not request.user.profile.is_admin:
+        return redirect('/')
+    if cup.bracket_generated or cup.is_bracket_generated:
+        return redirect(f'/cups/{cup.id}/?error=already_generated')
+
+    participants = list(
+        cup.participants.filter(kicked=False, banned=False).select_related('user').order_by('joined_at')
+    )
+    shuffled_ids = [p.user_id for p in participants]
+    random.shuffle(shuffled_ids)
+    bracket_size = _next_power_of_two(len(shuffled_ids))
+    while len(shuffled_ids) < bracket_size:
+        shuffled_ids.append(None)
+
+    cup.shuffled_player_ids = shuffled_ids
+    cup.bracket_generated = True
+    cup.is_bracket_generated = True
+    cup.save(update_fields=['shuffled_player_ids', 'bracket_generated', 'is_bracket_generated'])
+
+    rounds = bracket_size.bit_length() - 1
+    round_matches = {}
+    for round_no in range(1, rounds + 1):
+        match_count = 2 ** (rounds - round_no)
+        round_matches[round_no] = []
+        for match_no in range(1, match_count + 1):
+            m = CupMatch.objects.create(cup=cup, round_number=round_no, match_number=match_no)
+            round_matches[round_no].append(m)
+
+    for round_no in range(1, rounds):
+        for idx, match in enumerate(round_matches[round_no]):
+            nxt = round_matches[round_no + 1][idx // 2]
+            match.next_match = nxt
+            match.next_slot = 1 if idx % 2 == 0 else 2
+            match.save(update_fields=['next_match', 'next_slot'])
+
+    first_round = round_matches[1]
+    for idx, match in enumerate(first_round):
+        p1_id = shuffled_ids[idx * 2]
+        p2_id = shuffled_ids[idx * 2 + 1]
+        if p1_id:
+            u1 = User.objects.get(id=p1_id)
+            match.player1 = u1
+            match.player1_label = u1.username
+        else:
+            match.player1 = None
+            match.player1_label = 'BYE'
+        if p2_id:
+            u2 = User.objects.get(id=p2_id)
+            match.player2 = u2
+            match.player2_label = u2.username
+        else:
+            match.player2 = None
+            match.player2_label = 'BYE'
+        match.save(update_fields=['player1', 'player2', 'player1_label', 'player2_label'])
+        _notify_cup_users(
+            [match.player1_id, match.player2_id],
+            f'Match assigned in {cup.name}: Round {match.round_number}, Match {match.match_number}.',
+            url=f'/cups/{cup.id}/'
+        )
+        _auto_advance_bye_in_match(match, actor=request.user)
+
+    _log_cup_action(cup, request.user, 'generate_matches', message='Bracket generated and locked.')
+    return redirect(f'/cups/{cup.id}/')
+
+
+@login_required
+@require_POST
+def mark_cup_winner(request, match_id):
+    winner_id = request.POST.get('winner_id')
+    proof_image = request.FILES.get('proof_image')
+    if not winner_id or not proof_image:
+        match = get_object_or_404(CupMatch, id=match_id)
+        cup = match.cup
+        return redirect(f'/cups/{cup.id}/?error=proof_required')
+
+    with transaction.atomic():
+        match = CupMatch.objects.select_for_update().select_related('cup', 'player1', 'player2').get(id=match_id)
+        cup = match.cup
+        if request.user != cup.creator and not request.user.profile.is_admin:
+            return redirect('/')
+        if match.is_locked or match.status == 'completed':
+            return redirect(f'/cups/{cup.id}/?error=locked')
+        winner = User.objects.filter(id=winner_id).first()
+        if winner not in [match.player1, match.player2]:
+            return redirect(f'/cups/{cup.id}/?error=invalid_winner')
+        _resolve_match_winner(
+            match,
+            winner_user=winner,
+            winner_label=winner.username,
+            source='creator_proof',
+            proof_image=proof_image,
+            actor=request.user,
+            completed=False
+        )
+        _notify_cup_users(
+            [match.player1_id, match.player2_id],
+            f'Result submitted for your match in {cup.name}. Please accept or dispute.',
+            url=f'/cups/{cup.id}/'
+        )
+    return redirect(f'/cups/{cup.id}/')
+
+
+@login_required
+@require_POST
+def confirm_cup_match_result(request, match_id):
+    with transaction.atomic():
+        match = CupMatch.objects.select_for_update().select_related('cup', 'player1', 'player2', 'winner').get(id=match_id)
+        cup = match.cup
+        if request.user not in [match.player1, match.player2]:
+            return redirect(f'/cups/{cup.id}/')
+        if match.status != 'awaiting_confirmation' or not match.winner:
+            return redirect(f'/cups/{cup.id}/?error=status_changed')
+        if match.is_locked:
+            return redirect(f'/cups/{cup.id}/?error=locked')
+
+        existing_confirmation = CupMatchConfirmation.objects.select_for_update().filter(match=match, user=request.user).first()
+        if existing_confirmation:
+            return redirect(f'/cups/{cup.id}/?info=already_confirmed')
+
+        decision = request.POST.get('decision')
+        dispute_reason = (request.POST.get('dispute_reason') or '').strip()
+        if decision not in ['accept', 'dispute']:
+            return redirect(f'/cups/{cup.id}/?error=invalid_decision')
+        if decision == 'dispute' and not dispute_reason:
+            return redirect(f'/cups/{cup.id}/?error=dispute_reason_required')
+
+        CupMatchConfirmation.objects.create(
+            match=match,
+            user=request.user,
+            claimed_winner=match.winner,
+            decision=decision,
+            dispute_reason=dispute_reason
+        )
+        _log_cup_action(
+            cup,
+            request.user,
+            'dual_confirm' if decision == 'accept' else 'player_dispute',
+            message=f"{request.user.username} {'accepted' if decision == 'accept' else 'disputed'} result for R{match.round_number}M{match.match_number}",
+            match=match,
+            metadata={'decision': decision, 'dispute_reason': dispute_reason}
+        )
+
+        confirmations = list(CupMatchConfirmation.objects.select_for_update().filter(match=match))
+        if any(c.decision == 'dispute' for c in confirmations):
+            match.status = 'disputed'
+            match.is_disputed = True
+            first_reason = next((c.dispute_reason for c in confirmations if c.decision == 'dispute' and c.dispute_reason), '')
+            if first_reason:
+                match.dispute_reason = first_reason
+            match.save(update_fields=['status', 'is_disputed', 'dispute_reason'])
+            creator_profile = cup.creator.profile
+            creator_profile.trust_score = max(0, creator_profile.trust_score - 2)
+            creator_profile.save(update_fields=['trust_score'])
+            _notify_cup_users([cup.creator_id], f'Dispute raised in {cup.name} for Round {match.round_number} Match {match.match_number}.', url=f'/cups/{cup.id}/disputes/')
+            return redirect(f'/cups/{cup.id}/')
+
+        if len(confirmations) >= 2 and all(c.decision == 'accept' for c in confirmations):
+            match.status = 'completed'
+            match.is_locked = True
+            match.is_disputed = False
+            match.dispute_reason = ''
+            match.result_source = 'dual_confirmation'
+            match.save(update_fields=['status', 'is_locked', 'is_disputed', 'dispute_reason', 'result_source'])
+            _advance_cup_winner(match, actor=request.user)
+    return redirect(f'/cups/{cup.id}/')
+
+
+@login_required
+@require_POST
+def cup_player_action(request, cup_id):
+    with transaction.atomic():
+        cup = Cup.objects.select_for_update().get(id=cup_id)
+        if request.user != cup.creator and not request.user.profile.is_admin:
+            return redirect('/')
+        if request.POST.get('confirm_action') != 'yes':
+            return redirect(f'/cups/{cup.id}/?error=confirm_required')
+        user_id = request.POST.get('user_id')
+        action = request.POST.get('action')
+        cp = get_object_or_404(CupParticipant.objects.select_for_update(), cup=cup, user_id=user_id)
+        target = cp.user
+        if (cup.bracket_generated or cup.is_bracket_generated) and action == 'kick':
+            return redirect(f'/cups/{cup.id}/?error=kick_after_start')
+
+        if action == 'kick':
+            cp.kicked = True
+            cp.save(update_fields=['kicked'])
+            _log_cup_action(cup, request.user, 'kick_player', message=f'{target.username} kicked from cup.', target_user=target)
+        elif action == 'ban':
+            reason = (request.POST.get('reason') or '').strip()
+            if not reason:
+                return redirect(f'/cups/{cup.id}/?error=ban_reason_required')
+            cp.banned = True
+            cp.save(update_fields=['banned'])
+            _log_cup_action(
+                cup,
+                request.user,
+                'ban_player',
+                message=f'{target.username} banned from cup. Reason: {reason}',
+                target_user=target,
+                metadata={'reason': reason}
+            )
+            active_match = CupMatch.objects.select_for_update().filter(
+                cup=cup,
+                status__in=['pending', 'awaiting_confirmation', 'disputed'],
+                is_locked=False
+            ).filter(Q(player1=target) | Q(player2=target)).order_by('round_number', 'match_number').first()
+            if active_match:
+                opponent = active_match.player2 if active_match.player1_id == target.id else active_match.player1
+                if opponent:
+                    _resolve_match_winner(
+                        active_match,
+                        winner_user=opponent,
+                        winner_label=opponent.username,
+                        source='admin_override' if request.user.profile.is_admin else 'creator_proof',
+                        actor=request.user,
+                        completed=True
+                    )
+    return redirect(f'/cups/{cup.id}/')
+
+
+@login_required
+@require_POST
+def resolve_cup_dispute(request, match_id):
+    with transaction.atomic():
+        match = CupMatch.objects.select_for_update().select_related('cup', 'player1', 'player2').get(id=match_id)
+        cup = match.cup
+        if request.user != cup.creator and not request.user.profile.is_admin:
+            return redirect('/')
+        if match.is_locked:
+            return redirect(f'/cups/{cup.id}/?error=locked')
+        action = request.POST.get('action', 'winner')
+        if action == 'cancel':
+            reason = (request.POST.get('cancel_reason') or 'Cancelled during dispute resolution').strip()
+            match.status = 'disputed'
+            match.is_disputed = True
+            match.dispute_reason = reason
+            match.is_locked = True
+            match.save(update_fields=['status', 'is_disputed', 'dispute_reason', 'is_locked'])
+            creator_profile = cup.creator.profile
+            creator_profile.trust_score = max(0, creator_profile.trust_score - 5)
+            creator_profile.save(update_fields=['trust_score'])
+            _log_cup_action(cup, request.user, 'resolve_dispute', message=f'Dispute cancelled by manager: {reason}', match=match)
+            return redirect(f'/cups/{cup.id}/')
+
+        previous_winner_id = match.winner_id
+        winner_id = request.POST.get('winner_id')
+        winner = User.objects.filter(id=winner_id).first()
+        if winner not in [match.player1, match.player2]:
+            return redirect(f'/cups/{cup.id}/?error=invalid_winner')
+
+        match.winner = winner
+        match.winner_label = winner.username
+        match.status = 'completed'
+        match.is_locked = True
+        match.is_disputed = False
+        match.result_source = 'admin_override' if request.user.profile.is_admin else 'creator_proof'
+        match.save(update_fields=['winner', 'winner_label', 'status', 'is_locked', 'is_disputed', 'result_source'])
+        _log_cup_action(
+            cup,
+            request.user,
+            'resolve_dispute',
+            message=f'Dispute resolved. Winner: {winner.username}',
+            match=match,
+            target_user=winner
+        )
+        if previous_winner_id and previous_winner_id != winner.id:
+            creator_profile = cup.creator.profile
+            creator_profile.trust_score = max(0, creator_profile.trust_score - 5)
+            creator_profile.save(update_fields=['trust_score'])
+        _advance_cup_winner(match, actor=request.user)
+    return redirect(f'/cups/{cup.id}/')
+
+
+@login_required
+@require_POST
+def unlock_cup_match(request, match_id):
+    match = get_object_or_404(CupMatch, id=match_id)
+    if not request.user.profile.is_admin:
+        return redirect('/')
+    match.is_locked = False
+    match.status = 'awaiting_confirmation' if match.winner else 'pending'
+    match.save(update_fields=['is_locked', 'status'])
+    _log_cup_action(match.cup, request.user, 'admin_override', message=f'Admin unlocked R{match.round_number}M{match.match_number}', match=match)
+    return redirect(f'/cups/{match.cup.id}/')
+
+
+@login_required
+@require_POST
+def set_cup_match_deadline(request, match_id):
+    match = get_object_or_404(CupMatch, id=match_id)
+    cup = match.cup
+    if request.user != cup.creator and not request.user.profile.is_admin:
+        return redirect('/')
+    timezone_choice = request.POST.get('timezone_choice', 'IST')
+    deadline_raw = request.POST.get('deadline')
+    deadline = parse_and_convert(deadline_raw, timezone_choice) if deadline_raw else None
+    match.deadline = deadline
+    match.save(update_fields=['deadline'])
+    _log_cup_action(cup, request.user, 'admin_override', message=f'Deadline updated for R{match.round_number}M{match.match_number}', match=match)
+    return redirect(f'/cups/{cup.id}/')
+
+
+@login_required
+def cup_state_api(request, cup_id):
+    cup = get_object_or_404(Cup, id=cup_id)
+    matches = cup.cup_matches.select_related('player1', 'player2', 'winner').all()
+    rounds = sorted(set(matches.values_list('round_number', flat=True)))
+    round_cards = [{'round': r, 'matches': list(matches.filter(round_number=r))} for r in rounds]
+    bracket_html = render_to_string('partials/cup_bracket.html', {
+        'round_cards': round_cards,
+        'user': request.user,
+        'can_manage': request.user == cup.creator or request.user.profile.is_admin,
+        'cup': cup,
+    }, request=request)
+    stats_html = render_to_string('partials/cup_stats.html', {
+        'count': cup.participants.filter(kicked=False, banned=False).count(),
+        'total_matches': matches.count(),
+        'completed_matches': matches.filter(status='completed').count(),
+        'pending_matches': matches.filter(status='pending').count(),
+        'awaiting_matches': matches.filter(status='awaiting_confirmation').count(),
+        'disputed_matches_count': matches.filter(status='disputed').count(),
+        'completion_pct': int((matches.filter(status='completed').count() * 100) / matches.count()) if matches.count() else 0,
+    }, request=request)
+    return JsonResponse({'ok': True, 'bracket_html': bracket_html, 'stats_html': stats_html})
 
 
 # ─── ADMIN ─────────────────────────────────────────────────────────────────

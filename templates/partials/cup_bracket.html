@@ -1,0 +1,29 @@
+<div class="overflow-x-auto pb-2">
+    <div class="flex gap-4 min-w-max">
+        {% for rc in round_cards %}
+        <div class="w-72">
+            <p class="text-xs uppercase tracking-wider text-gray-400 mb-2">Round {{ rc.round }}</p>
+            <div class="space-y-3">
+                {% for m in rc.matches %}
+                <div class="match-card p-3 rounded-xl border border-white/10 bg-black/30 transition-all duration-300 hover:border-ca-accent/40 hover:shadow-glow-accent/20 cursor-pointer" data-match-id="{{ m.id }}" data-p1="{{ m.player1_label|default:'TBD' }}" data-p2="{{ m.player2_label|default:'TBD' }}" data-status="{{ m.get_status_display }}" data-winner="{{ m.winner_label|default:'Pending' }}">
+                    <p class="text-xs text-gray-400 mb-1">Match {{ m.match_number }}</p>
+                    <p class="text-sm text-white">{{ m.player1_label|default:"TBD" }}</p>
+                    <p class="text-sm text-white">{{ m.player2_label|default:"TBD" }}</p>
+                    <p class="text-xs mt-2">
+                        <span class="px-2 py-1 rounded-full
+                        {% if m.status == 'pending' %}bg-gray-500/20 text-gray-300 border border-gray-500/30{% endif %}
+                        {% if m.status == 'awaiting_confirmation' %}bg-yellow-500/20 text-yellow-300 border border-yellow-500/30{% endif %}
+                        {% if m.status == 'disputed' %}bg-red-500/20 text-red-300 border border-red-500/30{% endif %}
+                        {% if m.status == 'completed' %}bg-green-500/20 text-green-300 border border-green-500/30{% endif %}
+                        ">{{ m.get_status_display }}</span>
+                    </p>
+                    {% if m.winner_label %}
+                    <p class="text-xs text-green-300 mt-2">Winner: {{ m.winner_label }}</p>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>

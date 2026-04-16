@@ -74,7 +74,7 @@
     <div class="rounded-xl px-4 py-3 mb-6 border"
          style="background: rgba(248,113,113,0.08); border-color: rgba(248,113,113,0.4);">
         <p class="text-red-400 text-sm font-semibold">⚠️ Please complete your profile before withdrawing.</p>
-        <p class="text-gray-400 text-xs mt-1">Fill in your name, email and UPI ID below.</p>
+        <p class="text-gray-400 text-xs mt-1">Fill in your name, real email, in-game username and UPI ID below.</p>
     </div>
     {% endif %}
 
@@ -162,6 +162,14 @@
                value="{{ request.user.email }}"
                placeholder="your@email.com" required
                class="ca-input mb-3">
+        <p class="text-xs text-gray-400 -mt-2 mb-3">Use your real email so reward and support messages reach you.</p>
+
+        <label class="ca-label text-sm mb-1.5 block">In-Game Username *</label>
+        <input type="text" name="ingame_username"
+               value="{{ profile.ingame_username|default_if_none:'' }}"
+               placeholder="Exact in-game player name" required
+               class="ca-input mb-3">
+        <p class="text-xs text-gray-400 -mt-2 mb-3">We use this to match your profile and send rewards without confusion.</p>
 
         <label class="ca-label text-sm mb-1.5 block">UPI ID <span class="text-white/35">(withdrawals)</span></label>
         <input type="text" name="upi_id"
