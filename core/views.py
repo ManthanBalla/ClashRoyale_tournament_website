@@ -587,18 +587,18 @@ def create_cashfree_order(request):
     purpose = payload.get('purpose', 'wallet_topup')
     plan = payload.get('plan')
 
-    try:
-        amount_decimal = Decimal(str(amount))
-    except Exception:
-        return JsonResponse({'ok': False, 'error': 'Invalid amount.'}, status=400)
-
-    if amount_decimal < Decimal('1.00'):
-        return JsonResponse({'ok': False, 'error': 'Minimum amount is ₹1.'}, status=400)
-
     if purpose == 'creator_membership':
         if plan not in SUBSCRIPTION_PLAN_AMOUNT:
             return JsonResponse({'ok': False, 'error': 'Invalid plan selected.'}, status=400)
         amount_decimal = SUBSCRIPTION_PLAN_AMOUNT[plan]
+    else:
+        try:
+            amount_decimal = Decimal(str(amount))
+        except Exception:
+            return JsonResponse({'ok': False, 'error': 'Invalid amount.'}, status=400)
+
+    if amount_decimal < Decimal('1.00'):
+        return JsonResponse({'ok': False, 'error': 'Minimum amount is ₹1.'}, status=400)
 
     order_id = f"CA_{request.user.id}_{int(timezone.now().timestamp())}"
     
