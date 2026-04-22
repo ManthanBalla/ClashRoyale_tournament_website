@@ -1,14 +1,44 @@
 {% extends "base.html" %}
+
+{% block title %}Refund Policy - Clash Arena{% endblock %}
+
 {% block content %}
-<div class="max-w-3xl mx-auto py-8 sm:py-10 px-3 sm:px-4">
-    <h1 class="text-2xl sm:text-3xl font-extrabold text-white mb-2 tracking-tight">Refund Policy</h1>
-    <p class="ca-muted text-sm mb-6">Wallet & tournament refunds</p>
-    <div class="ca-glass p-5 sm:p-6 text-sm text-white/80 space-y-4 leading-relaxed">
-        <p>Wallet top-ups are non-refundable once successfully credited to your Clash Arena wallet.</p>
-        <p>Entry fee refunds are automatic when a paid tournament is cancelled or fails minimum-player criteria.</p>
-        <p>If a withdrawal is rejected by admin, the full amount is returned to your wallet automatically.</p>
-        <p>Reward disputes are reviewed only when valid evidence is submitted within the tournament dispute window.</p>
-        <p>Chargeback abuse or fake refund claims can result in permanent account suspension.</p>
+<div class="max-w-4xl mx-auto px-4 py-12 min-h-[60vh]">
+    <div class="ca-glass p-8 sm:p-10 border border-ca-accent/20 rounded-2xl relative overflow-hidden">
+        
+        <h1 class="text-3xl font-extrabold text-white mb-2">Refund Policy</h1>
+        
+        <div class="bg-ca-accent/10 p-4 rounded-lg border border-ca-accent/30 mt-6 mb-8 inline-block">
+            <p class="text-white font-semibold m-0">Clash Arena is owned and operated by Manthan Kumar Balla.</p>
+        </div>
+
+        <div class="prose prose-invert max-w-none text-gray-300">
+            <p class="mb-6">We strive to provide a seamless and fair tournament experience. However, we understand that issues may occasionally arise. This policy outlines the conditions under which refunds are provided.</p>
+
+            <h2 class="text-xl font-bold text-white mt-8 mb-4">1. Refund Conditions</h2>
+            <p class="mb-4">Refunds for tournament entry fees will <strong>only</strong> be processed under the following circumstances:</p>
+            <ul class="list-disc pl-6 mb-4 space-y-2 text-green-400">
+                <li><span class="text-gray-300"><strong>Tournament Cancelled:</strong> If the tournament organizer cancels the tournament before it begins, all participants will receive a full automated refund.</span></li>
+                <li><span class="text-gray-300"><strong>Technical Issue:</strong> If a proven platform technical issue prevented you from participating, and you report it with evidence before the tournament starts.</span></li>
+            </ul>
+
+            <h2 class="text-xl font-bold text-white mt-8 mb-4">2. No Refund Cases</h2>
+            <p class="mb-4">To ensure fairness and prize pool integrity for all players, refunds will <strong>not</strong> be issued in the following scenarios:</p>
+            <ul class="list-disc pl-6 mb-4 space-y-2 text-red-400">
+                <li><span class="text-gray-300"><strong>User Joins and Leaves:</strong> If you join a paid tournament and then voluntarily decide to leave or not participate.</span></li>
+                <li><span class="text-gray-300"><strong>Match is Completed:</strong> Once the tournament has started or the match has been completed, entry fees are strictly non-refundable as they contribute to the winner's prize pool.</span></li>
+                <li><span class="text-gray-300"><strong>Disqualification:</strong> If you are disqualified for cheating, breaking the rules, or failing to show up on time.</span></li>
+            </ul>
+
+            <h2 class="text-xl font-bold text-white mt-8 mb-4">3. Processing Time</h2>
+            <p class="mb-4">If your refund request is approved, the funds will be credited back to your original payment method. Please note that <strong>refunds are processed within 5–7 business days</strong> depending on your bank.</p>
+
+            <h2 class="text-xl font-bold text-white mt-8 mb-4">4. Contact Us</h2>
+            <p class="mb-4">If you believe you are entitled to a refund based on the conditions above, please reach out to our support team immediately.</p>
+            <p class="mb-4">Email support for refund issues: <a href="mailto:connectwithmanthan12@gmail.com" class="text-ca-accent hover:text-white font-bold transition">connectwithmanthan12@gmail.com</a></p>
+            
+            <p class="text-xs text-gray-500 mt-10 text-center">Last Updated: April 2026</p>
+        </div>
     </div>
 </div>
 {% endblock %}
