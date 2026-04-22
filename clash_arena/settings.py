@@ -187,9 +187,10 @@ else:
         'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
     }
 
-# UPI Payment Settings
-ADMIN_UPI_ID = os.getenv('ADMIN_UPI_ID', 'manthanballa08@okicici')
-SMS_WEBHOOK_SECRET = os.getenv('SMS_WEBHOOK_SECRET', '')
+# Cashfree Payment Gateway Settings
+CASHFREE_APP_ID = os.getenv('CASHFREE_APP_ID', '')
+CASHFREE_SECRET_KEY = os.getenv('CASHFREE_SECRET_KEY', '')
+CASHFREE_ENVIRONMENT = os.getenv('CASHFREE_ENVIRONMENT', 'SANDBOX')
 
 CELERY_BROKER_URL = os.getenv('REDIS_URL', '')
 CELERY_RESULT_BACKEND = os.getenv('REDIS_URL', '')

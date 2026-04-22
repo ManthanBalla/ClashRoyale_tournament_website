@@ -58,9 +58,6 @@
                 <li class="flex items-center gap-2 text-gray-300"><span style="color: #60a5fa;">✓</span> Password protected access</li>
                 <li class="flex items-center gap-2 text-gray-300"><span style="color: #60a5fa;">✓</span> Basic analytics</li>
             </ul>
-            <div class="mt-4 pt-3 border-t" style="border-color: rgba(96,165,250,0.2);">
-                <p class="text-xs text-center" style="color: #60a5fa;">Click to select this plan →</p>
-            </div>
         </div>
 
         <!-- 3 MONTH PLAN -->
@@ -89,11 +86,7 @@
                 <li class="flex items-center gap-2 text-gray-300"><span style="color: #fbbf24;">✓</span> Free & Paid tournaments</li>
                 <li class="flex items-center gap-2 text-gray-300"><span style="color: #fbbf24;">✓</span> Priority support</li>
                 <li class="flex items-center gap-2 text-gray-300"><span style="color: #fbbf24;">✓</span> Custom tournament rules</li>
-                <li class="flex items-center gap-2 text-gray-300"><span style="color: #fbbf24;">✓</span> Advanced analytics</li>
             </ul>
-            <div class="mt-4 pt-3 border-t" style="border-color: rgba(251,191,36,0.2);">
-                <p class="text-xs text-center" style="color: #fbbf24;">Click to select this plan →</p>
-            </div>
         </div>
 
         <!-- 1 YEAR PLAN -->
@@ -107,11 +100,6 @@
                     👑 BEST VALUE
                 </span>
             </div>
-
-            <!-- GLOW EFFECT -->
-            <div class="absolute inset-0 rounded-2xl opacity-30 pointer-events-none"
-                 style="background: linear-gradient(135deg, #7c3aed22, #2563eb22, #05966922);"></div>
-
             <div class="relative">
                 <div class="flex justify-between items-start mb-4 mt-2">
                     <div>
@@ -126,21 +114,13 @@
                            style="background: linear-gradient(90deg, #c084fc, #34d399); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">
                             ₹4,000
                         </p>
-                        <p class="text-gray-500 text-xs">₹333/month</p>
                     </div>
                 </div>
                 <ul class="space-y-2 text-sm">
                     <li class="flex items-center gap-2"><span style="color: #c084fc;">✓</span> <span class="text-white font-semibold">Unlimited tournaments</span></li>
-                    <li class="flex items-center gap-2 text-gray-300"><span style="color: #c084fc;">✓</span> Free & Paid tournaments</li>
-                    <li class="flex items-center gap-2 text-yellow-300 font-semibold"><span>⭐</span> NEW: Organize your own Cup (live)</li>
+                    <li class="flex items-center gap-2 text-yellow-300 font-semibold"><span>⭐</span> Organize your own Cups</li>
                     <li class="flex items-center gap-2 text-gray-300"><span style="color: #c084fc;">✓</span> VIP support 24/7</li>
-                    <li class="flex items-center gap-2 text-gray-300"><span style="color: #c084fc;">✓</span> Early access to new features</li>
-                    <li class="flex items-center gap-2 text-gray-300"><span style="color: #c084fc;">✓</span> Custom branding</li>
-                    <li class="flex items-center gap-2 text-gray-300"><span style="color: #c084fc;">✓</span> Revenue sharing eligible</li>
                 </ul>
-                <div class="mt-4 pt-3 border-t" style="border-color: rgba(192,132,252,0.2);">
-                    <p class="text-xs text-center" style="color: #c084fc;">Click to select this plan →</p>
-                </div>
             </div>
         </div>
 
@@ -151,9 +131,8 @@
         <div class="rounded-2xl p-6 border"
              style="background: linear-gradient(135deg, #0a0a1a, #0a1a0a); border-color: rgba(99,102,241,0.4);">
 
-            <h2 class="text-lg font-bold text-white mb-5 text-center">💳 Complete Payment via UPI</h2>
+            <h2 class="text-lg font-bold text-white mb-5 text-center">Complete Membership Purchase</h2>
 
-            <!-- SELECTED PLAN -->
             <div class="rounded-xl p-4 mb-5 flex justify-between items-center border"
                  style="background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1);">
                 <div>
@@ -163,69 +142,27 @@
                 <p id="selectedPlanPrice" class="text-yellow-400 font-extrabold text-2xl"></p>
             </div>
 
-            <!-- UPI -->
-            <div class="rounded-xl p-4 mb-5 border"
-                 style="background: linear-gradient(135deg, rgba(6,182,212,0.1), rgba(59,130,246,0.1)); border-color: rgba(6,182,212,0.3);">
-                <p class="text-ca-accent font-bold text-sm mb-2">📱 Pay via UPI</p>
-                <div class="bg-black/30 rounded-lg py-3 px-4 text-center mb-2">
-                    <p id="subUpiId" class="text-white font-mono text-base font-bold">{{ admin_upi_id }}</p>
-                </div>
-                <p class="text-gray-400 text-xs text-center">Send exact amount to this UPI ID</p>
-            </div>
-
-            <!-- Reference ID -->
-            <div id="subRefSection" class="rounded-xl p-4 mb-5 border" style="display:none; background: rgba(234,179,8,0.08); border-color: rgba(234,179,8,0.3);">
-                <p class="text-yellow-400 text-sm font-bold mb-1">Pay exactly: <span id="subPayAmount" class="text-white text-lg"></span></p>
-                <p class="text-gray-400 text-xs">Reference: <span id="subPayRefId" class="text-white font-mono font-bold"></span></p>
-            </div>
-
-            <!-- STEPS -->
-            <div class="space-y-3 mb-5">
-                <div class="flex items-center gap-3 text-sm text-gray-300">
-                    <span class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 text-black"
-                          style="background: linear-gradient(135deg, #06b6d4, #3b82f6);">1</span>
-                    Pay the amount to the UPI ID above
-                </div>
-                <div class="flex items-center gap-3 text-sm text-gray-300">
-                    <span class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 text-black"
-                          style="background: linear-gradient(135deg, #06b6d4, #3b82f6);">2</span>
-                    Copy your UPI transaction reference (UTR)
-                </div>
-                <div class="flex items-center gap-3 text-sm text-gray-300">
-                    <span class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 text-black"
-                          style="background: linear-gradient(135deg, #06b6d4, #3b82f6);">3</span>
-                    Paste it below — membership activates instantly!
-                </div>
-            </div>
-
             <input type="hidden" id="planInput">
 
-            <!-- UTR Input -->
-            <div id="subUtrSection" style="display:none;">
-                <div class="flex flex-col sm:flex-row gap-3 mb-3">
-                    <input id="subUtrInput" type="text" placeholder="Enter UTR (10-15 digit number)"
-                           class="w-full p-2.5 bg-black/35 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-green-400 flex-1"
-                           pattern="\d{10,15}" maxlength="15">
-                    <button type="button" id="subSubmitUtrBtn"
-                            class="py-2.5 px-5 rounded-xl font-bold text-white text-sm transition hover:opacity-90 shrink-0"
-                            style="background: linear-gradient(90deg, #059669, #2563eb);">
-                        ✅ Verify & Activate
-                    </button>
-                </div>
-            </div>
-
-            <button type="button" id="payMembershipBtn"
+            <button type="button" id="payMembershipBtn" onclick="startSubscriptionPayment()"
                     class="w-full py-3 rounded-xl font-bold text-white text-base mb-3 transition hover:opacity-90"
                     style="background: linear-gradient(90deg, #7c3aed, #2563eb, #059669);">
-                I've paid — Enter UTR
+                ⚡ Pay via Cashfree
             </button>
+            
             <button type="button" onclick="cancelPlan()"
                     class="w-full py-2.5 rounded-xl font-semibold text-gray-400 text-sm transition hover:text-white border"
                     style="border-color: rgba(255,255,255,0.1); background: rgba(255,255,255,0.03);">
                 ← Choose Different Plan
             </button>
-            <p id="membershipMsg" class="text-xs text-gray-400 mt-3"></p>
+            <p id="membershipMsg" class="text-xs text-red-400 mt-3 hidden"></p>
         </div>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loadingState" class="hidden ca-glass p-8 text-center mb-8">
+        <div class="animate-spin rounded-full h-12 w-12 border-4 border-ca-accent border-t-transparent mx-auto mb-4"></div>
+        <p class="text-white font-bold">Initializing Secure Payment...</p>
     </div>
 
     <!-- MEMBERSHIP HISTORY -->
@@ -253,7 +190,14 @@
 
 </div>
 
+<!-- Cashfree SDK -->
+<script src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
+
 <script>
+const cashfree = Cashfree({
+    mode: "{{ cashfree_env|lower }}" === "production" ? "production" : "sandbox"
+});
+
 const planNames = {
     '1month': '⚡ Starter Plan — 1 Month',
     '3month': '🚀 Pro Plan — 3 Months',
@@ -270,8 +214,6 @@ const planColors = {
     '1year': '#7c3aed'
 };
 
-let subPaymentId = null;
-
 function selectPlan(plan, price) {
     document.querySelectorAll('.plan-card').forEach(card => {
         card.style.transform = 'scale(1)';
@@ -287,13 +229,6 @@ function selectPlan(plan, price) {
     document.getElementById('selectedPlanName').innerText = planNames[plan];
     document.getElementById('selectedPlanPrice').innerText = planPrices[plan];
 
-    // Reset state
-    subPaymentId = null;
-    document.getElementById('subUtrSection').style.display = 'none';
-    document.getElementById('subRefSection').style.display = 'none';
-    document.getElementById('payMembershipBtn').style.display = '';
-    document.getElementById('membershipMsg').textContent = '';
-
     const paySection = document.getElementById('paymentSection');
     paySection.classList.remove('hidden');
     setTimeout(() => {
@@ -307,99 +242,68 @@ function cancelPlan() {
         card.style.transform = 'scale(1)';
         card.style.boxShadow = 'none';
     });
-    subPaymentId = null;
 }
 
 function getCsrfToken() {
-    const name = 'csrftoken=';
-    const decoded = decodeURIComponent(document.cookie);
-    const parts = decoded.split(';');
-    for (let i = 0; i < parts.length; i++) {
-        const c = parts[i].trim();
-        if (c.indexOf(name) === 0) return c.substring(name.length, c.length);
+    return document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+}
+
+async function startSubscriptionPayment() {
+    const plan = document.getElementById('planInput').value;
+    const membershipMsg = document.getElementById('membershipMsg');
+    const payMembershipBtn = document.getElementById('payMembershipBtn');
+    const paymentSection = document.getElementById('paymentSection');
+    const loadingState = document.getElementById('loadingState');
+
+    if (!plan) {
+        membershipMsg.textContent = 'Please select a plan first.';
+        membershipMsg.classList.remove('hidden');
+        return;
     }
-    return '';
-}
 
-const payMembershipBtn = document.getElementById('payMembershipBtn');
-const membershipMsg = document.getElementById('membershipMsg');
+    membershipMsg.classList.add('hidden');
+    payMembershipBtn.disabled = true;
+    payMembershipBtn.textContent = 'Initializing...';
 
-if (payMembershipBtn) {
-    payMembershipBtn.addEventListener('click', async function() {
-        const plan = document.getElementById('planInput').value;
-        if (!plan) {
-            membershipMsg.textContent = 'Please select a plan first.';
-            return;
-        }
-        payMembershipBtn.disabled = true;
-        membershipMsg.textContent = 'Creating payment request...';
+    try {
+        const res = await fetch('/api/create-order/', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json', 
+                'X-CSRFToken': getCsrfToken() 
+            },
+            body: JSON.stringify({ 
+                purpose: 'creator_membership',
+                plan: plan
+            })
+        });
 
-        try {
-            const res = await fetch('/payments/create-upi-subscription/', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
-                body: JSON.stringify({ plan: plan })
-            });
-            const data = await res.json();
-            if (!data.ok) throw new Error(data.error || 'Unable to create payment request.');
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Failed to initialize payment.');
 
-            subPaymentId = data.payment_id;
-            document.getElementById('subUpiId').textContent = data.upi_id;
-            document.getElementById('subPayAmount').textContent = '₹' + data.amount;
-            document.getElementById('subPayRefId').textContent = data.reference_id;
-            document.getElementById('subRefSection').style.display = '';
-            document.getElementById('subUtrSection').style.display = '';
-            payMembershipBtn.style.display = 'none';
-            membershipMsg.textContent = 'Pay via UPI, then enter your UTR below.';
-            membershipMsg.className = 'text-xs text-ca-accent mt-3';
-        } catch (e) {
-            membershipMsg.textContent = e.message || 'Something went wrong.';
-            membershipMsg.className = 'text-xs text-red-400 mt-3';
-            payMembershipBtn.disabled = false;
-        }
-    });
-}
+        paymentSection.classList.add('hidden');
+        loadingState.classList.remove('hidden');
 
-const subSubmitUtrBtn = document.getElementById('subSubmitUtrBtn');
-if (subSubmitUtrBtn) {
-    subSubmitUtrBtn.addEventListener('click', async function() {
-        const utr = (document.getElementById('subUtrInput').value || '').trim();
-        if (!utr || !/^\d{10,15}$/.test(utr)) {
-            membershipMsg.textContent = 'Please enter a valid UTR (10-15 digit number).';
-            membershipMsg.className = 'text-xs text-red-400 mt-3';
-            return;
-        }
-        if (!subPaymentId) {
-            membershipMsg.textContent = 'No active payment. Please start over.';
-            membershipMsg.className = 'text-xs text-red-400 mt-3';
-            return;
-        }
-
-        subSubmitUtrBtn.disabled = true;
-        membershipMsg.textContent = 'Verifying payment...';
-        membershipMsg.className = 'text-xs text-gray-400 mt-3';
-
-        try {
-            const res = await fetch('/payments/submit-utr/', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
-                body: JSON.stringify({ payment_id: subPaymentId, utr: utr })
-            });
-            const data = await res.json();
-            if (data.ok && data.status === 'success') {
-                membershipMsg.textContent = 'Membership activated! Reloading...';
-                membershipMsg.className = 'text-xs text-green-400 mt-3';
-                setTimeout(() => window.location.reload(), 1000);
-            } else {
-                throw new Error(data.error || 'Verification failed.');
+        cashfree.checkout({
+            paymentSessionId: data.payment_session_id,
+            redirectTarget: "_self",
+        }).then((result) => {
+            if (result.error) {
+                alert("Payment Error: " + result.error.message);
+                window.location.reload();
             }
-        } catch (e) {
-            membershipMsg.textContent = e.message || 'Something went wrong.';
-            membershipMsg.className = 'text-xs text-red-400 mt-3';
-            subSubmitUtrBtn.disabled = false;
-        }
-    });
+        });
+
+    } catch (err) {
+        membershipMsg.textContent = '⚠️ ' + (err.message || 'Something went wrong.');
+        membershipMsg.classList.remove('hidden');
+        payMembershipBtn.disabled = false;
+        payMembershipBtn.textContent = '⚡ Pay via Cashfree';
+        paymentSection.classList.remove('hidden');
+        loadingState.classList.add('hidden');
+    }
 }
 </script>
 
+{% csrf_token %}
 {% endblock %}

@@ -249,38 +249,19 @@ class Payment(models.Model):
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='payments')
     amount = models.DecimalField(max_digits=10, decimal_places=2)
-    reference_id = models.CharField(max_length=20, unique=True, help_text='Unique reference ID e.g. CA1234')
-    utr = models.CharField(max_length=30, blank=True, null=True, unique=True, help_text='UPI Transaction Reference')
+    order_id = models.CharField(max_length=100, unique=True, null=True, blank=True, help_text='Cashfree Order ID')
+    payment_session_id = models.CharField(max_length=255, blank=True, null=True)
     purpose = models.CharField(max_length=30, choices=PURPOSE_CHOICES, default='wallet_topup')
-    plan = models.CharField(max_length=20, blank=True, null=True, help_text='Plan key for membership payments')
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    plan = models.CharField(max_length=20, blank=True, null=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='created')
     wallet_credited = models.BooleanField(default=False)
-    failure_reason = models.CharField(max_length=255, blank=True, null=True)
+    failure_reason = models.TextField(blank=True, null=True)
     raw_payload = models.JSONField(blank=True, null=True)
-    verified_via = models.CharField(max_length=20, blank=True, null=True, help_text='sms_auto or user_utr')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.user.username} - ₹{self.amount} - {self.reference_id} - {self.status}"
-
-
-class SMSLog(models.Model):
-    """Logs every incoming SMS from the webhook for audit and debugging."""
-    sender = models.CharField(max_length=100, blank=True)
-    message = models.TextField()
-    timestamp = models.CharField(max_length=100, blank=True, help_text='Raw timestamp from SMS forwarder')
-    parsed_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    parsed_utr = models.CharField(max_length=30, blank=True, null=True)
-    matched_payment = models.ForeignKey(Payment, on_delete=models.SET_NULL, null=True, blank=True, related_name='sms_logs')
-    source_ip = models.GenericIPAddressField(null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ['-created_at']
-
-    def __str__(self):
-        return f"SMS from {self.sender} - ₹{self.parsed_amount} - UTR:{self.parsed_utr}"
+        return f"{self.user.username} - ₹{self.amount} - {self.order_id} - {self.status}"
 
 
 class DisputeReport(models.Model):

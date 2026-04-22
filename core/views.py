@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.db.models import Count, Sum, Q
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.utils import timezone
 from django.utils.timezone import localtime
 from django.core.cache import cache
@@ -21,6 +21,10 @@ import logging
 import random
 import re
 import threading
+import hashlib
+import hmac
+import base64
+import requests
 from io import BytesIO
 import pytz
 import string
@@ -28,7 +32,7 @@ import uuid
 from PIL import Image
 from django.contrib.auth.views import PasswordResetConfirmView
 
-from .models import Tournament, Participant, Match, Profile, WithdrawalRequest, RewardCode, CreatorMembership, Transaction, Notification, Payment, SMSLog, DisputeReport, CreatorFollow, Cup, CupJoinGuide, CupParticipant, CupMatch, CupMatchConfirmation, CupActionLog
+from .models import Tournament, Participant, Match, Profile, WithdrawalRequest, RewardCode, CreatorMembership, Transaction, Notification, Payment, DisputeReport, CreatorFollow, Cup, CupJoinGuide, CupParticipant, CupMatch, CupMatchConfirmation, CupActionLog
 from .forms import NoReuseSetPasswordForm
 
 
@@ -554,7 +558,6 @@ def profile_view(request):
             'withdrawal_requests': withdrawal_requests,
             'memberships': memberships,
             'transactions': transactions,
-            'recent_topup': recent_topup,
             'wallet_breakdown': breakdown,
             'success': 'Profile updated successfully!'
         })
@@ -564,389 +567,232 @@ def profile_view(request):
         'withdrawal_requests': withdrawal_requests,
         'memberships': memberships,
         'transactions': transactions,
-        'recent_topup': recent_topup,
         'wallet_breakdown': breakdown,
     })
 
 
-def generate_reference_id():
-    """Generate a unique payment reference ID like CA123456 without hyphens."""
-    chars = string.ascii_uppercase + string.digits
-    while True:
-        ref = 'CA' + ''.join(random.choices(chars, k=6))
-        if not Payment.objects.filter(reference_id=ref).exists():
-            return ref
-
-
-def parse_upi_sms(message_text):
-    """Parse a bank SMS to extract amount and UTR."""
-    amount = None
-    utr = None
-
-    # Amount patterns: ₹500, Rs.500, Rs 500, INR 500, Rs.1,500.00
-    amount_patterns = [
-        r'[Rr][Ss]\.?\s*([\d,]+(?:\.\d{1,2})?)',
-        r'₹\s*([\d,]+(?:\.\d{1,2})?)',
-        r'[Ii][Nn][Rr]\s*([\d,]+(?:\.\d{1,2})?)',
-    ]
-    for pat in amount_patterns:
-        m = re.search(pat, message_text)
-        if m:
-            try:
-                amount = Decimal(m.group(1).replace(',', ''))
-            except Exception:
-                pass
-            break
-
-    # UTR patterns: 10-15 digit number (UPI transaction reference)
-    # Avoid matching phone numbers, account numbers, etc.
-    utr_patterns = [
-        r'(?:UTR|Ref|UPI Ref|txn|Transaction)\s*(?:No|ID|#|:)?\s*[:\-]?\s*(\d{10,15})',
-        r'(\d{12})',  # Most UTRs are exactly 12 digits
-    ]
-    for pat in utr_patterns:
-        m = re.search(pat, message_text, re.IGNORECASE)
-        if m:
-            utr = m.group(1)
-            break
-
-    # Fallback: find any 10-15 digit number sequence
-    if not utr:
-        all_nums = re.findall(r'\b(\d{10,15})\b', message_text)
-        if all_nums:
-            utr = all_nums[-1]  # Last long number is usually UTR
-
-    return amount, utr
-
-
-def _fulfill_payment(payment, utr, verified_via='sms_auto'):
-    """Mark a payment as successful and credit wallet / activate membership."""
-    with transaction.atomic():
-        payment = Payment.objects.select_for_update().get(id=payment.id)
-        if payment.status == 'success':
-            return False  # Already processed
-
-        payment.utr = utr
-        payment.status = 'success'
-        payment.wallet_credited = True
-        payment.verified_via = verified_via
-        payment.failure_reason = None
-        payment.save(update_fields=[
-            'utr', 'status', 'wallet_credited', 'verified_via',
-            'failure_reason', 'updated_at',
-        ])
-
-        user = payment.user
-
-        if payment.purpose == 'wallet_topup':
-            profile = Profile.objects.select_for_update().get(user=user)
-            profile.reward_balance += payment.amount
-            profile.save(update_fields=['reward_balance'])
-            add_transaction(
-                user, 'credit', 'admin_topup', payment.amount,
-                f'💳 UPI wallet top-up — ₹{payment.amount} (UTR: {utr})',
-                category='credit', payment=payment,
-            )
-            send_notification(
-                user, 'wallet_credit',
-                f'✅ Wallet Top-up Successful — ₹{payment.amount}',
-                f'₹{payment.amount} added to your wallet. UTR: {utr}',
-            )
-
-        elif payment.purpose == 'creator_membership':
-            plan = payment.plan
-            if plan and plan in SUBSCRIPTION_PLAN_DAYS:
-                profile = Profile.objects.select_for_update().get(user=user)
-                now = timezone.now()
-                days = SUBSCRIPTION_PLAN_DAYS[plan]
-                start_base = profile.plan_expiry if profile.plan_expiry and profile.plan_expiry > now else now
-                new_expiry = start_base + timedelta(days=days)
-
-                CreatorMembership.objects.create(
-                    user=user, plan=plan,
-                    expires_at=new_expiry, is_active=True,
-                )
-                
-                # Only upgrade the tier, never downgrade if they already have a better active plan
-                plan_hierarchy = {'none': 0, '1month': 1, '3month': 2, '1year': 3}
-                current_tier = plan_hierarchy.get(profile.creator_plan, 0) if profile.plan_active() else 0
-                new_tier = plan_hierarchy.get(plan, 0)
-                
-                if new_tier > current_tier:
-                    profile.creator_plan = plan
-
-                profile.is_creator = True
-                profile.plan_expiry = new_expiry
-                profile.tournaments_created_this_month = 0
-                profile.save(update_fields=[
-                    'is_creator', 'creator_plan', 'plan_expiry',
-                    'tournaments_created_this_month',
-                ])
-                add_transaction(
-                    user, 'debit', 'membership_purchase',
-                    payment.amount,
-                    f'💎 Creator membership (+{days} days) via UPI — UTR: {utr}',
-                    category='debit', payment=payment,
-                )
-                send_notification(
-                    user, 'general',
-                    '✅ Membership Activated',
-                    f'Your {plan} creator membership is now active. UTR: {utr}',
-                )
-
-    logger.info(
-        "Payment fulfilled payment_id=%s user_id=%s utr=%s via=%s purpose=%s",
-        payment.id, payment.user_id, utr, verified_via, payment.purpose,
-    )
-    return True
-
-
-@csrf_exempt
-@require_POST
-def sms_webhook(request):
-    """Receive forwarded bank SMS from Android SMS Forwarder app."""
-    # Auth check
-    webhook_secret = getattr(settings, 'SMS_WEBHOOK_SECRET', '')
-    if webhook_secret:
-        auth_header = request.headers.get('X-API-Key', '') or request.headers.get('Authorization', '')
-        if auth_header != webhook_secret:
-            logger.warning("SMS webhook rejected — bad API key from %s", request.META.get('REMOTE_ADDR'))
-            return JsonResponse({'ok': False, 'error': 'Unauthorized.'}, status=401)
-
-    # Rate limit
-    ip = request.META.get('REMOTE_ADDR', 'unknown')
-    if not check_rate_limit(f'sms_webhook:{ip}', limit=60, window_seconds=60):
-        return JsonResponse({'ok': False, 'error': 'Rate limit exceeded.'}, status=429)
-
-    try:
-        payload = json.loads(request.body.decode('utf-8') or '{}')
-    except Exception:
-        return JsonResponse({'ok': False, 'error': 'Invalid JSON.'}, status=400)
-
-    sender = (payload.get('sender') or '')[:100]
-    message = payload.get('message') or ''
-    timestamp = (payload.get('timestamp') or '')[:100]
-
-    if not message:
-        return JsonResponse({'ok': False, 'error': 'Empty message.'}, status=400)
-
-    amount, utr = parse_upi_sms(message)
-
-    sms_log = SMSLog.objects.create(
-        sender=sender, message=message, timestamp=timestamp,
-        parsed_amount=amount, parsed_utr=utr,
-        source_ip=ip,
-    )
-    logger.info("SMS received sms_id=%s sender=%s amount=%s utr=%s", sms_log.id, sender, amount, utr)
-
-    if not amount or not utr:
-        return JsonResponse({'ok': True, 'matched': False, 'reason': 'Could not parse amount/UTR.'})
-
-    # Check UTR not already used
-    if Payment.objects.filter(utr=utr, status='success').exists():
-        logger.warning("Duplicate UTR rejected utr=%s", utr)
-        return JsonResponse({'ok': True, 'matched': False, 'reason': 'UTR already used.'})
-
-    # Find matching pending payment (created in last 15 minutes, amount matches)
-    cutoff = timezone.now() - timedelta(minutes=15)
-    pending = Payment.objects.filter(
-        status='pending',
-        amount=amount,
-        created_at__gte=cutoff,
-        wallet_credited=False,
-    ).order_by('created_at').first()
-
-    if not pending:
-        logger.info("No matching pending payment for amount=%s utr=%s", amount, utr)
-        return JsonResponse({'ok': True, 'matched': False, 'reason': 'No matching pending payment.'})
-
-    sms_log.matched_payment = pending
-    sms_log.save(update_fields=['matched_payment'])
-
-    _fulfill_payment(pending, utr, verified_via='sms_auto')
-
-    return JsonResponse({'ok': True, 'matched': True, 'payment_id': pending.id})
-
+# Cashfree API URLs
+CASHFREE_BASE_URL = "https://sandbox.cashfree.com/pg" if getattr(settings, 'CASHFREE_ENVIRONMENT', 'SANDBOX') == 'SANDBOX' else "https://api.cashfree.com/pg"
 
 @login_required
 @require_POST
-def create_upi_payment_request(request):
-    """Create a pending UPI payment request for wallet top-up."""
-    rate_key = f"upi_create:{request.user.id}"
-    if not check_rate_limit(rate_key, limit=10, window_seconds=60):
-        return JsonResponse({'ok': False, 'error': 'Too many requests. Please retry shortly.'}, status=429)
-
-    # Limit concurrent pending payments per user
-    pending_count = Payment.objects.filter(
-        user=request.user, status='pending',
-        created_at__gte=timezone.now() - timedelta(minutes=15),
-    ).count()
-    if pending_count >= 3:
-        return JsonResponse({'ok': False, 'error': 'You have too many pending payments. Please complete or wait for them to expire.'}, status=400)
-
+def create_cashfree_order(request):
+    """Create a Cashfree order and return payment_session_id for the checkout SDK."""
     try:
         payload = json.loads(request.body.decode('utf-8') or '{}')
     except Exception:
         return JsonResponse({'ok': False, 'error': 'Invalid JSON payload.'}, status=400)
 
     amount = payload.get('amount')
+    purpose = payload.get('purpose', 'wallet_topup')
+    plan = payload.get('plan')
+
     try:
         amount_decimal = Decimal(str(amount))
     except Exception:
         return JsonResponse({'ok': False, 'error': 'Invalid amount.'}, status=400)
 
-    if amount_decimal < Decimal('10.00') or amount_decimal > Decimal('50000.00'):
-        return JsonResponse({'ok': False, 'error': 'Amount must be between ₹10 and ₹50,000.'}, status=400)
+    if amount_decimal < Decimal('1.00'):
+        return JsonResponse({'ok': False, 'error': 'Minimum amount is ₹1.'}, status=400)
 
-    reference_id = generate_reference_id()
-    admin_upi = getattr(settings, 'ADMIN_UPI_ID', 'manthanballa08@okicici')
+    if purpose == 'creator_membership':
+        if plan not in SUBSCRIPTION_PLAN_AMOUNT:
+            return JsonResponse({'ok': False, 'error': 'Invalid plan selected.'}, status=400)
+        amount_decimal = SUBSCRIPTION_PLAN_AMOUNT[plan]
 
-    payment = Payment.objects.create(
-        user=request.user,
-        amount=amount_decimal,
-        reference_id=reference_id,
-        purpose='wallet_topup',
-        status='pending',
-    )
-    logger.info("UPI payment request created id=%s user=%s ref=%s amount=%s",
-                payment.id, request.user.id, reference_id, amount_decimal)
-
-    return JsonResponse({
-        'ok': True,
-        'payment_id': payment.id,
-        'reference_id': reference_id,
-        'amount': str(amount_decimal),
-        'upi_id': admin_upi,
-    })
-
-
-@login_required
-@require_POST
-def create_upi_subscription_request(request):
-    """Create a pending UPI payment request for creator membership."""
-    try:
-        payload = json.loads(request.body.decode('utf-8') or '{}')
-    except Exception:
-        return JsonResponse({'ok': False, 'error': 'Invalid JSON payload.'}, status=400)
-
-    plan = payload.get('plan')
-    if plan not in SUBSCRIPTION_PLAN_AMOUNT:
-        return JsonResponse({'ok': False, 'error': 'Invalid plan selected.'}, status=400)
-
-    pending_count = Payment.objects.filter(
-        user=request.user, status='pending', purpose='creator_membership',
-        created_at__gte=timezone.now() - timedelta(minutes=15),
-    ).count()
-    if pending_count >= 2:
-        return JsonResponse({'ok': False, 'error': 'You have pending membership payments. Please complete or wait.'}, status=400)
-
-    amount_decimal = SUBSCRIPTION_PLAN_AMOUNT[plan]
-    reference_id = generate_reference_id()
-    admin_upi = getattr(settings, 'ADMIN_UPI_ID', 'manthanballa08@okicici')
-
-    payment = Payment.objects.create(
-        user=request.user,
-        amount=amount_decimal,
-        reference_id=reference_id,
-        purpose='creator_membership',
-        plan=plan,
-        status='pending',
-    )
-    logger.info("UPI subscription request created id=%s user=%s ref=%s plan=%s",
-                payment.id, request.user.id, reference_id, plan)
-
-    return JsonResponse({
-        'ok': True,
-        'payment_id': payment.id,
-        'reference_id': reference_id,
-        'amount': str(amount_decimal),
-        'upi_id': admin_upi,
-        'plan': plan,
-    })
-
-
-@login_required
-@require_POST
-def submit_utr(request):
-    """User submits UTR manually for payment verification."""
-    rate_key = f"submit_utr:{request.user.id}"
-    if not check_rate_limit(rate_key, limit=20, window_seconds=60):
-        return JsonResponse({'ok': False, 'error': 'Too many attempts. Please retry shortly.'}, status=429)
-
-    try:
-        payload = json.loads(request.body.decode('utf-8') or '{}')
-    except Exception:
-        return JsonResponse({'ok': False, 'error': 'Invalid JSON payload.'}, status=400)
-
-    payment_id = payload.get('payment_id')
-    utr = (payload.get('utr') or '').strip()
-
-    if not payment_id or not utr:
-        return JsonResponse({'ok': False, 'error': 'Payment ID and UTR are required.'}, status=400)
-
-    if not re.match(r'^\d{10,15}$', utr):
-        return JsonResponse({'ok': False, 'error': 'Invalid UTR. Must be 10-15 digits.'}, status=400)
-
-    # Check UTR not already used
-    if Payment.objects.filter(utr=utr, status='success').exists():
-        return JsonResponse({'ok': False, 'error': 'This UTR has already been used.'}, status=400)
-
-    try:
-        payment = Payment.objects.get(id=payment_id, user=request.user, status='pending')
-    except Payment.DoesNotExist:
-        return JsonResponse({'ok': False, 'error': 'Payment request not found or already processed.'}, status=404)
-
-    # Check if SMS already arrived with this UTR
-    sms_match = SMSLog.objects.filter(parsed_utr=utr).first()
-    if sms_match:
-        # SMS with this UTR already received — instant verification
-        _fulfill_payment(payment, utr, verified_via='user_utr_sms_match')
-        return JsonResponse({
-            'ok': True, 'status': 'success',
-            'message': 'Payment verified instantly via SMS match!',
-        })
-
-    # No SMS yet — save UTR and mark as waiting for SMS confirmation
-    payment.utr = utr
-    payment.raw_payload = {'user_submitted_utr': utr, 'awaiting_sms': True}
-    payment.save(update_fields=['utr', 'raw_payload', 'updated_at'])
-
-    # Auto-approve after user submits UTR (trust the user, SMS is backup verification)
-    _fulfill_payment(payment, utr, verified_via='user_utr')
-
-    return JsonResponse({
-        'ok': True, 'status': 'success',
-        'message': 'Payment verified! Amount added to your wallet.',
-    })
-
-
-@login_required
-def check_payment_status(request):
-    """Polling endpoint for real-time payment status updates."""
-    payment_id = request.GET.get('payment_id')
-    if not payment_id:
-        return JsonResponse({'ok': False, 'error': 'Payment ID required.'}, status=400)
-
-    try:
-        payment = Payment.objects.get(id=payment_id, user=request.user)
-    except Payment.DoesNotExist:
-        return JsonResponse({'ok': False, 'error': 'Payment not found.'}, status=404)
-
-    # Expire old pending payments
-    if payment.status == 'pending' and payment.created_at < timezone.now() - timedelta(minutes=15):
-        payment.status = 'expired'
-        payment.failure_reason = 'Payment request expired (15 min timeout)'
-        payment.save(update_fields=['status', 'failure_reason', 'updated_at'])
-
-    result = {
-        'ok': True,
-        'status': payment.status,
-        'reference_id': payment.reference_id,
-        'amount': str(payment.amount),
+    order_id = f"CA_{request.user.id}_{int(timezone.now().timestamp())}"
+    
+    url = f"{CASHFREE_BASE_URL}/orders"
+    headers = {
+        "x-api-version": "2023-08-01",
+        "x-client-id": settings.CASHFREE_APP_ID,
+        "x-client-secret": settings.CASHFREE_SECRET_KEY,
+        "Content-Type": "application/json"
     }
-    if payment.status == 'success':
-        result['new_balance'] = str(request.user.profile.reward_balance)
-    return JsonResponse(result)
+    data = {
+        "order_id": order_id,
+        "order_amount": float(amount_decimal),
+        "order_currency": "INR",
+        "customer_details": {
+            "customer_id": str(request.user.id),
+            "customer_email": request.user.email or "user@clasharena.com",
+            "customer_phone": "9999999999"
+        },
+        "order_meta": {
+            "return_url": f"https://clash-arena.onrender.com/profile/?order_id={order_id}",
+            "notify_url": "https://clash-arena.onrender.com/api/cashfree/webhook/"
+        }
+    }
+
+    try:
+        response = requests.post(url, json=data, headers=headers)
+        res_data = response.json()
+        if response.status_code != 200:
+            logger.error(f"Cashfree Order Error: {res_data}")
+            return JsonResponse({'ok': False, 'error': res_data.get('message', 'Cashfree Error')}, status=400)
+        
+        payment_session_id = res_data.get('payment_session_id')
+        
+        Payment.objects.create(
+            user=request.user,
+            amount=amount_decimal,
+            order_id=order_id,
+            payment_session_id=payment_session_id,
+            purpose=purpose,
+            plan=plan,
+            status='created'
+        )
+        
+        return JsonResponse({
+            'ok': True,
+            'payment_session_id': payment_session_id,
+            'order_id': order_id
+        })
+    except Exception as e:
+        logger.exception("Cashfree Order Creation Failed")
+        return JsonResponse({'ok': False, 'error': "Server error while creating payment."}, status=500)
+
+@csrf_exempt
+def cashfree_webhook(request):
+    """Verify Cashfree webhook signature and fulfill payment automatically."""
+    if request.method != 'POST':
+        return HttpResponse(status=405)
+
+    signature = request.headers.get('x-webhook-signature')
+    timestamp = request.headers.get('x-webhook-timestamp')
+    
+    if not signature or not timestamp:
+        return HttpResponse("Missing signature", status=400)
+
+    raw_body = request.body.decode('utf-8')
+    data_to_sign = timestamp + raw_body
+    secret = settings.CASHFREE_SECRET_KEY
+    computed_signature = base64.b64encode(hmac.new(secret.encode('utf-8'), data_to_sign.encode('utf-8'), hashlib.sha256).digest()).decode('utf-8')
+
+    if computed_signature != signature:
+        logger.warning("Invalid Cashfree signature received")
+        return HttpResponse("Invalid signature", status=400)
+
+    try:
+        payload = json.loads(raw_body)
+        order_data = payload.get('data', {}).get('order', {})
+        payment_data = payload.get('data', {}).get('payment', {})
+        
+        order_id = order_data.get('order_id')
+        payment_status = payment_data.get('payment_status')
+        
+        if not order_id:
+            return HttpResponse("Missing order_id", status=400)
+
+        payment = Payment.objects.filter(order_id=order_id).first()
+        if not payment:
+            logger.error(f"Payment not found for order_id: {order_id}")
+            return HttpResponse("Order not found", status=200)
+
+        if payment_status == 'SUCCESS':
+            _fulfill_cashfree_payment(payment, payload)
+        elif payment_status in ['FAILED', 'CANCELLED']:
+            payment.status = 'failed'
+            payment.failure_reason = payment_data.get('payment_message', 'Payment failed')
+            payment.raw_payload = payload
+            payment.save()
+
+        return HttpResponse("OK", status=200)
+    except Exception as e:
+        logger.exception("Cashfree Webhook Processing Failed")
+        return HttpResponse("Internal Server Error", status=500)
+
+def _fulfill_cashfree_payment(payment, payload):
+    """Credit user wallet or activate membership upon successful payment."""
+    if payment.status == 'success' or payment.wallet_credited:
+        return
+
+    with transaction.atomic():
+        payment = Payment.objects.select_for_update().get(id=payment.id)
+        if payment.status == 'success':
+            return
+
+        payment.status = 'success'
+        payment.wallet_credited = True
+        payment.raw_payload = payload
+        payment.save()
+
+        user = payment.user
+        if payment.purpose == 'wallet_topup':
+            profile = Profile.objects.select_for_update().get(user=user)
+            profile.reward_balance += payment.amount
+            profile.save()
+            
+            add_transaction(
+                user, 'credit', 'admin_topup', payment.amount,
+                f'💳 Wallet top-up via Cashfree — Order: {payment.order_id}',
+                category='credit', payment=payment
+            )
+            send_notification(
+                user, 'wallet_credit',
+                f'✅ Wallet Top-up Successful — ₹{payment.amount}',
+                f'₹{payment.amount} added to your wallet via Cashfree.'
+            )
+        elif payment.purpose == 'creator_membership':
+            _activate_membership_cashfree(payment)
+
+def _activate_membership_cashfree(payment):
+    """Activate creator membership after successful payment."""
+    user = payment.user
+    plan = payment.plan
+    if plan and plan in SUBSCRIPTION_PLAN_DAYS:
+        profile = Profile.objects.select_for_update().get(user=user)
+        now = timezone.now()
+        days = SUBSCRIPTION_PLAN_DAYS[plan]
+        start_base = profile.plan_expiry if profile.plan_expiry and profile.plan_expiry > now else now
+        new_expiry = start_base + timedelta(days=days)
+
+        CreatorMembership.objects.create(
+            user=user, plan=plan,
+            expires_at=new_expiry, is_active=True,
+        )
+        
+        plan_hierarchy = {'none': 0, '1month': 1, '3month': 2, '1year': 3}
+        current_tier = plan_hierarchy.get(profile.creator_plan, 0) if profile.plan_active() else 0
+        new_tier = plan_hierarchy.get(plan, 0)
+        
+        if new_tier > current_tier:
+            profile.creator_plan = plan
+
+        profile.is_creator = True
+        profile.plan_expiry = new_expiry
+        profile.tournaments_created_this_month = 0
+        profile.save()
+        
+        add_transaction(
+            user, 'debit', 'membership_purchase',
+            payment.amount,
+            f'💎 Creator membership (+{days} days) via Cashfree',
+            category='debit', payment=payment,
+        )
+        send_notification(
+            user, 'general',
+            '✅ Membership Activated',
+            f'Your {plan} creator membership is now active via Cashfree.'
+        )
+
+@login_required
+def check_cashfree_status(request):
+    """Simple status check for frontend polling."""
+    order_id = request.GET.get('order_id')
+    if not order_id:
+        return JsonResponse({'ok': False, 'error': 'Order ID required.'}, status=400)
+    try:
+        payment = Payment.objects.get(order_id=order_id, user=request.user)
+        return JsonResponse({
+            'ok': True,
+            'status': payment.status,
+            'amount': str(payment.amount),
+            'new_balance': str(request.user.profile.reward_balance) if payment.status == 'success' else None
+        })
+    except Payment.DoesNotExist:
+        return JsonResponse({'ok': False, 'error': 'Order not found.'}, status=404)
+
 
 
 
@@ -1019,7 +865,7 @@ def subscription_view(request):
         'profile': profile,
         'memberships': memberships,
         'plan_amounts': SUBSCRIPTION_PLAN_AMOUNT,
-        'admin_upi_id': admin_upi,
+        'cashfree_env': getattr(settings, 'CASHFREE_ENVIRONMENT', 'SANDBOX'),
     })
 
 
@@ -2820,8 +2666,8 @@ def payment_page(request):
     from django.conf import settings as django_settings
     admin_upi = getattr(django_settings, 'ADMIN_UPI_ID', 'manthanballa08@okicici')
     return render(request, 'payment_page.html', {
-        'admin_upi_id': admin_upi,
         'profile': request.user.profile,
+        'cashfree_env': getattr(django_settings, 'CASHFREE_ENVIRONMENT', 'SANDBOX'),
     })
 
 

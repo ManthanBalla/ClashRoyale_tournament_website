@@ -9,8 +9,7 @@ from .views import (
     send_reward_code, grant_membership, subscription_view,
     delete_user, deactivate_membership, reactivate_membership,
     topup_wallet, notifications_view, mark_notification_read, notifications_summary_api,
-    upload_results, sms_webhook, create_upi_payment_request, submit_utr,
-    check_payment_status, create_upi_subscription_request,
+    upload_results,
     submit_dispute, resolve_dispute, tournament_participants_api,
     toggle_creator_follow, toggle_follow_notifications, creators_view, creator_rewards_view,
     terms_page, privacy_page, refund_policy_page, help_page, CustomPasswordResetConfirmView,
@@ -18,6 +17,7 @@ from .views import (
     generate_cup_matches, mark_cup_winner, confirm_cup_match_result, cup_player_action,
     resolve_cup_dispute, unlock_cup_match, set_cup_match_deadline, cup_state_api,
     edit_cup, delete_cup, payment_page, contact_page,
+    create_cashfree_order, cashfree_webhook, check_cashfree_status,
 )
 from django.contrib.auth import views as auth_views
 
@@ -34,14 +34,10 @@ urlpatterns = [
     path('notifications/read/<int:notification_id>/', mark_notification_read, name='mark_read'),
     path('notifications/summary/', notifications_summary_api, name='notifications_summary_api'),
 
-    # UPI Payment endpoints
-    path('payments/create-upi-request/', create_upi_payment_request, name='create_upi_payment_request'),
-    path('payments/create-upi-subscription/', create_upi_subscription_request, name='create_upi_subscription_request'),
-    path('payments/submit-utr/', submit_utr, name='submit_utr'),
-    path('payments/check-status/', check_payment_status, name='check_payment_status'),
-
-    # SMS Webhook (from Android SMS Forwarder)
-    path('api/sms/', sms_webhook, name='sms_webhook'),
+    # Cashfree Payment endpoints
+    path('api/create-order/', create_cashfree_order, name='create_cashfree_order'),
+    path('api/cashfree/webhook/', cashfree_webhook, name='cashfree_webhook'),
+    path('api/check-payment-status/', check_cashfree_status, name='check_cashfree_status'),
 
     path('tournament/<int:tournament_id>/submit-dispute/', submit_dispute, name='submit_dispute'),
     path('resolve-dispute/<int:dispute_id>/', resolve_dispute, name='resolve_dispute'),
