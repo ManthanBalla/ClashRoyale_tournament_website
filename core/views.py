@@ -2823,3 +2823,8 @@ def payment_page(request):
         'admin_upi_id': admin_upi,
         'profile': request.user.profile,
     })
+
+
+def contact_page(request):
+    """Public Contact Us page for business verification."""
+    return render(request, 'contact.html')

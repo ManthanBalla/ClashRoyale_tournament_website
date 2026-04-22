@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Contact Us - Clash Arena{% endblock %}
+{% block meta_description %}Contact Clash Arena for support, inquiries, or feedback. We usually respond within 24 hours.{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 py-12 min-h-[60vh]">
+    <div class="text-center mb-10">
+        <h1 class="text-3xl sm:text-4xl font-extrabold text-white mb-4 tracking-tight">Contact Us</h1>
+        <p class="ca-muted text-lg max-w-xl mx-auto leading-relaxed">
+            Clash Arena is a skill-based gaming platform where users participate in tournaments and win rewards.
+        </p>
+    </div>
+
+    <div class="ca-glass p-8 sm:p-10 border border-ca-accent/20 rounded-2xl relative overflow-hidden">
+        
+        <!-- Decorative Glow -->
+        <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[80%] h-[150px] bg-ca-accent/10 blur-[80px] rounded-full pointer-events-none"></div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
+            <!-- Email -->
+            <div class="bg-black/30 p-6 rounded-xl border border-white/5 flex flex-col items-center text-center transition hover:border-ca-accent/30 hover:bg-black/40">
+                <div class="w-12 h-12 bg-ca-accent/20 rounded-full flex items-center justify-center mb-4 text-2xl">
+                    📧
+                </div>
+                <h3 class="text-white font-bold text-lg mb-2">Email Us</h3>
+                <p class="ca-muted text-sm mb-4">Drop us an email for any queries or support requests.</p>
+                <a href="mailto:connectwithmanthan12@gmail.com" class="text-ca-accent font-bold hover:text-white transition">
+                    connectwithmanthan12@gmail.com
+                </a>
+            </div>
+
+            <!-- Support Hours -->
+            <div class="bg-black/30 p-6 rounded-xl border border-white/5 flex flex-col items-center text-center transition hover:border-ca-accent/30 hover:bg-black/40">
+                <div class="w-12 h-12 bg-ca-accent/20 rounded-full flex items-center justify-center mb-4 text-2xl">
+                    🕒
+                </div>
+                <h3 class="text-white font-bold text-lg mb-2">Support Hours</h3>
+                <p class="ca-muted text-sm mb-3">Our team is available to assist you during these hours.</p>
+                <p class="text-white font-bold">Monday to Sunday</p>
+                <p class="text-ca-accent font-semibold">10:00 AM – 8:00 PM</p>
+            </div>
+        </div>
+
+        <div class="mt-8 text-center bg-black/30 p-5 rounded-xl border border-white/5">
+            <p class="text-white/80 font-medium">
+                ⚡ <span class="text-white font-bold">Response time:</span> We usually respond within 24 hours.
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}

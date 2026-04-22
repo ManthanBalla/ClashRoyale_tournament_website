@@ -17,7 +17,7 @@ from .views import (
     legacy_send_reward_code_redirect, cups_view, create_cup, cup_detail, cup_dispute_queue, join_cup,
     generate_cup_matches, mark_cup_winner, confirm_cup_match_result, cup_player_action,
     resolve_cup_dispute, unlock_cup_match, set_cup_match_deadline, cup_state_api,
-    edit_cup, delete_cup, payment_page,
+    edit_cup, delete_cup, payment_page, contact_page,
 )
 from django.contrib.auth import views as auth_views
 
@@ -48,6 +48,7 @@ urlpatterns = [
     path('terms/', terms_page, name='terms'),
     path('privacy/', privacy_page, name='privacy'),
     path('refund-policy/', refund_policy_page, name='refund_policy'),
+    path('contact/', contact_page, name='contact'),
     path('help/', help_page, name='help'),
 
     path('join/<int:tournament_id>/', join_tournament, name='join_tournament'),
