@@ -4,29 +4,6 @@
 
 <div class="max-w-2xl mx-auto px-4 py-8">
 
-    <!-- ADMIN TOPUP TOAST -->
-    {% if recent_topup %}
-    <div id="topupToast"
-         class="fixed top-4 right-4 z-50 rounded-xl px-5 py-4 shadow-2xl border max-w-xs"
-         style="background: linear-gradient(135deg, #0a2810, #0c3a14); border-color: rgba(52,211,153,0.5);">
-        <div class="flex items-center gap-3">
-            <span class="text-2xl">💰</span>
-            <div>
-                <p class="text-green-400 font-bold text-sm">{{ recent_topup.description }}</p>
-                <p class="text-gray-400 text-xs mt-0.5">{{ recent_topup.created_at|date:"d M Y, H:i" }}</p>
-            </div>
-        </div>
-        <button onclick="document.getElementById('topupToast').style.display='none'"
-                class="absolute top-2 right-3 text-gray-500 text-xs hover:text-white">✕</button>
-    </div>
-    <script>
-        setTimeout(() => {
-            const t = document.getElementById('topupToast');
-            if (t) t.style.display = 'none';
-        }, 5000);
-    </script>
-    {% endif %}
-
     <!-- SUCCESS TOAST -->
     {% if success %}
     <div id="successToast"
@@ -56,8 +33,8 @@
         <div class="flex items-center gap-3">
             <span class="text-2xl">💸</span>
             <div>
-                <p class="text-green-400 font-bold text-sm">Withdrawal request submitted!</p>
-                <p class="text-gray-400 text-xs mt-0.5">Admin will process within 24hrs</p>
+                <p class="text-green-400 font-bold text-sm">Withdrawal completed!</p>
+                <p class="text-gray-400 text-xs mt-0.5">Amount deducted from wallet</p>
             </div>
         </div>
     </div>

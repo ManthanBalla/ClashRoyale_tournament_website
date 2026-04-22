@@ -666,8 +666,16 @@ def _fulfill_payment(payment, utr, verified_via='sms_auto'):
                     user=user, plan=plan,
                     expires_at=new_expiry, is_active=True,
                 )
+                
+                # Only upgrade the tier, never downgrade if they already have a better active plan
+                plan_hierarchy = {'none': 0, '1month': 1, '3month': 2, '1year': 3}
+                current_tier = plan_hierarchy.get(profile.creator_plan, 0) if profile.plan_active() else 0
+                new_tier = plan_hierarchy.get(plan, 0)
+                
+                if new_tier > current_tier:
+                    profile.creator_plan = plan
+
                 profile.is_creator = True
-                profile.creator_plan = plan
                 profile.plan_expiry = new_expiry
                 profile.tournaments_created_this_month = 0
                 profile.save(update_fields=[
@@ -677,7 +685,7 @@ def _fulfill_payment(payment, utr, verified_via='sms_auto'):
                 add_transaction(
                     user, 'debit', 'membership_purchase',
                     payment.amount,
-                    f'💎 Creator membership ({plan}) via UPI — UTR: {utr}',
+                    f'💎 Creator membership (+{days} days) via UPI — UTR: {utr}',
                     category='debit', payment=payment,
                 )
                 send_notification(
@@ -975,12 +983,13 @@ def withdraw_view(request):
         WithdrawalRequest.objects.create(
             user=request.user,
             amount=amount,
-            upi_id=profile.upi_id
+            upi_id=profile.upi_id,
+            status='approved'
         )
         try:
             debit_wallet(
                 request.user, amount, 'withdrawal',
-                f'💸 Withdrawal request of ₹{amount} to {profile.upi_id}'
+                f'💸 Auto-Withdrawal of ₹{amount} to {profile.upi_id}'
             )
         except ValueError:
             return render(request, 'withdraw.html', {
@@ -989,8 +998,8 @@ def withdraw_view(request):
             })
         send_notification(
             request.user, 'wallet_credit',
-            f'💸 Withdrawal Requested — ₹{amount}',
-            f'Your withdrawal of ₹{amount} to {profile.upi_id} has been submitted. Admin will process within 24hrs.'
+            f'💸 Withdrawal Completed — ₹{amount}',
+            f'Your withdrawal of ₹{amount} to {profile.upi_id} has been completed successfully.'
         )
         return redirect('/profile/?withdrawn=1')
 

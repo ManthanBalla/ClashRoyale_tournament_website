@@ -108,7 +108,7 @@
                         <p id="previewMin" class="text-yellow-400 font-bold text-lg">₹0</p>
                     </div>
                     <div>
-                        <p class="text-gray-500 text-xs">50 Players</p>
+                        <p class="text-gray-500 text-xs">Expected</p>
                         <p id="preview50" class="text-green-400 font-bold text-lg">₹0</p>
                     </div>
                     <div>
@@ -116,7 +116,7 @@
                         <p id="previewMax" class="text-ca-accent font-bold text-lg">₹0</p>
                     </div>
                 </div>
-                <p class="text-gray-500 text-xs text-center mt-2">Prize = Entry Fee × Players joined</p>
+                <p class="text-gray-500 text-xs text-center mt-2">Prize = 70% of (Entry Fee × Players)</p>
             </div>
 
             <div class="rounded-xl p-3 mb-4 border"
@@ -280,10 +280,13 @@ function updatePrizePreview() {
     const fee = parseFloat(document.getElementById('entryFee')?.value) || 0;
     const min = parseInt(document.getElementById('minPlayers')?.value) || 2;
     const max = parseInt(document.getElementById('maxPlayers')?.value) || 100;
+    const winnerShare = 0.70; // Winner gets 70% of the total fees
+    const avg = Math.floor((min + max) / 2);
+    
     if (document.getElementById('previewMin')) {
-        document.getElementById('previewMin').innerText = '₹' + (fee * min).toLocaleString('en-IN');
-        document.getElementById('preview50').innerText = '₹' + (fee * 50).toLocaleString('en-IN');
-        document.getElementById('previewMax').innerText = '₹' + (fee * max).toLocaleString('en-IN');
+        document.getElementById('previewMin').innerText = '₹' + Math.floor(fee * min * winnerShare).toLocaleString('en-IN');
+        document.getElementById('preview50').innerText = '₹' + Math.floor(fee * avg * winnerShare).toLocaleString('en-IN');
+        document.getElementById('previewMax').innerText = '₹' + Math.floor(fee * max * winnerShare).toLocaleString('en-IN');
     }
 }
 </script>
