@@ -4,7 +4,7 @@
 
 <div class="flex items-center justify-center py-8 px-4">
 
-    <form method="POST" enctype="multipart/form-data" id="tournamentForm"
+    <form method="POST" action="/edit-tournament/{{ tournament.id }}/" enctype="multipart/form-data" id="tournamentForm"
           class="ca-glass p-6 w-full max-w-lg mx-auto">
         {% csrf_token %}
 

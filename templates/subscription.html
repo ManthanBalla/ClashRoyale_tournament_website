@@ -151,7 +151,7 @@
         <div class="rounded-2xl p-6 border"
              style="background: linear-gradient(135deg, #0a0a1a, #0a1a0a); border-color: rgba(99,102,241,0.4);">
 
-            <h2 class="text-lg font-bold text-white mb-5 text-center">💳 Complete Payment</h2>
+            <h2 class="text-lg font-bold text-white mb-5 text-center">💳 Complete Payment via UPI</h2>
 
             <!-- SELECTED PLAN -->
             <div class="rounded-xl p-4 mb-5 flex justify-between items-center border"
@@ -168,9 +168,15 @@
                  style="background: linear-gradient(135deg, rgba(6,182,212,0.1), rgba(59,130,246,0.1)); border-color: rgba(6,182,212,0.3);">
                 <p class="text-ca-accent font-bold text-sm mb-2">📱 Pay via UPI</p>
                 <div class="bg-black/30 rounded-lg py-3 px-4 text-center mb-2">
-                    <p class="text-white font-mono text-base font-bold">manthanballa08@okicici</p>
+                    <p id="subUpiId" class="text-white font-mono text-base font-bold">{{ admin_upi_id }}</p>
                 </div>
                 <p class="text-gray-400 text-xs text-center">Send exact amount to this UPI ID</p>
+            </div>
+
+            <!-- Reference ID -->
+            <div id="subRefSection" class="rounded-xl p-4 mb-5 border" style="display:none; background: rgba(234,179,8,0.08); border-color: rgba(234,179,8,0.3);">
+                <p class="text-yellow-400 text-sm font-bold mb-1">Pay exactly: <span id="subPayAmount" class="text-white text-lg"></span></p>
+                <p class="text-gray-400 text-xs">Reference: <span id="subPayRefId" class="text-white font-mono font-bold"></span></p>
             </div>
 
             <!-- STEPS -->
@@ -183,26 +189,35 @@
                 <div class="flex items-center gap-3 text-sm text-gray-300">
                     <span class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 text-black"
                           style="background: linear-gradient(135deg, #06b6d4, #3b82f6);">2</span>
-                    Copy your UPI transaction reference number
+                    Copy your UPI transaction reference (UTR)
                 </div>
                 <div class="flex items-center gap-3 text-sm text-gray-300">
                     <span class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 text-black"
                           style="background: linear-gradient(135deg, #06b6d4, #3b82f6);">3</span>
-                    Paste it below — we'll activate within 24hrs
+                    Paste it below — membership activates instantly!
                 </div>
             </div>
 
             <input type="hidden" id="planInput">
-            <div class="rounded-xl px-4 py-3 mb-5 border"
-                 style="background: rgba(234,179,8,0.08); border-color: rgba(234,179,8,0.3);">
-                <p class="text-yellow-400 text-xs">
-                    Membership activates only after backend signature verification.
-                </p>
+
+            <!-- UTR Input -->
+            <div id="subUtrSection" style="display:none;">
+                <div class="flex flex-col sm:flex-row gap-3 mb-3">
+                    <input id="subUtrInput" type="text" placeholder="Enter UTR (10-15 digit number)"
+                           class="w-full p-2.5 bg-black/35 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-green-400 flex-1"
+                           pattern="\d{10,15}" maxlength="15">
+                    <button type="button" id="subSubmitUtrBtn"
+                            class="py-2.5 px-5 rounded-xl font-bold text-white text-sm transition hover:opacity-90 shrink-0"
+                            style="background: linear-gradient(90deg, #059669, #2563eb);">
+                        ✅ Verify & Activate
+                    </button>
+                </div>
             </div>
+
             <button type="button" id="payMembershipBtn"
                     class="w-full py-3 rounded-xl font-bold text-white text-base mb-3 transition hover:opacity-90"
                     style="background: linear-gradient(90deg, #7c3aed, #2563eb, #059669);">
-                Pay with Razorpay
+                I've paid — Enter UTR
             </button>
             <button type="button" onclick="cancelPlan()"
                     class="w-full py-2.5 rounded-xl font-semibold text-gray-400 text-sm transition hover:text-white border"
@@ -238,7 +253,6 @@
 
 </div>
 
-<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <script>
 const planNames = {
     '1month': '⚡ Starter Plan — 1 Month',
@@ -256,6 +270,8 @@ const planColors = {
     '1year': '#7c3aed'
 };
 
+let subPaymentId = null;
+
 function selectPlan(plan, price) {
     document.querySelectorAll('.plan-card').forEach(card => {
         card.style.transform = 'scale(1)';
@@ -271,6 +287,13 @@ function selectPlan(plan, price) {
     document.getElementById('selectedPlanName').innerText = planNames[plan];
     document.getElementById('selectedPlanPrice').innerText = planPrices[plan];
 
+    // Reset state
+    subPaymentId = null;
+    document.getElementById('subUtrSection').style.display = 'none';
+    document.getElementById('subRefSection').style.display = 'none';
+    document.getElementById('payMembershipBtn').style.display = '';
+    document.getElementById('membershipMsg').textContent = '';
+
     const paySection = document.getElementById('paymentSection');
     paySection.classList.remove('hidden');
     setTimeout(() => {
@@ -284,6 +307,7 @@ function cancelPlan() {
         card.style.transform = 'scale(1)';
         card.style.boxShadow = 'none';
     });
+    subPaymentId = null;
 }
 
 function getCsrfToken() {
@@ -297,26 +321,9 @@ function getCsrfToken() {
     return '';
 }
 
-async function createSubscriptionOrder(plan) {
-    const res = await fetch('/payments/subscription/create-order/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
-        body: JSON.stringify({ plan: plan })
-    });
-    return res.json();
-}
-
-async function verifySubscription(payload) {
-    const res = await fetch('/payments/subscription/verify/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
-        body: JSON.stringify(payload)
-    });
-    return res.json();
-}
-
 const payMembershipBtn = document.getElementById('payMembershipBtn');
 const membershipMsg = document.getElementById('membershipMsg');
+
 if (payMembershipBtn) {
     payMembershipBtn.addEventListener('click', async function() {
         const plan = document.getElementById('planInput').value;
@@ -325,46 +332,71 @@ if (payMembershipBtn) {
             return;
         }
         payMembershipBtn.disabled = true;
-        membershipMsg.textContent = 'Creating payment order...';
-        try {
-            const order = await createSubscriptionOrder(plan);
-            if (!order.ok) throw new Error(order.error || 'Unable to create subscription order.');
+        membershipMsg.textContent = 'Creating payment request...';
 
-            const rzp = new Razorpay({
-                key: order.key_id,
-                amount: order.amount_paise,
-                currency: order.currency,
-                order_id: order.order_id,
-                name: 'Clash Arena',
-                description: 'Creator Membership',
-                handler: async function(resp) {
-                    membershipMsg.textContent = 'Verifying payment...';
-                    const verify = await verifySubscription({
-                        razorpay_order_id: resp.razorpay_order_id,
-                        razorpay_payment_id: resp.razorpay_payment_id,
-                        razorpay_signature: resp.razorpay_signature,
-                        plan: plan
-                    });
-                    if (verify.ok) {
-                        membershipMsg.textContent = 'Membership activated. Reloading...';
-                        setTimeout(() => window.location.reload(), 900);
-                    } else {
-                        membershipMsg.textContent = verify.error || 'Payment verification failed.';
-                        payMembershipBtn.disabled = false;
-                    }
-                },
-                modal: {
-                    ondismiss: function() {
-                        membershipMsg.textContent = 'Checkout closed.';
-                        payMembershipBtn.disabled = false;
-                    }
-                },
-                theme: { color: '#7c3aed' }
+        try {
+            const res = await fetch('/payments/create-upi-subscription/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+                body: JSON.stringify({ plan: plan })
             });
-            rzp.open();
+            const data = await res.json();
+            if (!data.ok) throw new Error(data.error || 'Unable to create payment request.');
+
+            subPaymentId = data.payment_id;
+            document.getElementById('subUpiId').textContent = data.upi_id;
+            document.getElementById('subPayAmount').textContent = '₹' + data.amount;
+            document.getElementById('subPayRefId').textContent = data.reference_id;
+            document.getElementById('subRefSection').style.display = '';
+            document.getElementById('subUtrSection').style.display = '';
+            payMembershipBtn.style.display = 'none';
+            membershipMsg.textContent = 'Pay via UPI, then enter your UTR below.';
+            membershipMsg.className = 'text-xs text-ca-accent mt-3';
         } catch (e) {
             membershipMsg.textContent = e.message || 'Something went wrong.';
+            membershipMsg.className = 'text-xs text-red-400 mt-3';
             payMembershipBtn.disabled = false;
+        }
+    });
+}
+
+const subSubmitUtrBtn = document.getElementById('subSubmitUtrBtn');
+if (subSubmitUtrBtn) {
+    subSubmitUtrBtn.addEventListener('click', async function() {
+        const utr = (document.getElementById('subUtrInput').value || '').trim();
+        if (!utr || !/^\d{10,15}$/.test(utr)) {
+            membershipMsg.textContent = 'Please enter a valid UTR (10-15 digit number).';
+            membershipMsg.className = 'text-xs text-red-400 mt-3';
+            return;
+        }
+        if (!subPaymentId) {
+            membershipMsg.textContent = 'No active payment. Please start over.';
+            membershipMsg.className = 'text-xs text-red-400 mt-3';
+            return;
+        }
+
+        subSubmitUtrBtn.disabled = true;
+        membershipMsg.textContent = 'Verifying payment...';
+        membershipMsg.className = 'text-xs text-gray-400 mt-3';
+
+        try {
+            const res = await fetch('/payments/submit-utr/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+                body: JSON.stringify({ payment_id: subPaymentId, utr: utr })
+            });
+            const data = await res.json();
+            if (data.ok && data.status === 'success') {
+                membershipMsg.textContent = 'Membership activated! Reloading...';
+                membershipMsg.className = 'text-xs text-green-400 mt-3';
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                throw new Error(data.error || 'Verification failed.');
+            }
+        } catch (e) {
+            membershipMsg.textContent = e.message || 'Something went wrong.';
+            membershipMsg.className = 'text-xs text-red-400 mt-3';
+            subSubmitUtrBtn.disabled = false;
         }
     });
 }

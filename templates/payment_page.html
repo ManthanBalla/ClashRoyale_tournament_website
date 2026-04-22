@@ -1,0 +1,346 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="max-w-md mx-auto px-4 py-8">
+
+    <!-- Header -->
+    <div class="text-center mb-6">
+        <h1 class="text-3xl font-extrabold text-white mb-2">💳 Add Money</h1>
+        <p class="text-gray-400 text-sm">Pay via UPI — verified automatically</p>
+    </div>
+
+    <!-- Current balance -->
+    <div class="ca-glass p-4 mb-6 flex items-center justify-between">
+        <div>
+            <p class="text-gray-400 text-xs uppercase tracking-wider">Current Balance</p>
+            <p class="text-2xl font-extrabold text-white">₹{{ profile.reward_balance }}</p>
+        </div>
+        <span class="text-3xl">👛</span>
+    </div>
+
+    <!-- Step 1: Amount Entry -->
+    <div id="step1" class="ca-glass p-6 mb-5">
+        <h2 class="text-base font-bold text-white mb-4">Step 1 — Enter Amount</h2>
+
+        <div class="grid grid-cols-3 gap-2 mb-4">
+            <button type="button" onclick="setAmount(50, this)"
+                    class="quick-amt py-2.5 rounded-xl text-sm font-bold border border-white/10 text-white hover:border-ca-accent hover:bg-ca-accent/10 transition">₹50</button>
+            <button type="button" onclick="setAmount(100, this)"
+                    class="quick-amt py-2.5 rounded-xl text-sm font-bold border border-white/10 text-white hover:border-ca-accent hover:bg-ca-accent/10 transition">₹100</button>
+            <button type="button" onclick="setAmount(200, this)"
+                    class="quick-amt py-2.5 rounded-xl text-sm font-bold border border-white/10 text-white hover:border-ca-accent hover:bg-ca-accent/10 transition">₹200</button>
+            <button type="button" onclick="setAmount(500, this)"
+                    class="quick-amt py-2.5 rounded-xl text-sm font-bold border border-white/10 text-white hover:border-ca-accent hover:bg-ca-accent/10 transition">₹500</button>
+            <button type="button" onclick="setAmount(1000, this)"
+                    class="quick-amt py-2.5 rounded-xl text-sm font-bold border border-white/10 text-white hover:border-ca-accent hover:bg-ca-accent/10 transition">₹1,000</button>
+            <button type="button" onclick="setAmount(2000, this)"
+                    class="quick-amt py-2.5 rounded-xl text-sm font-bold border border-white/10 text-white hover:border-ca-accent hover:bg-ca-accent/10 transition">₹2,000</button>
+        </div>
+
+        <input type="number" id="amountInput" min="10" max="50000" step="1"
+               placeholder="Or enter custom amount (min ₹10)"
+               class="ca-input mb-4">
+
+        <button type="button" id="proceedBtn" onclick="createPayment()"
+                class="ca-btn w-full">
+            ⚡ Proceed to Pay
+        </button>
+        <p id="step1Msg" class="text-xs text-red-400 mt-3 hidden"></p>
+    </div>
+
+    <!-- Step 2: QR Code & Payment Details -->
+    <div id="step2" class="hidden">
+
+        <!-- Amount badge -->
+        <div class="text-center mb-5">
+            <div class="inline-flex items-center gap-2 rounded-full px-5 py-2.5 font-bold text-xl"
+                 style="background: linear-gradient(135deg, rgba(255,77,94,0.15), rgba(255,150,50,0.1)); border: 1px solid rgba(255,77,94,0.35);">
+                <span class="text-gray-300">Pay exactly</span>
+                <span id="displayAmount" class="text-ca-accent">₹0</span>
+            </div>
+        </div>
+
+        <!-- QR Code section -->
+        <div class="ca-glass p-5 mb-4 text-center">
+            <h2 class="text-base font-bold text-white mb-4">Step 2 — Scan & Pay</h2>
+
+            <!-- Real QR Code -->
+            <div class="bg-white rounded-2xl p-3 inline-block mb-4 shadow-lg">
+                <img src="{% static 'images/upi_qr.png' %}" alt="Scan to pay — manthanballa08@okicici"
+                     class="w-52 h-52 object-contain">
+            </div>
+
+            <p class="text-white font-bold text-base mb-1">MANTHAN BALLA</p>
+            <p class="text-gray-400 text-xs mb-4">Scan with any UPI app to pay</p>
+
+            <!-- UPI ID -->
+            <div class="rounded-xl p-3 mb-3 border" style="background: rgba(6,182,212,0.08); border-color: rgba(6,182,212,0.3);">
+                <p class="text-gray-400 text-xs mb-1">UPI ID</p>
+                <p class="text-white font-mono font-bold text-base" id="upiIdText">{{ admin_upi_id }}</p>
+                <button onclick="copyUpiId(event)"
+                        class="mt-2 text-xs text-ca-accent hover:text-white transition font-semibold">
+                    📋 Tap to Copy
+                </button>
+            </div>
+
+            <!-- Reference ID -->
+            <div class="rounded-xl p-3 border" style="background: rgba(234,179,8,0.08); border-color: rgba(234,179,8,0.3);">
+                <p class="text-yellow-400 text-xs font-semibold mb-1">📝 Reference ID (add in UPI note)</p>
+                <p class="text-white font-mono font-bold text-xl tracking-widest" id="refIdText"></p>
+                <p class="text-gray-500 text-xs mt-1">Add this in the payment note/description field</p>
+            </div>
+        </div>
+
+        <!-- Steps -->
+        <div class="ca-glass p-5 mb-4">
+            <h3 class="text-white font-bold mb-3 text-sm">How to pay</h3>
+            <div class="space-y-3">
+                <div class="flex items-start gap-3">
+                    <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 text-black mt-0.5"
+                          style="background: linear-gradient(135deg,#ff4d5e,#ff8c4a);">1</span>
+                    <p class="text-gray-300 text-sm">Scan the QR code or use UPI ID <span class="text-white font-mono font-bold">{{ admin_upi_id }}</span></p>
+                </div>
+                <div class="flex items-start gap-3">
+                    <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 text-black mt-0.5"
+                          style="background: linear-gradient(135deg,#ff4d5e,#ff8c4a);">2</span>
+                    <p class="text-gray-300 text-sm">Pay exactly <strong class="text-ca-accent" id="stepAmt2">₹0</strong> — exact amount required</p>
+                </div>
+                <div class="flex items-start gap-3">
+                    <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 text-black mt-0.5"
+                          style="background: linear-gradient(135deg,#ff4d5e,#ff8c4a);">3</span>
+                    <p class="text-gray-300 text-sm">After payment, copy your <strong class="text-white">UTR number</strong> from your UPI app's receipt</p>
+                </div>
+                <div class="flex items-start gap-3">
+                    <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 text-black mt-0.5"
+                          style="background: linear-gradient(135deg,#ff4d5e,#ff8c4a);">4</span>
+                    <p class="text-gray-300 text-sm">Enter UTR below — wallet is credited <strong class="text-green-400">instantly!</strong></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- UTR Submission -->
+        <div class="ca-glass p-5 mb-4">
+            <h3 class="text-white font-bold mb-1 text-sm">Step 3 — Enter UTR</h3>
+            <p class="text-gray-400 text-xs mb-3">Find the UTR/transaction reference in your payment app receipt (10–15 digit number)</p>
+
+            <div class="flex flex-col sm:flex-row gap-3 mb-3">
+                <input type="text" id="utrInput"
+                       placeholder="e.g. 123456789012"
+                       class="ca-input flex-1"
+                       inputmode="numeric"
+                       pattern="\d{10,15}" maxlength="15"
+                       oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+                <button type="button" id="submitUtrBtn" onclick="submitUTR()"
+                        class="ca-btn shrink-0 sm:min-w-[8rem]">
+                    ✅ Verify
+                </button>
+            </div>
+
+            <p id="utrMsg" class="text-xs mt-2 text-gray-400"></p>
+
+            <!-- Status block -->
+            <div id="paymentStatus" class="hidden mt-3 rounded-xl p-4 border text-center">
+                <p id="statusText" class="font-bold text-sm"></p>
+                <p id="statusSubtext" class="text-xs mt-1 text-gray-400"></p>
+            </div>
+        </div>
+
+        <!-- Auto-polling indicator -->
+        <div id="pollingSection" class="hidden ca-glass p-4 mb-4">
+            <div class="flex items-center gap-3">
+                <div class="animate-spin rounded-full h-5 w-5 border-2 border-ca-accent border-t-transparent shrink-0"></div>
+                <div>
+                    <p class="text-white text-sm font-semibold">Waiting for confirmation…</p>
+                    <p class="text-gray-400 text-xs mt-0.5">Auto-checking every 5 seconds</p>
+                </div>
+            </div>
+        </div>
+
+        <button type="button" onclick="startOver()"
+                class="w-full ca-btn-outline text-sm">
+            ← Start Over
+        </button>
+    </div>
+
+    <!-- Security footer -->
+    <div class="text-center mt-6">
+        <p class="text-gray-600 text-xs">🔒 Secured · UTR-based auto-verification</p>
+        <p class="text-gray-700 text-xs mt-1">Only enter your UTR — never share your UPI PIN</p>
+    </div>
+</div>
+
+<!-- Hidden CSRF token for API requests -->
+{% csrf_token %}
+
+<script>
+let currentPaymentId = null;
+let pollInterval = null;
+
+function getCsrfToken() {
+    const el = document.querySelector('[name=csrfmiddlewaretoken]');
+    return el ? el.value : '';
+}
+
+function setAmount(val, btn) {
+    document.getElementById('amountInput').value = val;
+    document.querySelectorAll('.quick-amt').forEach(b => {
+        b.classList.remove('border-ca-accent', 'bg-ca-accent/10', 'text-ca-accent');
+        b.classList.add('border-white/10', 'text-white');
+    });
+    if (btn) {
+        btn.classList.add('border-ca-accent', 'bg-ca-accent/10', 'text-ca-accent');
+        btn.classList.remove('border-white/10', 'text-white');
+    }
+}
+
+async function createPayment() {
+    const amount = parseFloat(document.getElementById('amountInput').value || 0);
+    const msg = document.getElementById('step1Msg');
+
+    if (!amount || amount < 10) {
+        msg.textContent = '⚠️ Please enter a valid amount (minimum ₹10).';
+        msg.classList.remove('hidden'); return;
+    }
+    if (amount > 50000) {
+        msg.textContent = '⚠️ Maximum amount is ₹50,000.';
+        msg.classList.remove('hidden'); return;
+    }
+    msg.classList.add('hidden');
+
+    const btn = document.getElementById('proceedBtn');
+    btn.disabled = true;
+    btn.textContent = 'Creating request…';
+
+    try {
+        const res = await fetch('/payments/create-upi-request/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+            body: JSON.stringify({ amount })
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Failed to create payment.');
+
+        currentPaymentId = data.payment_id;
+        document.getElementById('displayAmount').textContent = '₹' + data.amount;
+        document.getElementById('stepAmt2').textContent = '₹' + data.amount;
+        document.getElementById('refIdText').textContent = data.reference_id;
+        document.getElementById('upiIdText').textContent = data.upi_id;
+
+        document.getElementById('step1').style.display = 'none';
+        document.getElementById('step2').classList.remove('hidden');
+        startPolling();
+    } catch (err) {
+        msg.textContent = '⚠️ ' + (err.message || 'Something went wrong.');
+        msg.classList.remove('hidden');
+        btn.disabled = false;
+        btn.textContent = '⚡ Proceed to Pay';
+    }
+}
+
+async function submitUTR() {
+    const utr = (document.getElementById('utrInput').value || '').trim();
+    const msg = document.getElementById('utrMsg');
+
+    if (!utr || !/^\d{10,15}$/.test(utr)) {
+        msg.className = 'text-xs mt-2 text-red-400';
+        msg.textContent = '⚠️ Please enter a valid UTR (10–15 digit number).';
+        return;
+    }
+    if (!currentPaymentId) {
+        msg.className = 'text-xs mt-2 text-red-400';
+        msg.textContent = '⚠️ No active payment. Please start over.';
+        return;
+    }
+
+    const btn = document.getElementById('submitUtrBtn');
+    btn.disabled = true;
+    msg.className = 'text-xs mt-2 text-gray-400';
+    msg.textContent = 'Verifying…';
+
+    try {
+        const res = await fetch('/payments/submit-utr/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+            body: JSON.stringify({ payment_id: currentPaymentId, utr })
+        });
+        const data = await res.json();
+        if (data.ok && data.status === 'success') {
+            stopPolling();
+            showStatus('success', '✅ Payment Verified!', 'Wallet updated. Redirecting…');
+            msg.className = 'text-xs mt-2 text-green-400';
+            msg.textContent = data.message || 'Payment verified!';
+            setTimeout(() => window.location.href = '/profile/', 1500);
+        } else {
+            throw new Error(data.error || 'Verification failed.');
+        }
+    } catch (err) {
+        msg.className = 'text-xs mt-2 text-red-400';
+        msg.textContent = '⚠️ ' + (err.message || 'Verification failed.');
+        btn.disabled = false;
+    }
+}
+
+async function pollStatus() {
+    if (!currentPaymentId) return;
+    try {
+        const res = await fetch('/payments/check-status/?payment_id=' + currentPaymentId);
+        const data = await res.json();
+        if (!data.ok) return;
+        if (data.status === 'success') {
+            stopPolling();
+            showStatus('success', '✅ Payment Auto-Verified!', 'Wallet updated! Redirecting…');
+            setTimeout(() => window.location.href = '/profile/', 1500);
+        } else if (data.status === 'expired') {
+            stopPolling();
+            showStatus('error', '⏰ Payment Expired', 'Please start over and pay again within 15 minutes.');
+        }
+    } catch (e) {}
+}
+
+function startPolling() {
+    document.getElementById('pollingSection').classList.remove('hidden');
+    pollInterval = setInterval(pollStatus, 5000);
+}
+function stopPolling() {
+    if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+    document.getElementById('pollingSection').classList.add('hidden');
+}
+function showStatus(type, title, subtitle) {
+    const el = document.getElementById('paymentStatus');
+    el.classList.remove('hidden');
+    if (type === 'success') {
+        el.style.cssText = 'background:rgba(34,197,94,0.1);border-color:rgba(34,197,94,0.4);';
+        document.getElementById('statusText').className = 'font-bold text-sm text-green-400';
+    } else {
+        el.style.cssText = 'background:rgba(248,113,113,0.1);border-color:rgba(248,113,113,0.4);';
+        document.getElementById('statusText').className = 'font-bold text-sm text-red-400';
+    }
+    document.getElementById('statusText').textContent = title;
+    document.getElementById('statusSubtext').textContent = subtitle;
+}
+function startOver() {
+    stopPolling();
+    currentPaymentId = null;
+    document.getElementById('utrInput').value = '';
+    document.getElementById('utrMsg').textContent = '';
+    document.getElementById('paymentStatus').classList.add('hidden');
+    document.getElementById('step2').classList.add('hidden');
+    document.getElementById('step1').style.display = '';
+    const btn = document.getElementById('proceedBtn');
+    btn.disabled = false;
+    btn.textContent = '⚡ Proceed to Pay';
+    document.querySelectorAll('.quick-amt').forEach(b => {
+        b.classList.remove('border-ca-accent','bg-ca-accent/10','text-ca-accent');
+        b.classList.add('border-white/10','text-white');
+    });
+}
+function copyUpiId(e) {
+    const upiId = document.getElementById('upiIdText').textContent;
+    navigator.clipboard.writeText(upiId).then(() => {
+        e.target.textContent = '✅ Copied!';
+        setTimeout(() => e.target.textContent = '📋 Tap to Copy', 2000);
+    });
+}
+</script>
+{% endblock %}

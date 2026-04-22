@@ -57,8 +57,41 @@
         {% endif %}
         {% if can_manage %}
         <a href="/cups/{{ cup.id }}/disputes/" class="ca-btn-outline text-sm">Dispute Queue</a>
+        <a href="/cups/{{ cup.id }}/edit/"
+           class="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold text-blue-300 border border-blue-400/30 bg-blue-500/10 hover:bg-blue-500/20 transition min-h-[2.75rem]">
+            ✏️ Edit Cup
+        </a>
+        <button onclick="confirmDelete()"
+                class="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold text-red-300 border border-red-400/30 bg-red-500/10 hover:bg-red-500/20 transition min-h-[2.75rem]">
+            🗑️ Delete Cup
+        </button>
         {% endif %}
     </div>
+
+    <!-- Delete confirmation modal -->
+    <div id="deleteCupModal" class="fixed inset-0 hidden z-50 bg-black/70 items-center justify-center p-4">
+        <div class="ca-glass p-6 w-full max-w-sm mx-auto">
+            <h3 class="text-white font-bold text-lg mb-2">🗑️ Delete Cup</h3>
+            <p class="text-gray-300 text-sm mb-1">Are you sure you want to delete:</p>
+            <p class="text-ca-accent font-bold text-base mb-4">{{ cup.name }}</p>
+            <p class="text-gray-400 text-xs mb-5">All participants will be notified. This action cannot be undone.</p>
+            <form method="POST" action="/cups/{{ cup.id }}/delete/">
+                {% csrf_token %}
+                <div class="flex gap-3">
+                    <button type="button" onclick="closeDeleteModal()"
+                            class="flex-1 ca-btn-outline text-sm">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                            class="flex-1 py-2.5 rounded-full font-bold text-white text-sm bg-red-600 hover:bg-red-500 transition">
+                        Yes, Delete
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
 
     <div class="grid lg:grid-cols-3 gap-4">
         <div class="ca-glass p-4">
@@ -209,6 +242,26 @@
         <p id="modalWinner" class="text-xs text-green-300 mt-1"></p>
     </div>
 </div>
+<script>
+function confirmDelete() {
+    const modal = document.getElementById('deleteCupModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+function closeDeleteModal() {
+    const modal = document.getElementById('deleteCupModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+}
+document.addEventListener('DOMContentLoaded', () => {
+    const modal = document.getElementById('deleteCupModal');
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeDeleteModal();
+        });
+    }
+});
+</script>
 <script>
 (() => {
     const cupId = "{{ cup.id }}";

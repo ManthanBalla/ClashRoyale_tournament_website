@@ -3,7 +3,6 @@ gunicorn==21.2.0
 whitenoise==6.6.0
 pillow==12.1.1
 pytz
-razorpay==2.0.1
 celery==5.4.0
 redis==5.0.7
 resend==2.4.0

@@ -9,15 +9,15 @@ from .views import (
     send_reward_code, grant_membership, subscription_view,
     delete_user, deactivate_membership, reactivate_membership,
     topup_wallet, notifications_view, mark_notification_read, notifications_summary_api,
-    upload_results, create_razorpay_order, verify_razorpay_payment,
-    mark_razorpay_payment_failed, mark_razorpay_payment_abandoned,
-    create_subscription_order, verify_subscription_payment,
-    razorpay_webhook, submit_dispute, resolve_dispute, tournament_participants_api,
+    upload_results, sms_webhook, create_upi_payment_request, submit_utr,
+    check_payment_status, create_upi_subscription_request,
+    submit_dispute, resolve_dispute, tournament_participants_api,
     toggle_creator_follow, toggle_follow_notifications, creators_view, creator_rewards_view,
     terms_page, privacy_page, refund_policy_page, help_page, CustomPasswordResetConfirmView,
     legacy_send_reward_code_redirect, cups_view, create_cup, cup_detail, cup_dispute_queue, join_cup,
     generate_cup_matches, mark_cup_winner, confirm_cup_match_result, cup_player_action,
-    resolve_cup_dispute, unlock_cup_match, set_cup_match_deadline, cup_state_api
+    resolve_cup_dispute, unlock_cup_match, set_cup_match_deadline, cup_state_api,
+    edit_cup, delete_cup, payment_page,
 )
 from django.contrib.auth import views as auth_views
 
@@ -33,13 +33,16 @@ urlpatterns = [
     path('notifications/', notifications_view, name='notifications'),
     path('notifications/read/<int:notification_id>/', mark_notification_read, name='mark_read'),
     path('notifications/summary/', notifications_summary_api, name='notifications_summary_api'),
-    path('payments/create-order/', create_razorpay_order, name='create_razorpay_order'),
-    path('payments/verify/', verify_razorpay_payment, name='verify_razorpay_payment'),
-    path('payments/subscription/create-order/', create_subscription_order, name='create_subscription_order'),
-    path('payments/subscription/verify/', verify_subscription_payment, name='verify_subscription_payment'),
-    path('payments/mark-failed/', mark_razorpay_payment_failed, name='mark_razorpay_payment_failed'),
-    path('payments/mark-abandoned/', mark_razorpay_payment_abandoned, name='mark_razorpay_payment_abandoned'),
-    path('payments/webhook/', razorpay_webhook, name='razorpay_webhook'),
+
+    # UPI Payment endpoints
+    path('payments/create-upi-request/', create_upi_payment_request, name='create_upi_payment_request'),
+    path('payments/create-upi-subscription/', create_upi_subscription_request, name='create_upi_subscription_request'),
+    path('payments/submit-utr/', submit_utr, name='submit_utr'),
+    path('payments/check-status/', check_payment_status, name='check_payment_status'),
+
+    # SMS Webhook (from Android SMS Forwarder)
+    path('api/sms/', sms_webhook, name='sms_webhook'),
+
     path('tournament/<int:tournament_id>/submit-dispute/', submit_dispute, name='submit_dispute'),
     path('resolve-dispute/<int:dispute_id>/', resolve_dispute, name='resolve_dispute'),
     path('terms/', terms_page, name='terms'),
@@ -89,6 +92,9 @@ urlpatterns = [
     path('cups/match/<int:match_id>/deadline/', set_cup_match_deadline, name='set_cup_match_deadline'),
     path('cups/<int:cup_id>/state/', cup_state_api, name='cup_state_api'),
     path('cups/<int:cup_id>/player-action/', cup_player_action, name='cup_player_action'),
+    path('cups/<int:cup_id>/edit/', edit_cup, name='edit_cup'),
+    path('cups/<int:cup_id>/delete/', delete_cup, name='delete_cup'),
+    path('payments/pay/', payment_page, name='payment_page'),
     path('grant-membership/<int:user_id>/', grant_membership, name='grant_membership'),
     path('deactivate-membership/<int:membership_id>/', deactivate_membership, name='deactivate_membership'),
     path('reactivate-membership/<int:membership_id>/', reactivate_membership, name='reactivate_membership'),

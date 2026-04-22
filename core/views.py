@@ -23,11 +23,12 @@ import re
 import threading
 from io import BytesIO
 import pytz
-import razorpay
+import string
+import uuid
 from PIL import Image
 from django.contrib.auth.views import PasswordResetConfirmView
 
-from .models import Tournament, Participant, Match, Profile, WithdrawalRequest, RewardCode, CreatorMembership, Transaction, Notification, Payment, DisputeReport, CreatorFollow, Cup, CupJoinGuide, CupParticipant, CupMatch, CupMatchConfirmation, CupActionLog
+from .models import Tournament, Participant, Match, Profile, WithdrawalRequest, RewardCode, CreatorMembership, Transaction, Notification, Payment, SMSLog, DisputeReport, CreatorFollow, Cup, CupJoinGuide, CupParticipant, CupMatch, CupMatchConfirmation, CupActionLog
 from .forms import NoReuseSetPasswordForm
 
 
@@ -466,8 +467,9 @@ def mark_notification_read(request, notification_id):
 
 @login_required
 def notifications_summary_api(request):
-    notifications = Notification.objects.filter(user=request.user).order_by('-created_at')[:8]
-    unread = notifications.filter(is_read=False).count()
+    all_notifications = Notification.objects.filter(user=request.user).order_by('-created_at')
+    unread = all_notifications.filter(is_read=False).count()
+    recent = all_notifications[:8]
     return JsonResponse({
         'ok': True,
         'unread_count': unread,
@@ -479,7 +481,7 @@ def notifications_summary_api(request):
                 'is_read': n.is_read,
                 'url': n.url or '/notifications/',
             }
-            for n in notifications
+            for n in recent
         ]
     })
 
@@ -524,7 +526,6 @@ def profile_view(request):
                 'transactions': transactions,
                 'recent_topup': recent_topup,
                 'wallet_breakdown': breakdown,
-                'razorpay_key_id': settings.RAZORPAY_KEY_ID,
                 'error': 'Full name, real email, UPI ID and in-game username are required to keep your profile complete.'
             })
 
@@ -537,8 +538,7 @@ def profile_view(request):
                     'transactions': transactions,
                     'recent_topup': recent_topup,
                     'wallet_breakdown': breakdown,
-                    'razorpay_key_id': settings.RAZORPAY_KEY_ID,
-                    'error': 'This email is already used by another account.'
+                        'error': 'This email is already used by another account.'
                 })
 
         request.user.first_name = first_name
@@ -556,7 +556,6 @@ def profile_view(request):
             'transactions': transactions,
             'recent_topup': recent_topup,
             'wallet_breakdown': breakdown,
-            'razorpay_key_id': settings.RAZORPAY_KEY_ID,
             'success': 'Profile updated successfully!'
         })
 
@@ -567,22 +566,215 @@ def profile_view(request):
         'transactions': transactions,
         'recent_topup': recent_topup,
         'wallet_breakdown': breakdown,
-        'razorpay_key_id': settings.RAZORPAY_KEY_ID,
     })
 
 
-def _get_razorpay_client():
-    if not settings.RAZORPAY_KEY_ID or not settings.RAZORPAY_KEY_SECRET:
-        return None
-    return razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+def generate_reference_id():
+    """Generate a unique payment reference ID like CA123456 without hyphens."""
+    chars = string.ascii_uppercase + string.digits
+    while True:
+        ref = 'CA' + ''.join(random.choices(chars, k=6))
+        if not Payment.objects.filter(reference_id=ref).exists():
+            return ref
+
+
+def parse_upi_sms(message_text):
+    """Parse a bank SMS to extract amount and UTR."""
+    amount = None
+    utr = None
+
+    # Amount patterns: ₹500, Rs.500, Rs 500, INR 500, Rs.1,500.00
+    amount_patterns = [
+        r'[Rr][Ss]\.?\s*([\d,]+(?:\.\d{1,2})?)',
+        r'₹\s*([\d,]+(?:\.\d{1,2})?)',
+        r'[Ii][Nn][Rr]\s*([\d,]+(?:\.\d{1,2})?)',
+    ]
+    for pat in amount_patterns:
+        m = re.search(pat, message_text)
+        if m:
+            try:
+                amount = Decimal(m.group(1).replace(',', ''))
+            except Exception:
+                pass
+            break
+
+    # UTR patterns: 10-15 digit number (UPI transaction reference)
+    # Avoid matching phone numbers, account numbers, etc.
+    utr_patterns = [
+        r'(?:UTR|Ref|UPI Ref|txn|Transaction)\s*(?:No|ID|#|:)?\s*[:\-]?\s*(\d{10,15})',
+        r'(\d{12})',  # Most UTRs are exactly 12 digits
+    ]
+    for pat in utr_patterns:
+        m = re.search(pat, message_text, re.IGNORECASE)
+        if m:
+            utr = m.group(1)
+            break
+
+    # Fallback: find any 10-15 digit number sequence
+    if not utr:
+        all_nums = re.findall(r'\b(\d{10,15})\b', message_text)
+        if all_nums:
+            utr = all_nums[-1]  # Last long number is usually UTR
+
+    return amount, utr
+
+
+def _fulfill_payment(payment, utr, verified_via='sms_auto'):
+    """Mark a payment as successful and credit wallet / activate membership."""
+    with transaction.atomic():
+        payment = Payment.objects.select_for_update().get(id=payment.id)
+        if payment.status == 'success':
+            return False  # Already processed
+
+        payment.utr = utr
+        payment.status = 'success'
+        payment.wallet_credited = True
+        payment.verified_via = verified_via
+        payment.failure_reason = None
+        payment.save(update_fields=[
+            'utr', 'status', 'wallet_credited', 'verified_via',
+            'failure_reason', 'updated_at',
+        ])
+
+        user = payment.user
+
+        if payment.purpose == 'wallet_topup':
+            profile = Profile.objects.select_for_update().get(user=user)
+            profile.reward_balance += payment.amount
+            profile.save(update_fields=['reward_balance'])
+            add_transaction(
+                user, 'credit', 'admin_topup', payment.amount,
+                f'💳 UPI wallet top-up — ₹{payment.amount} (UTR: {utr})',
+                category='credit', payment=payment,
+            )
+            send_notification(
+                user, 'wallet_credit',
+                f'✅ Wallet Top-up Successful — ₹{payment.amount}',
+                f'₹{payment.amount} added to your wallet. UTR: {utr}',
+            )
+
+        elif payment.purpose == 'creator_membership':
+            plan = payment.plan
+            if plan and plan in SUBSCRIPTION_PLAN_DAYS:
+                profile = Profile.objects.select_for_update().get(user=user)
+                now = timezone.now()
+                days = SUBSCRIPTION_PLAN_DAYS[plan]
+                start_base = profile.plan_expiry if profile.plan_expiry and profile.plan_expiry > now else now
+                new_expiry = start_base + timedelta(days=days)
+
+                CreatorMembership.objects.create(
+                    user=user, plan=plan,
+                    expires_at=new_expiry, is_active=True,
+                )
+                profile.is_creator = True
+                profile.creator_plan = plan
+                profile.plan_expiry = new_expiry
+                profile.tournaments_created_this_month = 0
+                profile.save(update_fields=[
+                    'is_creator', 'creator_plan', 'plan_expiry',
+                    'tournaments_created_this_month',
+                ])
+                add_transaction(
+                    user, 'debit', 'membership_purchase',
+                    payment.amount,
+                    f'💎 Creator membership ({plan}) via UPI — UTR: {utr}',
+                    category='debit', payment=payment,
+                )
+                send_notification(
+                    user, 'general',
+                    '✅ Membership Activated',
+                    f'Your {plan} creator membership is now active. UTR: {utr}',
+                )
+
+    logger.info(
+        "Payment fulfilled payment_id=%s user_id=%s utr=%s via=%s purpose=%s",
+        payment.id, payment.user_id, utr, verified_via, payment.purpose,
+    )
+    return True
+
+
+@csrf_exempt
+@require_POST
+def sms_webhook(request):
+    """Receive forwarded bank SMS from Android SMS Forwarder app."""
+    # Auth check
+    webhook_secret = getattr(settings, 'SMS_WEBHOOK_SECRET', '')
+    if webhook_secret:
+        auth_header = request.headers.get('X-API-Key', '') or request.headers.get('Authorization', '')
+        if auth_header != webhook_secret:
+            logger.warning("SMS webhook rejected — bad API key from %s", request.META.get('REMOTE_ADDR'))
+            return JsonResponse({'ok': False, 'error': 'Unauthorized.'}, status=401)
+
+    # Rate limit
+    ip = request.META.get('REMOTE_ADDR', 'unknown')
+    if not check_rate_limit(f'sms_webhook:{ip}', limit=60, window_seconds=60):
+        return JsonResponse({'ok': False, 'error': 'Rate limit exceeded.'}, status=429)
+
+    try:
+        payload = json.loads(request.body.decode('utf-8') or '{}')
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'Invalid JSON.'}, status=400)
+
+    sender = (payload.get('sender') or '')[:100]
+    message = payload.get('message') or ''
+    timestamp = (payload.get('timestamp') or '')[:100]
+
+    if not message:
+        return JsonResponse({'ok': False, 'error': 'Empty message.'}, status=400)
+
+    amount, utr = parse_upi_sms(message)
+
+    sms_log = SMSLog.objects.create(
+        sender=sender, message=message, timestamp=timestamp,
+        parsed_amount=amount, parsed_utr=utr,
+        source_ip=ip,
+    )
+    logger.info("SMS received sms_id=%s sender=%s amount=%s utr=%s", sms_log.id, sender, amount, utr)
+
+    if not amount or not utr:
+        return JsonResponse({'ok': True, 'matched': False, 'reason': 'Could not parse amount/UTR.'})
+
+    # Check UTR not already used
+    if Payment.objects.filter(utr=utr, status='success').exists():
+        logger.warning("Duplicate UTR rejected utr=%s", utr)
+        return JsonResponse({'ok': True, 'matched': False, 'reason': 'UTR already used.'})
+
+    # Find matching pending payment (created in last 15 minutes, amount matches)
+    cutoff = timezone.now() - timedelta(minutes=15)
+    pending = Payment.objects.filter(
+        status='pending',
+        amount=amount,
+        created_at__gte=cutoff,
+        wallet_credited=False,
+    ).order_by('created_at').first()
+
+    if not pending:
+        logger.info("No matching pending payment for amount=%s utr=%s", amount, utr)
+        return JsonResponse({'ok': True, 'matched': False, 'reason': 'No matching pending payment.'})
+
+    sms_log.matched_payment = pending
+    sms_log.save(update_fields=['matched_payment'])
+
+    _fulfill_payment(pending, utr, verified_via='sms_auto')
+
+    return JsonResponse({'ok': True, 'matched': True, 'payment_id': pending.id})
 
 
 @login_required
 @require_POST
-def create_razorpay_order(request):
-    rate_key = f"rzp_create:{request.user.id}"
-    if not check_rate_limit(rate_key, limit=15, window_seconds=60):
+def create_upi_payment_request(request):
+    """Create a pending UPI payment request for wallet top-up."""
+    rate_key = f"upi_create:{request.user.id}"
+    if not check_rate_limit(rate_key, limit=10, window_seconds=60):
         return JsonResponse({'ok': False, 'error': 'Too many requests. Please retry shortly.'}, status=429)
+
+    # Limit concurrent pending payments per user
+    pending_count = Payment.objects.filter(
+        user=request.user, status='pending',
+        created_at__gte=timezone.now() - timedelta(minutes=15),
+    ).count()
+    if pending_count >= 3:
+        return JsonResponse({'ok': False, 'error': 'You have too many pending payments. Please complete or wait for them to expire.'}, status=400)
 
     try:
         payload = json.loads(request.body.decode('utf-8') or '{}')
@@ -595,283 +787,160 @@ def create_razorpay_order(request):
     except Exception:
         return JsonResponse({'ok': False, 'error': 'Invalid amount.'}, status=400)
 
-    if amount_decimal <= 0:
-        return JsonResponse({'ok': False, 'error': 'Amount must be greater than 0.'}, status=400)
     if amount_decimal < Decimal('10.00') or amount_decimal > Decimal('50000.00'):
         return JsonResponse({'ok': False, 'error': 'Amount must be between ₹10 and ₹50,000.'}, status=400)
 
-    client = _get_razorpay_client()
-    if not client:
-        logger.error("Razorpay keys missing while creating order for user_id=%s", request.user.id)
-        return JsonResponse({'ok': False, 'error': 'Payment gateway not configured.'}, status=500)
-
-    amount_paise = int(amount_decimal * 100)
-    receipt = f"wallet_{request.user.id}_{int(timezone.now().timestamp())}"
-
-    try:
-        order = client.order.create({
-            'amount': amount_paise,
-            'currency': 'INR',
-            'receipt': receipt,
-            'payment_capture': 1,
-            'notes': {
-                'user_id': str(request.user.id),
-                'purpose': 'wallet_topup',
-            }
-        })
-    except Exception:
-        logger.exception("Razorpay order creation failed for user_id=%s", request.user.id)
-        return JsonResponse({'ok': False, 'error': 'Could not create payment order.'}, status=502)
+    reference_id = generate_reference_id()
+    admin_upi = getattr(settings, 'ADMIN_UPI_ID', 'manthanballa08@okicici')
 
     payment = Payment.objects.create(
         user=request.user,
         amount=amount_decimal,
-        razorpay_order_id=order.get('id'),
+        reference_id=reference_id,
+        purpose='wallet_topup',
         status='pending',
-        raw_payload={'create_order_response': order}
     )
-    logger.info(
-        "Payment order created payment_id=%s user_id=%s order_id=%s amount=%s",
-        payment.id, request.user.id, payment.razorpay_order_id, payment.amount
-    )
+    logger.info("UPI payment request created id=%s user=%s ref=%s amount=%s",
+                payment.id, request.user.id, reference_id, amount_decimal)
 
     return JsonResponse({
         'ok': True,
         'payment_id': payment.id,
-        'order_id': order.get('id'),
-        'amount_paise': amount_paise,
-        'currency': 'INR',
-        'key_id': settings.RAZORPAY_KEY_ID,
+        'reference_id': reference_id,
+        'amount': str(amount_decimal),
+        'upi_id': admin_upi,
     })
 
 
 @login_required
 @require_POST
-def verify_razorpay_payment(request):
-    rate_key = f"rzp_verify:{request.user.id}"
-    if not check_rate_limit(rate_key, limit=30, window_seconds=60):
-        return JsonResponse({'ok': False, 'error': 'Too many verify attempts. Please retry shortly.'}, status=429)
-
+def create_upi_subscription_request(request):
+    """Create a pending UPI payment request for creator membership."""
     try:
         payload = json.loads(request.body.decode('utf-8') or '{}')
     except Exception:
         return JsonResponse({'ok': False, 'error': 'Invalid JSON payload.'}, status=400)
 
-    order_id = payload.get('razorpay_order_id')
-    payment_id = payload.get('razorpay_payment_id')
-    signature = payload.get('razorpay_signature')
+    plan = payload.get('plan')
+    if plan not in SUBSCRIPTION_PLAN_AMOUNT:
+        return JsonResponse({'ok': False, 'error': 'Invalid plan selected.'}, status=400)
 
-    if not order_id or not payment_id or not signature:
-        return JsonResponse({'ok': False, 'error': 'Missing payment verification fields.'}, status=400)
+    pending_count = Payment.objects.filter(
+        user=request.user, status='pending', purpose='creator_membership',
+        created_at__gte=timezone.now() - timedelta(minutes=15),
+    ).count()
+    if pending_count >= 2:
+        return JsonResponse({'ok': False, 'error': 'You have pending membership payments. Please complete or wait.'}, status=400)
 
-    client = _get_razorpay_client()
-    if not client:
-        logger.error("Razorpay keys missing while verifying payment for user_id=%s", request.user.id)
-        return JsonResponse({'ok': False, 'error': 'Payment gateway not configured.'}, status=500)
+    amount_decimal = SUBSCRIPTION_PLAN_AMOUNT[plan]
+    reference_id = generate_reference_id()
+    admin_upi = getattr(settings, 'ADMIN_UPI_ID', 'manthanballa08@okicici')
 
-    try:
-        client.utility.verify_payment_signature({
-            'razorpay_order_id': order_id,
-            'razorpay_payment_id': payment_id,
-            'razorpay_signature': signature,
-        })
-    except Exception:
-        logger.exception("Signature verification failed user_id=%s order_id=%s", request.user.id, order_id)
-        affected = Payment.objects.filter(
-            user=request.user, razorpay_order_id=order_id, status='created'
-        ).update(status='failed', failure_reason='signature_verification_failed')
-        if not affected:
-            Payment.objects.filter(
-                user=request.user, razorpay_order_id=order_id, status='pending'
-            ).update(status='failed', failure_reason='signature_verification_failed')
-        send_notification(
-            request.user, 'general',
-            '❌ Wallet Top-up Failed',
-            'Payment signature verification failed. No amount was added to your wallet.'
-        )
-        return JsonResponse({'ok': False, 'error': 'Signature verification failed.'}, status=400)
-
-    try:
-        gateway_payment = client.payment.fetch(payment_id)
-    except Exception:
-        logger.exception("Could not fetch payment from Razorpay payment_id=%s", payment_id)
-        return JsonResponse({'ok': False, 'error': 'Unable to validate payment details.'}, status=502)
-
-    try:
-        with transaction.atomic():
-            payment = Payment.objects.select_for_update().get(
-                user=request.user,
-                razorpay_order_id=order_id
-            )
-
-            if payment.wallet_credited:
-                logger.info("Duplicate verify callback ignored payment_id=%s", payment.id)
-                return JsonResponse({
-                    'ok': True,
-                    'message': 'Payment already processed.',
-                    'new_balance': str(request.user.profile.reward_balance),
-                })
-
-            expected_amount_paise = int(payment.amount * 100)
-            if (
-                gateway_payment.get('status') != 'captured'
-                or gateway_payment.get('order_id') != order_id
-                or int(gateway_payment.get('amount', 0)) != expected_amount_paise
-            ):
-                payment.status = 'failed'
-                payment.failure_reason = 'payment_mismatch_or_not_captured'
-                payment.raw_payload = {
-                    'verify_payload': payload,
-                    'gateway_payment': gateway_payment,
-                }
-                payment.save(update_fields=['status', 'failure_reason', 'raw_payload', 'updated_at'])
-                logger.warning(
-                    "Payment mismatch user_id=%s payment_row=%s order_id=%s payment_id=%s",
-                    request.user.id, payment.id, order_id, payment_id
-                )
-                return JsonResponse({'ok': False, 'error': 'Payment validation failed.'}, status=400)
-
-            profile = Profile.objects.select_for_update().get(user=request.user)
-            profile.reward_balance += payment.amount
-            profile.save(update_fields=['reward_balance'])
-
-            payment.razorpay_payment_id = payment_id
-            payment.razorpay_signature = signature
-            payment.status = 'success'
-            payment.wallet_credited = True
-            payment.raw_payload = {
-                'verify_payload': payload,
-                'gateway_payment': gateway_payment,
-            }
-            payment.failure_reason = None
-            payment.save(update_fields=[
-                'razorpay_payment_id',
-                'razorpay_signature',
-                'status',
-                'wallet_credited',
-                'raw_payload',
-                'failure_reason',
-                'updated_at',
-            ])
-
-            add_transaction(
-                request.user,
-                'credit',
-                'admin_topup',
-                payment.amount,
-                f'💳 Razorpay wallet top-up successful — ₹{payment.amount}',
-                category='credit',
-                payment=payment
-            )
-            send_notification(
-                request.user,
-                'wallet_credit',
-                f'✅ Wallet Top-up Successful — ₹{payment.amount}',
-                f'Your Razorpay payment was verified and ₹{payment.amount} was added to your wallet.'
-            )
-    except Payment.DoesNotExist:
-        logger.warning(
-            "Payment row missing for verify user_id=%s order_id=%s payment_id=%s",
-            request.user.id, order_id, payment_id
-        )
-        return JsonResponse({'ok': False, 'error': 'Order not found.'}, status=404)
-
-    logger.info(
-        "Wallet credited user_id=%s order_id=%s payment_id=%s amount=%s",
-        request.user.id, order_id, payment_id, payment.amount
+    payment = Payment.objects.create(
+        user=request.user,
+        amount=amount_decimal,
+        reference_id=reference_id,
+        purpose='creator_membership',
+        plan=plan,
+        status='pending',
     )
+    logger.info("UPI subscription request created id=%s user=%s ref=%s plan=%s",
+                payment.id, request.user.id, reference_id, plan)
+
     return JsonResponse({
         'ok': True,
-        'message': 'Wallet top-up successful.',
-        'new_balance': str(profile.reward_balance),
+        'payment_id': payment.id,
+        'reference_id': reference_id,
+        'amount': str(amount_decimal),
+        'upi_id': admin_upi,
+        'plan': plan,
     })
 
 
 @login_required
 @require_POST
-def mark_razorpay_payment_failed(request):
+def submit_utr(request):
+    """User submits UTR manually for payment verification."""
+    rate_key = f"submit_utr:{request.user.id}"
+    if not check_rate_limit(rate_key, limit=20, window_seconds=60):
+        return JsonResponse({'ok': False, 'error': 'Too many attempts. Please retry shortly.'}, status=429)
+
     try:
         payload = json.loads(request.body.decode('utf-8') or '{}')
     except Exception:
         return JsonResponse({'ok': False, 'error': 'Invalid JSON payload.'}, status=400)
 
-    order_id = payload.get('razorpay_order_id')
-    reason = (payload.get('reason') or 'payment_failed')[:255]
-    raw_error = payload.get('raw_error')
-    if not order_id:
-        return JsonResponse({'ok': False, 'error': 'Order ID is required.'}, status=400)
+    payment_id = payload.get('payment_id')
+    utr = (payload.get('utr') or '').strip()
 
-    updated = Payment.objects.filter(
-        user=request.user,
-        razorpay_order_id=order_id,
-        wallet_credited=False
-    ).update(
-        status='failed',
-        failure_reason=reason,
-        raw_payload={'frontend_failure': raw_error} if raw_error else {'frontend_failure': reason}
-    )
-    logger.warning(
-        "Payment failed marked user_id=%s order_id=%s updated=%s reason=%s",
-        request.user.id, order_id, updated, reason
-    )
-    if updated:
-        send_notification(
-            request.user, 'general',
-            '❌ Wallet Top-up Failed',
-            'Your payment did not complete. No money was added.'
-        )
-    return JsonResponse({'ok': True})
+    if not payment_id or not utr:
+        return JsonResponse({'ok': False, 'error': 'Payment ID and UTR are required.'}, status=400)
+
+    if not re.match(r'^\d{10,15}$', utr):
+        return JsonResponse({'ok': False, 'error': 'Invalid UTR. Must be 10-15 digits.'}, status=400)
+
+    # Check UTR not already used
+    if Payment.objects.filter(utr=utr, status='success').exists():
+        return JsonResponse({'ok': False, 'error': 'This UTR has already been used.'}, status=400)
+
+    try:
+        payment = Payment.objects.get(id=payment_id, user=request.user, status='pending')
+    except Payment.DoesNotExist:
+        return JsonResponse({'ok': False, 'error': 'Payment request not found or already processed.'}, status=404)
+
+    # Check if SMS already arrived with this UTR
+    sms_match = SMSLog.objects.filter(parsed_utr=utr).first()
+    if sms_match:
+        # SMS with this UTR already received — instant verification
+        _fulfill_payment(payment, utr, verified_via='user_utr_sms_match')
+        return JsonResponse({
+            'ok': True, 'status': 'success',
+            'message': 'Payment verified instantly via SMS match!',
+        })
+
+    # No SMS yet — save UTR and mark as waiting for SMS confirmation
+    payment.utr = utr
+    payment.raw_payload = {'user_submitted_utr': utr, 'awaiting_sms': True}
+    payment.save(update_fields=['utr', 'raw_payload', 'updated_at'])
+
+    # Auto-approve after user submits UTR (trust the user, SMS is backup verification)
+    _fulfill_payment(payment, utr, verified_via='user_utr')
+
+    return JsonResponse({
+        'ok': True, 'status': 'success',
+        'message': 'Payment verified! Amount added to your wallet.',
+    })
 
 
 @login_required
-@require_POST
-def mark_razorpay_payment_abandoned(request):
-    try:
-        payload = json.loads(request.body.decode('utf-8') or '{}')
-    except Exception:
-        return JsonResponse({'ok': False, 'error': 'Invalid JSON payload.'}, status=400)
-
-    order_id = payload.get('razorpay_order_id')
-    if not order_id:
-        return JsonResponse({'ok': False, 'error': 'Order ID is required.'}, status=400)
-
-    Payment.objects.filter(
-        user=request.user,
-        razorpay_order_id=order_id,
-        wallet_credited=False,
-        status__in=['created', 'pending']
-    ).update(status='abandoned', failure_reason='checkout_closed_by_user')
-    logger.info("Payment abandoned user_id=%s order_id=%s", request.user.id, order_id)
-    return JsonResponse({'ok': True})
-
-
-@csrf_exempt
-@require_POST
-def razorpay_webhook(request):
-    webhook_secret = settings.RAZORPAY_WEBHOOK_SECRET
-    if not webhook_secret:
-        return JsonResponse({'ok': False, 'error': 'Webhook is not configured.'}, status=400)
-
-    signature = request.headers.get('X-Razorpay-Signature')
-    body = request.body
-
-    client = _get_razorpay_client()
-    if not client:
-        return JsonResponse({'ok': False, 'error': 'Payment gateway not configured.'}, status=500)
+def check_payment_status(request):
+    """Polling endpoint for real-time payment status updates."""
+    payment_id = request.GET.get('payment_id')
+    if not payment_id:
+        return JsonResponse({'ok': False, 'error': 'Payment ID required.'}, status=400)
 
     try:
-        client.utility.verify_webhook_signature(body, signature, webhook_secret)
-    except Exception:
-        logger.exception("Invalid Razorpay webhook signature.")
-        return JsonResponse({'ok': False, 'error': 'Invalid webhook signature.'}, status=400)
+        payment = Payment.objects.get(id=payment_id, user=request.user)
+    except Payment.DoesNotExist:
+        return JsonResponse({'ok': False, 'error': 'Payment not found.'}, status=404)
 
-    try:
-        event = json.loads(body.decode('utf-8'))
-    except Exception:
-        return JsonResponse({'ok': False, 'error': 'Invalid webhook JSON.'}, status=400)
+    # Expire old pending payments
+    if payment.status == 'pending' and payment.created_at < timezone.now() - timedelta(minutes=15):
+        payment.status = 'expired'
+        payment.failure_reason = 'Payment request expired (15 min timeout)'
+        payment.save(update_fields=['status', 'failure_reason', 'updated_at'])
 
-    logger.info("Razorpay webhook received event=%s", event.get('event'))
-    return JsonResponse({'ok': True})
+    result = {
+        'ok': True,
+        'status': payment.status,
+        'reference_id': payment.reference_id,
+        'amount': str(payment.amount),
+    }
+    if payment.status == 'success':
+        result['new_balance'] = str(request.user.profile.reward_balance)
+    return JsonResponse(result)
+
+
 
 
 # ─── WITHDRAW ──────────────────────────────────────────────────────────────
@@ -936,202 +1005,13 @@ def subscription_view(request):
     memberships = CreatorMembership.objects.filter(
         user=request.user
     ).order_by('-started_at')
+    admin_upi = getattr(settings, 'ADMIN_UPI_ID', 'manthanballa08@okicici')
     return render(request, 'subscription.html', {
         'profile': profile,
         'memberships': memberships,
-        'razorpay_key_id': settings.RAZORPAY_KEY_ID,
         'plan_amounts': SUBSCRIPTION_PLAN_AMOUNT,
+        'admin_upi_id': admin_upi,
     })
-
-
-@login_required
-@require_POST
-def create_subscription_order(request):
-    try:
-        payload = json.loads(request.body.decode('utf-8') or '{}')
-    except Exception:
-        return JsonResponse({'ok': False, 'error': 'Invalid JSON payload.'}, status=400)
-
-    plan = payload.get('plan')
-    if plan not in SUBSCRIPTION_PLAN_AMOUNT:
-        return JsonResponse({'ok': False, 'error': 'Invalid plan selected.'}, status=400)
-
-    client = _get_razorpay_client()
-    if not client:
-        return JsonResponse({'ok': False, 'error': 'Payment gateway not configured.'}, status=500)
-
-    amount_decimal = SUBSCRIPTION_PLAN_AMOUNT[plan]
-    amount_paise = int(amount_decimal * 100)
-    receipt = f"sub_{request.user.id}_{plan}_{int(timezone.now().timestamp())}"
-
-    try:
-        order = client.order.create({
-            'amount': amount_paise,
-            'currency': 'INR',
-            'receipt': receipt,
-            'payment_capture': 1,
-            'notes': {
-                'user_id': str(request.user.id),
-                'purpose': 'creator_membership',
-                'plan': plan,
-            }
-        })
-    except Exception:
-        logger.exception("Subscription order creation failed user_id=%s plan=%s", request.user.id, plan)
-        return JsonResponse({'ok': False, 'error': 'Could not create subscription order.'}, status=502)
-
-    payment = Payment.objects.create(
-        user=request.user,
-        amount=amount_decimal,
-        razorpay_order_id=order.get('id'),
-        status='pending',
-        raw_payload={
-            'purpose': 'creator_membership',
-            'plan': plan,
-            'create_order_response': order,
-        }
-    )
-    logger.info("Subscription order created payment_id=%s user_id=%s plan=%s", payment.id, request.user.id, plan)
-    return JsonResponse({
-        'ok': True,
-        'order_id': order.get('id'),
-        'amount_paise': amount_paise,
-        'currency': 'INR',
-        'key_id': settings.RAZORPAY_KEY_ID,
-        'plan': plan,
-    })
-
-
-@login_required
-@require_POST
-def verify_subscription_payment(request):
-    try:
-        payload = json.loads(request.body.decode('utf-8') or '{}')
-    except Exception:
-        return JsonResponse({'ok': False, 'error': 'Invalid JSON payload.'}, status=400)
-
-    order_id = payload.get('razorpay_order_id')
-    payment_id = payload.get('razorpay_payment_id')
-    signature = payload.get('razorpay_signature')
-    plan = payload.get('plan')
-
-    if not order_id or not payment_id or not signature or plan not in SUBSCRIPTION_PLAN_AMOUNT:
-        return JsonResponse({'ok': False, 'error': 'Missing payment verification fields.'}, status=400)
-
-    client = _get_razorpay_client()
-    if not client:
-        return JsonResponse({'ok': False, 'error': 'Payment gateway not configured.'}, status=500)
-
-    try:
-        client.utility.verify_payment_signature({
-            'razorpay_order_id': order_id,
-            'razorpay_payment_id': payment_id,
-            'razorpay_signature': signature,
-        })
-    except Exception:
-        Payment.objects.filter(user=request.user, razorpay_order_id=order_id).update(
-            status='failed', failure_reason='subscription_signature_verification_failed'
-        )
-        return JsonResponse({'ok': False, 'error': 'Signature verification failed.'}, status=400)
-
-    try:
-        gateway_payment = client.payment.fetch(payment_id)
-    except Exception:
-        logger.exception("Could not fetch subscription payment payment_id=%s", payment_id)
-        return JsonResponse({'ok': False, 'error': 'Unable to validate payment details.'}, status=502)
-
-    expected_amount_paise = int(SUBSCRIPTION_PLAN_AMOUNT[plan] * 100)
-
-    try:
-        with transaction.atomic():
-            payment = Payment.objects.select_for_update().get(
-                user=request.user,
-                razorpay_order_id=order_id
-            )
-            payment_purpose = (payment.raw_payload or {}).get('purpose')
-            payment_plan = (payment.raw_payload or {}).get('plan')
-
-            if payment.wallet_credited:
-                return JsonResponse({'ok': True, 'message': 'Membership already activated.'})
-
-            if payment_purpose != 'creator_membership' or payment_plan != plan:
-                payment.status = 'failed'
-                payment.failure_reason = 'subscription_plan_or_purpose_mismatch'
-                payment.save(update_fields=['status', 'failure_reason', 'updated_at'])
-                return JsonResponse({'ok': False, 'error': 'Payment metadata mismatch.'}, status=400)
-
-            if (
-                gateway_payment.get('status') != 'captured'
-                or gateway_payment.get('order_id') != order_id
-                or int(gateway_payment.get('amount', 0)) != expected_amount_paise
-            ):
-                payment.status = 'failed'
-                payment.failure_reason = 'subscription_payment_mismatch_or_not_captured'
-                payment.raw_payload = {
-                    **(payment.raw_payload or {}),
-                    'verify_payload': payload,
-                    'gateway_payment': gateway_payment,
-                }
-                payment.save(update_fields=['status', 'failure_reason', 'raw_payload', 'updated_at'])
-                return JsonResponse({'ok': False, 'error': 'Payment validation failed.'}, status=400)
-
-            profile = Profile.objects.select_for_update().get(user=request.user)
-            now = timezone.now()
-            days = SUBSCRIPTION_PLAN_DAYS[plan]
-            start_base = profile.plan_expiry if profile.plan_expiry and profile.plan_expiry > now else now
-            new_expiry = start_base + timedelta(days=days)
-
-            CreatorMembership.objects.create(
-                user=request.user,
-                plan=plan,
-                expires_at=new_expiry,
-                is_active=True
-            )
-
-            profile.is_creator = True
-            profile.creator_plan = plan
-            profile.plan_expiry = new_expiry
-            profile.tournaments_created_this_month = 0
-            profile.save(update_fields=['is_creator', 'creator_plan', 'plan_expiry', 'tournaments_created_this_month'])
-
-            payment.razorpay_payment_id = payment_id
-            payment.razorpay_signature = signature
-            payment.status = 'success'
-            payment.wallet_credited = True
-            payment.failure_reason = None
-            payment.raw_payload = {
-                **(payment.raw_payload or {}),
-                'verify_payload': payload,
-                'gateway_payment': gateway_payment,
-            }
-            payment.save(update_fields=[
-                'razorpay_payment_id',
-                'razorpay_signature',
-                'status',
-                'wallet_credited',
-                'failure_reason',
-                'raw_payload',
-                'updated_at',
-            ])
-
-            add_transaction(
-                request.user,
-                'debit',
-                'membership_purchase',
-                SUBSCRIPTION_PLAN_AMOUNT[plan],
-                f'💎 Creator membership purchase ({plan}) via Razorpay',
-                category='debit',
-                payment=payment
-            )
-    except Payment.DoesNotExist:
-        return JsonResponse({'ok': False, 'error': 'Subscription order not found.'}, status=404)
-
-    send_notification(
-        request.user, 'general',
-        '✅ Membership Activated Instantly',
-        f'Your {plan} creator membership is active now.'
-    )
-    return JsonResponse({'ok': True, 'message': 'Membership activated successfully.'})
 
 
 # ─── TOURNAMENT ────────────────────────────────────────────────────────────
@@ -2849,3 +2729,88 @@ def reactivate_membership(request, membership_id):
         f'Your {membership.plan} creator membership has been reactivated. You can host tournaments again!'
     )
     return redirect('/creator-admin/')
+
+
+# ─── CUP MANAGEMENT (EDIT / DELETE) ────────────────────────────────────────
+
+@login_required
+def edit_cup(request, cup_id):
+    """Allow cup creator or admin to edit cup details (before bracket generated)."""
+    cup = get_object_or_404(Cup, id=cup_id)
+
+    if request.user != cup.creator and not request.user.profile.is_admin:
+        return redirect('/')
+
+    if request.method == 'POST':
+        timezone_choice = request.POST.get('timezone_choice', 'IST')
+        cup.name = request.POST.get('name', cup.name).strip() or cup.name
+        cup.prize_pool = request.POST.get('prize_pool') or cup.prize_pool
+        cup.rules = request.POST.get('rules', cup.rules).strip()
+        cup.eligibility_criteria = request.POST.get('eligibility_criteria', cup.eligibility_criteria).strip() or cup.eligibility_criteria
+        cup.min_trophies = int(request.POST.get('min_trophies') or cup.min_trophies)
+        cup.max_players = int(request.POST.get('max_players') or cup.max_players)
+        start_raw = request.POST.get('start_time')
+        end_raw = request.POST.get('end_time')
+        if start_raw:
+            cup.start_time = parse_and_convert(start_raw, timezone_choice)
+        if end_raw:
+            cup.end_time = parse_and_convert(end_raw, timezone_choice)
+        cup.save()
+
+        # Update join guide if present
+        if hasattr(cup, 'join_guide'):
+            cup.join_guide.clan_name = request.POST.get('clan_name', cup.join_guide.clan_name).strip()
+            cup.join_guide.clan_tag = request.POST.get('clan_tag', cup.join_guide.clan_tag).strip()
+            cup.join_guide.instructions = request.POST.get('instructions', cup.join_guide.instructions).strip()
+            cup.join_guide.save()
+        else:
+            clan_name = request.POST.get('clan_name', '').strip()
+            clan_tag = request.POST.get('clan_tag', '').strip()
+            instructions = request.POST.get('instructions', '').strip()
+            if clan_name:
+                CupJoinGuide.objects.create(
+                    cup=cup,
+                    clan_name=clan_name,
+                    clan_tag=clan_tag,
+                    instructions=instructions,
+                )
+        _log_cup_action(cup, request.user, 'create_cup', message='Cup details updated by organizer.')
+        return redirect(f'/cups/{cup.id}/')
+
+    return render(request, 'edit_cup.html', {
+        'cup': cup,
+        'guide': getattr(cup, 'join_guide', None),
+    })
+
+
+@login_required
+@require_POST
+def delete_cup(request, cup_id):
+    """Allow cup creator or admin to delete a cup."""
+    cup = get_object_or_404(Cup, id=cup_id)
+
+    if request.user != cup.creator and not request.user.profile.is_admin:
+        return redirect('/')
+
+    # Notify participants
+    participant_ids = list(cup.participants.values_list('user_id', flat=True))
+    if participant_ids:
+        _notify_cup_users(
+            participant_ids,
+            f'Cup "{cup.name}" has been cancelled and deleted by the organizer.',
+            url='/cups/'
+        )
+
+    cup.delete()
+    return redirect('/cups/')
+
+
+@login_required
+def payment_page(request):
+    """Dedicated UPI payment page for wallet top-up with QR code."""
+    from django.conf import settings as django_settings
+    admin_upi = getattr(django_settings, 'ADMIN_UPI_ID', 'manthanballa08@okicici')
+    return render(request, 'payment_page.html', {
+        'admin_upi_id': admin_upi,
+        'profile': request.user.profile,
+    })

@@ -187,9 +187,9 @@ else:
         'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
     }
 
-RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID') or os.getenv('RAZORPAY_TEST_KEY_ID', '')
-RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET') or os.getenv('RAZORPAY_TEST_KEY_SECRET', '')
-RAZORPAY_WEBHOOK_SECRET = os.getenv('RAZORPAY_WEBHOOK_SECRET', '')
+# UPI Payment Settings
+ADMIN_UPI_ID = os.getenv('ADMIN_UPI_ID', 'manthanballa08@okicici')
+SMS_WEBHOOK_SECRET = os.getenv('SMS_WEBHOOK_SECRET', '')
 
 CELERY_BROKER_URL = os.getenv('REDIS_URL', '')
 CELERY_RESULT_BACKEND = os.getenv('REDIS_URL', '')
