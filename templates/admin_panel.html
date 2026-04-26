@@ -1,437 +1,544 @@
 {% extends "base.html" %}
 
+{% block meta %}
+<title>Admin Dashboard — Clash Arena</title>
+{% endblock %}
+
 {% block content %}
-
-<div class="max-w-4xl mx-auto px-3 sm:px-4 py-6 sm:py-8">
-
-    <h1 class="text-2xl sm:text-3xl font-extrabold text-white mb-1 tracking-tight">Admin panel</h1>
-    <p class="ca-muted text-sm mb-8">Moderation, payouts, and platform controls</p>
-
-    <!-- STATS ROW -->
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8">
-        <div class="ca-glass p-4 sm:p-5 text-center">
-            <p class="text-2xl sm:text-3xl font-bold text-ca-accent">{{ tournament_data|length }}</p>
-            <p class="ca-muted text-xs mt-1 font-medium uppercase tracking-wider">Tournaments</p>
+<div class="max-w-6xl mx-auto px-4 py-8">
+    
+    <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
+        <div>
+            <h1 class="text-3xl font-extrabold text-white tracking-tight">Admin Dashboard</h1>
+            <p class="ca-muted text-sm">Platform health and moderation console</p>
         </div>
-        <div class="ca-glass p-4 sm:p-5 text-center">
-            <p class="text-2xl sm:text-3xl font-bold text-emerald-300">{{ users|length }}</p>
-            <p class="ca-muted text-xs mt-1 font-medium uppercase tracking-wider">Users</p>
+        <div class="flex gap-3">
+            <a href="/create-tournament/" class="ca-btn text-xs px-4">＋ Create Tournament</a>
+            <a href="/cups/" class="ca-btn-outline text-xs px-4">View All Cups</a>
         </div>
-        <a href="/create-tournament/" class="block">
-            <div class="ca-glass p-4 sm:p-5 text-center h-full min-h-[5.5rem] flex flex-col items-center justify-center border border-ca-accent/25 hover:border-ca-accent/50 transition">
-                <p class="text-2xl font-bold text-ca-accent">+</p>
-                <p class="ca-muted text-xs mt-1 font-medium uppercase tracking-wider">New</p>
-            </div>
-        </a>
     </div>
 
-    <!-- TOURNAMENTS -->
-    <h2 class="text-lg font-bold text-white mb-3">All tournaments</h2>
-    <div class="ca-panel mb-8">
-        {% for item in tournament_data %}
-        <div class="p-4 border-b border-white/[0.06]">
-
-            <div class="flex items-start justify-between gap-2 mb-2">
-                <a href="/tournament/{{ item.tournament.id }}/"
-                   class="font-bold text-white hover:text-ca-accent text-sm leading-tight flex-1">
-                    {{ item.tournament.name }}
-                </a>
-                {% if item.tournament.status == 'upcoming' %}
-                    <span class="text-blue-400 text-xs border border-blue-400/30 px-2 py-0.5 rounded-full flex-shrink-0">🕐 Upcoming</span>
-                {% elif item.tournament.status == 'ongoing' %}
-                    <span class="text-green-400 text-xs border border-green-400/30 px-2 py-0.5 rounded-full flex-shrink-0">🔴 Live</span>
-                {% elif item.tournament.status == 'completed' %}
-                    <span class="text-yellow-400 text-xs border border-yellow-400/30 px-2 py-0.5 rounded-full flex-shrink-0">🏆 Done</span>
-                {% elif item.tournament.status == 'cancelled' %}
-                    <span class="text-red-400 text-xs border border-red-400/30 px-2 py-0.5 rounded-full flex-shrink-0">❌ Cancelled</span>
-                {% endif %}
-            </div>
-
-            <div class="flex flex-wrap gap-x-3 gap-y-1 mb-3">
-                <span class="text-gray-500 text-xs">👥 {{ item.count }} players</span>
-                <span class="text-gray-500 text-xs">🕐 {{ item.tournament.start_time|date:"d M Y, H:i" }}</span>
-                {% if item.tournament.is_paid %}
-                    <span class="text-yellow-400 text-xs">💰 ₹{{ item.tournament.entry_fee }} entry</span>
-                    <span class="text-green-400 text-xs">🏆 Pool: ₹{{ item.tournament.prize_pool }}</span>
-                {% endif %}
-                {% if item.tournament.password %}
-                    <span class="text-yellow-400 text-xs">🔑 {{ item.tournament.password }}</span>
-                {% endif %}
-            </div>
-
-            <div class="flex gap-2">
-                <a href="/edit-tournament/{{ item.tournament.id }}/"
-                   class="flex-1 text-center ca-btn-outline min-h-[2.75rem] text-xs font-bold">
-                    Edit
-                </a>
-                <form method="POST" action="/delete-tournament/{{ item.tournament.id }}/"
-                      onsubmit="return confirm('Delete {{ item.tournament.name }}?')"
-                      class="flex-1">
-                    {% csrf_token %}
-                    <button type="submit"
-                            class="w-full min-h-[2.75rem] bg-red-600/90 text-white px-3 py-2 rounded-xl font-bold text-xs hover:bg-red-500 transition border border-red-500/40">
-                        Delete
-                    </button>
-                </form>
-            </div>
-
+    <!-- STATS OVERVIEW -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div class="ca-glass p-5 text-center group hover:border-ca-accent/30 transition">
+            <p class="text-3xl font-black text-ca-accent">₹{{ total_reward_balance|floatformat:0 }}</p>
+            <p class="ca-muted text-[10px] uppercase tracking-widest mt-1 font-bold">Total User Balance</p>
         </div>
-        {% empty %}
-        <p class="text-gray-500 p-5 text-sm">No tournaments yet.</p>
-        {% endfor %}
+        <div class="ca-glass p-5 text-center group hover:border-red-500/30 transition">
+            <p class="text-3xl font-black text-red-400">{{ open_disputes_count }}</p>
+            <p class="ca-muted text-[10px] uppercase tracking-widest mt-1 font-bold">Open Disputes</p>
+        </div>
+        <div class="ca-glass p-5 text-center group hover:border-yellow-500/30 transition">
+            <p class="text-3xl font-black text-yellow-400">{{ pending_withdrawals_count }}</p>
+            <p class="ca-muted text-[10px] uppercase tracking-widest mt-1 font-bold">Pending Payouts</p>
+        </div>
+        <div class="ca-glass p-5 text-center group hover:border-emerald-500/30 transition">
+            <p class="text-3xl font-black text-emerald-400">{{ users|length }}</p>
+            <p class="ca-muted text-[10px] uppercase tracking-widest mt-1 font-bold">Total Citizens</p>
+        </div>
     </div>
 
-    <!-- USERS -->
-    <h2 class="text-lg font-bold text-white mb-3">All users</h2>
-    <div class="ca-panel mb-8">
-        {% for u in users %}
-        <div class="p-4 border-b border-white/[0.06]">
-
-            <!-- USER INFO -->
-            <div class="mb-3">
-                <div class="flex items-center gap-2 mb-1 flex-wrap">
-                    <p class="font-bold text-white text-sm">{{ u.username }}</p>
-                    {% if not u.is_active %}
-                        <span class="text-red-400 text-xs border border-red-400/40 px-2 py-0.5 rounded-full">🚫 Banned</span>
-                    {% elif u.profile.is_admin %}
-                        <span class="text-red-400 text-xs border border-red-400/40 px-2 py-0.5 rounded-full">👑 Admin</span>
-                    {% elif u.profile.is_creator %}
-                        <span class="text-yellow-400 text-xs border border-yellow-400/40 px-2 py-0.5 rounded-full">🎮 Creator</span>
-                    {% else %}
-                        <span class="text-gray-400 text-xs border border-gray-600 px-2 py-0.5 rounded-full">Player</span>
-                    {% endif %}
-                </div>
-                <p class="text-gray-500 text-xs">{{ u.email }}</p>
-                <p class="text-gray-600 text-xs">Joined: {{ u.date_joined|date:"d M Y" }}</p>
-                <p class="text-green-400 text-xs mt-1">💰 ₹{{ u.profile.reward_balance }}</p>
-                {% if u.profile.plan_active %}
-                    <p class="text-ca-accent text-xs">📅 {{ u.profile.get_creator_plan_display }} — expires {{ u.profile.plan_expiry|date:"d M Y" }}</p>
-                {% endif %}
-            </div>
-
-            {% if u != request.user %}
-
-            <!-- TOP UP WALLET -->
-            <form method="POST" action="/topup-wallet/{{ u.id }}/"
-                  class="flex gap-2 mb-2">
-                {% csrf_token %}
-                <input type="number" name="amount" placeholder="₹ Add to wallet"
-                       min="1" required
-                       class="flex-1 p-2 bg-black/35 border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-green-400">
-                <button type="submit"
-                        class="bg-green-500 text-white px-3 py-2 rounded font-bold text-xs hover:bg-green-400 transition flex-shrink-0">
-                    💰 Add
-                </button>
-            </form>
-
-            <!-- ROLE ACTIONS -->
-            <div class="flex gap-2 mb-2">
-                {% if u.is_active %}
-                    {% if u.profile.is_admin %}
-                        <form method="POST" action="/demote-user/{{ u.id }}/" class="flex-1">
-                            {% csrf_token %}
-                            <button type="submit"
-                                    class="w-full min-h-[2.75rem] ca-btn-outline text-xs font-bold">
-                                Remove Admin
-                            </button>
-                        </form>
-                    {% elif u.profile.is_creator %}
-                        <form method="POST" action="/demote-user/{{ u.id }}/" class="flex-1">
-                            {% csrf_token %}
-                            <button type="submit"
-                                    class="w-full min-h-[2.75rem] ca-btn-outline text-xs font-bold">
-                                Make Player
-                            </button>
-                        </form>
-                    {% else %}
-                        <form method="POST" action="/promote-user/{{ u.id }}/" class="flex-1">
-                            {% csrf_token %}
-                            <button type="submit"
-                                    class="w-full min-h-[2.75rem] ca-btn text-xs">
-                                Make Admin
-                            </button>
-                        </form>
-                    {% endif %}
-                    <form method="POST" action="/ban-user/{{ u.id }}/"
-                          onsubmit="return confirm('Ban {{ u.username }}?')"
-                          class="flex-1">
-                        {% csrf_token %}
-                        <button type="submit"
-                                class="w-full bg-orange-500 text-white px-3 py-2 rounded font-bold text-xs hover:bg-orange-400 transition">
-                            🚫 Ban
-                        </button>
-                    </form>
-                {% else %}
-                    <form method="POST" action="/unban-user/{{ u.id }}/" class="flex-1">
-                        {% csrf_token %}
-                        <button type="submit"
-                                class="w-full bg-green-500 text-white px-3 py-2 rounded font-bold text-xs hover:bg-green-400 transition">
-                            ✅ Unban
-                        </button>
-                    </form>
-                {% endif %}
-            </div>
-
-            <!-- DELETE USER -->
-            <form method="POST" action="/delete-user/{{ u.id }}/"
-                  onsubmit="return confirm('PERMANENTLY delete {{ u.username }} and all their data?')">
-                {% csrf_token %}
-                <button type="submit"
-                        class="w-full bg-red-600 text-white px-3 py-2 rounded font-bold text-xs hover:bg-red-500 transition">
-                    🗑️ Delete User Permanently
-                </button>
-            </form>
-
-            {% else %}
-            <p class="text-gray-600 text-xs">( you )</p>
-            {% endif %}
-
-        </div>
-        {% empty %}
-        <p class="text-gray-500 p-5 text-sm">No users yet.</p>
-        {% endfor %}
+    <!-- TABS NAVIGATION -->
+    <div class="flex overflow-x-auto gap-1 bg-black/20 p-1 rounded-2xl border border-white/5 mb-6 no-scrollbar">
+        <button onclick="showTab('overview')" class="admin-tab-btn active px-5 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap" id="tab-btn-overview">Overview</button>
+        <button onclick="showTab('disputes')" class="admin-tab-btn px-5 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap" id="tab-btn-disputes">Disputes {% if open_disputes_count %}<span class="ml-1 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{{ open_disputes_count }}</span>{% endif %}</button>
+        <button onclick="showTab('withdrawals')" class="admin-tab-btn px-5 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap" id="tab-btn-withdrawals">Withdrawals {% if pending_withdrawals_count %}<span class="ml-1 bg-yellow-500 text-black text-[10px] px-1.5 py-0.5 rounded-full">{{ pending_withdrawals_count }}</span>{% endif %}</button>
+        <button onclick="showTab('users')" class="admin-tab-btn px-5 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap" id="tab-btn-users">Users</button>
+        <button onclick="showTab('tournaments')" class="admin-tab-btn px-5 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap" id="tab-btn-tournaments">Tournaments</button>
+        <button onclick="showTab('creators')" class="admin-tab-btn px-5 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap" id="tab-btn-creators">Creator Plans</button>
+        <button onclick="showTab('rewards')" class="admin-tab-btn px-5 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap" id="tab-btn-rewards">Reward Codes</button>
     </div>
 
-    <!-- WITHDRAWAL REQUESTS -->
-    <h2 class="text-lg font-bold text-white mb-3">Withdrawal requests</h2>
-    <div class="ca-panel mb-8">
-        {% for w in withdrawal_requests %}
-        <div class="p-4 border-b border-white/[0.06]">
-            <div class="flex items-start justify-between gap-2 mb-3">
-                <div>
-                    <p class="font-bold text-white text-sm">{{ w.user.username }}</p>
-                    <p class="text-yellow-400 font-bold">₹{{ w.amount }}</p>
-                    <p class="text-gray-500 text-xs">UPI: {{ w.upi_id }}</p>
-                    <p class="text-gray-600 text-xs">{{ w.requested_at|date:"d M Y, H:i" }}</p>
-                </div>
-                {% if w.status == 'pending' %}
-                    <span class="text-yellow-400 text-xs border border-yellow-400/40 px-2 py-0.5 rounded-full flex-shrink-0">⏳ Pending</span>
-                {% elif w.status == 'approved' %}
-                    <span class="text-green-400 text-xs border border-green-400/40 px-2 py-0.5 rounded-full flex-shrink-0">✅ Approved</span>
-                {% else %}
-                    <span class="text-red-400 text-xs border border-red-400/40 px-2 py-0.5 rounded-full flex-shrink-0">❌ Rejected</span>
-                {% endif %}
-            </div>
-            {% if w.status == 'pending' %}
-            <div class="flex gap-2">
-                <form method="POST" action="/approve-withdrawal/{{ w.id }}/" class="flex-1">
-                    {% csrf_token %}
-                    <button type="submit"
-                            class="w-full bg-green-500 text-white px-3 py-2 rounded font-bold text-xs hover:bg-green-400 transition">
-                        ✅ Approve
-                    </button>
-                </form>
-                <form method="POST" action="/reject-withdrawal/{{ w.id }}/"
-                      onsubmit="return confirm('Reject and refund ₹{{ w.amount }} to {{ w.user.username }}?')"
-                      class="flex-1">
-                    {% csrf_token %}
-                    <button type="submit"
-                            class="w-full bg-red-500 text-white px-3 py-2 rounded font-bold text-xs hover:bg-red-400 transition">
-                        ❌ Reject & Refund
-                    </button>
-                </form>
-            </div>
-            {% endif %}
-        </div>
-        {% empty %}
-        <p class="text-gray-500 text-sm p-5">No withdrawal requests yet.</p>
-        {% endfor %}
-    </div>
-
-    <!-- REWARD CODES -->
-    <h2 class="text-lg font-bold text-white mb-3">Reward codes</h2>
-    <form method="POST" action="/add-reward-code/"
-          class="ca-glass p-4 mb-4">
-        {% csrf_token %}
-        <div class="flex flex-col gap-2">
-            <input type="text" name="code" placeholder="Enter reward code" required
-                   class="w-full p-2.5 bg-black/35 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-green-400">
-            <input type="text" name="description" placeholder="Description (optional)"
-                   class="w-full p-2.5 bg-black/35 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-green-400">
-            <button type="submit"
-                    class="w-full bg-green-500 text-white py-2 rounded font-bold text-sm hover:bg-green-400 transition">
-                ➕ Add Code
-            </button>
-        </div>
-    </form>
-
-    <div class="ca-panel mb-8">
-        {% for code in reward_codes %}
-        <div class="p-4 border-b border-white/[0.06]">
-            <div class="flex items-start justify-between gap-2 mb-2">
-                <div class="flex-1 min-w-0">
-                    <p class="font-bold text-white text-sm font-mono truncate">{{ code.code }}</p>
-                    {% if code.description %}
-                        <p class="text-gray-500 text-xs">{{ code.description }}</p>
-                    {% endif %}
-                    {% if code.assigned_to %}
-                        <p class="text-green-400 text-xs">Sent to: {{ code.assigned_to.username }}</p>
-                    {% endif %}
-                </div>
-                {% if code.sent %}
-                    <span class="text-green-400 text-xs border border-green-400/40 px-2 py-0.5 rounded-full flex-shrink-0">✅ Sent</span>
-                {% else %}
-                    <span class="text-yellow-400 text-xs border border-yellow-400/40 px-2 py-0.5 rounded-full flex-shrink-0">Available</span>
-                {% endif %}
-            </div>
-            {% if not code.sent %}
-            <form method="POST" action="/send-reward-code/{{ code.id }}/" class="flex gap-2">
-                {% csrf_token %}
-                <select name="user_id"
-                        class="flex-1 p-2 bg-black/35 border border-white/10 rounded-xl text-white text-xs focus:outline-none">
-                    {% for u in users %}
-                        <option value="{{ u.id }}">{{ u.username }}</option>
+    <!-- TAB CONTENTS -->
+    <div id="tab-overview" class="admin-tab-content active">
+        <div class="grid lg:grid-cols-2 gap-6">
+            <div class="ca-panel p-6">
+                <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-ca-accent"></span>
+                    Recent Activity
+                </h3>
+                <div class="space-y-4">
+                    {% for t in all_transactions %}
+                    <div class="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/[0.05]">
+                        <div class="flex-1 min-w-0">
+                            <p class="text-white text-xs font-bold truncate">{{ t.user.username }}</p>
+                            <p class="text-[10px] text-gray-500">{{ t.description }}</p>
+                        </div>
+                        <div class="text-right ml-4">
+                            <p class="text-sm font-black {% if t.transaction_type == 'credit' %}text-emerald-400{% else %}text-red-400{% endif %}">
+                                {% if t.transaction_type == 'credit' %}+{% else %}-{% endif %}₹{{ t.amount }}
+                            </p>
+                            <p class="text-[9px] text-gray-600 uppercase font-bold">{{ t.created_at|date:"d M, H:i" }}</p>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p class="text-gray-500 text-sm italic">No recent transactions.</p>
                     {% endfor %}
-                </select>
-                <button type="submit"
-                        class="bg-green-500 text-white px-3 py-2 rounded font-bold text-xs hover:bg-green-400 transition flex-shrink-0">
-                    📧 Send
-                </button>
-            </form>
-            {% endif %}
-        </div>
-        {% empty %}
-        <p class="text-gray-500 text-sm p-5">No reward codes yet.</p>
-        {% endfor %}
-    </div>
-
-    <!-- CREATOR MEMBERSHIPS -->
-    <h2 class="text-lg font-bold text-white mb-3">Creator memberships</h2>
-    <div class="ca-panel mb-4">
-        {% for m in memberships %}
-        <div class="p-4 border-b border-white/[0.06]">
-            <div class="flex items-start justify-between gap-2 mb-3">
-                <div>
-                    <p class="font-bold text-white text-sm">{{ m.user.username }}</p>
-                    <p class="text-yellow-400 text-xs">{{ m.get_plan_display }}</p>
-                    <p class="text-gray-500 text-xs">Started: {{ m.started_at|date:"d M Y" }}</p>
-                    <p class="text-gray-500 text-xs">Expires: {{ m.expires_at|date:"d M Y" }}</p>
                 </div>
-                {% if m.is_active %}
-                    <span class="text-green-400 text-xs border border-green-400/40 px-2 py-0.5 rounded-full flex-shrink-0">✅ Active</span>
-                {% else %}
-                    <span class="text-red-400 text-xs border border-red-400/40 px-2 py-0.5 rounded-full flex-shrink-0">❌ Inactive</span>
-                {% endif %}
             </div>
-            {% if m.is_active %}
-            <form method="POST" action="/deactivate-membership/{{ m.id }}/"
-                  onsubmit="return confirm('Deactivate {{ m.user.username }} membership?')">
-                {% csrf_token %}
-                <button type="submit"
-                        class="w-full bg-red-500 text-white px-3 py-2 rounded font-bold text-xs hover:bg-red-400 transition">
-                    ❌ Deactivate Membership
-                </button>
-            </form>
-            {% else %}
-            <form method="POST" action="/reactivate-membership/{{ m.id }}/">
-                {% csrf_token %}
-                <button type="submit"
-                        class="w-full bg-green-500 text-white px-3 py-2 rounded font-bold text-xs hover:bg-green-400 transition">
-                    ✅ Reactivate Membership
-                </button>
-            </form>
+
+            <div class="space-y-6">
+                <div class="ca-glass p-6 border-ca-accent/10">
+                    <h3 class="text-lg font-bold text-white mb-2">Quick Actions</h3>
+                    <p class="text-xs text-gray-400 mb-4">Commonly used administrative tasks.</p>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button onclick="showTab('disputes')" class="ca-btn-outline text-xs py-3">Resolve Disputes</button>
+                        <button onclick="showTab('withdrawals')" class="ca-btn-outline text-xs py-3">Pay Creators</button>
+                        <button onclick="showTab('users')" class="ca-btn-outline text-xs py-3">Moderation</button>
+                        <button onclick="showTab('rewards')" class="ca-btn-outline text-xs py-3">Add Rewards</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- DISPUTES TAB -->
+    <div id="tab-disputes" class="admin-tab-content hidden">
+        <h3 class="text-xl font-bold text-white mb-4">Dispute Management</h3>
+        <div class="grid gap-4">
+            {% for d in open_disputes %}
+            <div class="ca-panel p-5">
+                <div class="flex flex-col md:flex-row justify-between gap-4">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="bg-red-500/10 text-red-400 text-[10px] font-bold px-2 py-0.5 rounded border border-red-500/20">OPEN DISPUTE #{{ d.id }}</span>
+                            <span class="text-gray-500 text-xs">{{ d.created_at|date:"d M Y, H:i" }}</span>
+                        </div>
+                        <p class="text-white font-bold mb-1">
+                            {{ d.user.username }} vs 
+                            {% if d.match.player1 != d.user %}{{ d.match.player1.username }}{% else %}{{ d.match.player2.username }}{% endif %}
+                        </p>
+                        <p class="text-ca-accent text-xs mb-3">Tournament: {{ d.tournament.name }}</p>
+                        <div class="bg-black/30 rounded-xl p-4 border border-white/5 mb-4">
+                            <p class="text-gray-300 text-sm leading-relaxed">{{ d.message }}</p>
+                        </div>
+                        {% if d.proof_image %}
+                        <div class="mb-4">
+                            <p class="text-xs text-gray-500 uppercase font-bold tracking-widest mb-2">Reporter Proof</p>
+                            <a href="{{ d.proof_image.url }}" target="_blank" class="block group relative overflow-hidden rounded-xl border border-white/10 w-48 h-28">
+                                <img src="{{ d.proof_image.url }}" class="w-full h-full object-cover transition duration-500 group-hover:scale-110">
+                                <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+                                    <span class="text-white text-xs font-bold">View Full Size</span>
+                                </div>
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="md:w-72">
+                        <form method="POST" action="/resolve-dispute/{{ d.id }}/" class="space-y-3">
+                            {% csrf_token %}
+                            <div>
+                                <label class="text-[10px] text-gray-500 uppercase font-bold mb-1 block">Admin Resolution Note</label>
+                                <textarea name="admin_note" rows="3" placeholder="Explain the verdict..." class="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-white text-xs focus:border-ca-accent transition outline-none"></textarea>
+                            </div>
+                            <div class="flex gap-2">
+                                <button type="submit" name="action" value="resolve" class="flex-1 bg-emerald-500 text-white py-2.5 rounded-xl font-bold text-xs hover:bg-emerald-400 transition shadow-lg shadow-emerald-500/20">Accept Proof</button>
+                                <button type="submit" name="action" value="reject" class="flex-1 bg-red-500 text-white py-2.5 rounded-xl font-bold text-xs hover:bg-red-400 transition shadow-lg shadow-red-500/20">Reject Dispute</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="ca-glass p-12 text-center">
+                <p class="text-3xl mb-2">✅</p>
+                <p class="text-white font-bold">All clear!</p>
+                <p class="text-gray-500 text-sm">No open disputes requiring attention.</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- WITHDRAWALS TAB -->
+    <div id="tab-withdrawals" class="admin-tab-content hidden">
+        <h3 class="text-xl font-bold text-white mb-4">Pending Payouts</h3>
+        <div class="ca-panel overflow-hidden">
+            <table class="w-full text-left">
+                <thead class="bg-white/[0.03] border-b border-white/[0.06]">
+                    <tr>
+                        <th class="px-6 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Citizen</th>
+                        <th class="px-6 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Amount</th>
+                        <th class="px-6 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Payment Method (UPI)</th>
+                        <th class="px-6 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Requested At</th>
+                        <th class="px-6 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-white/[0.04]">
+                    {% for w in withdrawal_requests %}
+                    {% if w.status == 'pending' %}
+                    <tr class="hover:bg-white/[0.01] transition">
+                        <td class="px-6 py-4">
+                            <p class="text-white font-bold text-sm">{{ w.user.username }}</p>
+                            <p class="text-gray-500 text-[10px]">{{ w.user.email }}</p>
+                        </td>
+                        <td class="px-6 py-4 font-black text-emerald-400 text-sm">₹{{ w.amount }}</td>
+                        <td class="px-6 py-4">
+                            <div class="flex items-center gap-2">
+                                <code class="bg-black/40 px-2 py-1 rounded text-ca-accent text-xs">{{ w.upi_id }}</code>
+                                <button onclick="navigator.clipboard.writeText('{{ w.upi_id }}'); toast('UPI Copied!')" class="text-gray-500 hover:text-white transition">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"></path></svg>
+                                </button>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 text-xs text-gray-500">{{ w.requested_at|date:"d M, H:i" }}</td>
+                        <td class="px-6 py-4 text-right">
+                            <div class="flex justify-end gap-2">
+                                <form method="POST" action="/approve-withdrawal/{{ w.id }}/">
+                                    {% csrf_token %}
+                                    <button type="submit" class="bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-400 transition">Mark Paid</button>
+                                </form>
+                                <form method="POST" action="/reject-withdrawal/{{ w.id }}/" onsubmit="return confirm('Reject and refund?')">
+                                    {% csrf_token %}
+                                    <button type="submit" class="bg-red-500/20 text-red-400 border border-red-500/30 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-500/40 transition">Reject</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% if not pending_withdrawals_count %}
+            <div class="p-12 text-center text-gray-500 text-sm italic">No pending withdrawal requests.</div>
             {% endif %}
         </div>
-        {% empty %}
-        <p class="text-gray-500 text-sm p-5">No memberships yet.</p>
-        {% endfor %}
     </div>
 
-    <!-- GRANT MEMBERSHIP -->
-    <h2 class="text-lg font-bold text-white mb-3 mt-8">Grant membership</h2>
-    <div class="ca-panel mb-8">
-        {% for u in users %}
-        {% if not u.profile.is_admin %}
-        <div class="p-4 border-b border-white/[0.06]">
-            <div class="mb-3">
-                <p class="font-bold text-white text-sm">{{ u.username }}</p>
-                <p class="text-gray-500 text-xs">{{ u.email }}</p>
-                {% if u.profile.plan_active %}
-                    <p class="text-green-400 text-xs mt-1">✅ Active until {{ u.profile.plan_expiry|date:"d M Y" }}</p>
-                {% else %}
-                    <p class="text-red-400 text-xs mt-1">❌ No active plan</p>
-                {% endif %}
+    <!-- USERS TAB -->
+    <div id="tab-users" class="admin-tab-content hidden">
+        <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-4">
+            <h3 class="text-xl font-bold text-white">Citizen Directory</h3>
+            <div class="relative w-full md:w-80">
+                <input type="text" id="userSearch" onkeyup="filterUsers()" placeholder="Search citizens..." class="w-full bg-black/30 border border-white/10 rounded-2xl py-2.5 pl-10 pr-4 text-white text-sm outline-none focus:border-ca-accent transition">
+                <svg class="w-4 h-4 text-gray-500 absolute left-3.5 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
             </div>
-            <form method="POST" action="/grant-membership/{{ u.id }}/"
-                  class="flex flex-col gap-2">
+        </div>
+        
+        <div class="ca-panel overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left" id="userTable">
+                    <thead class="bg-white/[0.03] border-b border-white/[0.06]">
+                        <tr>
+                            <th class="px-6 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest">User</th>
+                            <th class="px-6 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Status/Role</th>
+                            <th class="px-6 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest text-center">Trust Score</th>
+                            <th class="px-6 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Balance</th>
+                            <th class="px-6 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-white/[0.04]">
+                        {% for u in users %}
+                        <tr class="user-row hover:bg-white/[0.01] transition" data-username="{{ u.username|lower }}">
+                            <td class="px-6 py-4">
+                                <p class="text-white font-bold text-sm">{{ u.username }}</p>
+                                <p class="text-gray-500 text-[10px]">{{ u.email }}</p>
+                            </td>
+                            <td class="px-6 py-4">
+                                {% if not u.is_active %}
+                                    <span class="bg-red-500/20 text-red-400 text-[9px] font-bold px-2 py-0.5 rounded-full border border-red-500/30">BANNED</span>
+                                {% elif u.profile.is_admin %}
+                                    <span class="bg-ca-accent/20 text-ca-accent text-[9px] font-bold px-2 py-0.5 rounded-full border border-ca-accent/30">KING ADMIN</span>
+                                {% elif u.profile.is_creator %}
+                                    <span class="bg-yellow-500/20 text-yellow-400 text-[9px] font-bold px-2 py-0.5 rounded-full border border-yellow-500/30">CREATOR</span>
+                                {% else %}
+                                    <span class="bg-white/5 text-gray-400 text-[9px] font-bold px-2 py-0.5 rounded-full border border-white/10">PLAYER</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 text-center">
+                                <div class="inline-flex flex-col items-center">
+                                    <span class="text-sm font-black {% if u.profile.trust_score >= 80 %}text-emerald-400{% elif u.profile.trust_score >= 50 %}text-yellow-400{% else %}text-red-400{% endif %}">{{ u.profile.trust_score }}</span>
+                                    <div class="w-12 h-1 bg-white/10 rounded-full mt-1 overflow-hidden">
+                                        <div class="trust-bar h-full {% if u.profile.trust_score >= 80 %}bg-emerald-400{% elif u.profile.trust_score >= 50 %}bg-yellow-400{% else %}bg-red-400{% endif %}" data-trust="{{ u.profile.trust_score }}"></div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 font-bold text-white text-xs">₹{{ u.profile.reward_balance }}</td>
+                            <td class="px-6 py-4 text-right">
+                                <div class="flex justify-end gap-2">
+                                    <button onclick="toggleTrustAdjust('{{ u.id }}')" class="text-gray-400 hover:text-white text-[10px] font-bold uppercase tracking-widest transition">Adjust Trust</button>
+                                    <div class="relative group">
+                                        <button class="text-gray-500 hover:text-white transition p-1">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"></path></svg>
+                                        </button>
+                                        <div class="absolute right-0 bottom-full mb-2 w-48 bg-gray-900 border border-white/10 rounded-xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition z-50">
+                                            <div class="p-1.5 space-y-1">
+                                                {% if u != request.user %}
+                                                    <form method="POST" action="/topup-wallet/{{ u.id }}/" class="p-2 border-b border-white/5">
+                                                        {% csrf_token %}
+                                                        <input type="number" name="amount" placeholder="₹ Topup" class="w-full bg-black/40 border border-white/10 rounded-lg p-1.5 text-white text-[10px] mb-1">
+                                                        <button class="w-full bg-emerald-500 text-white py-1 rounded text-[10px] font-bold">Add Cash</button>
+                                                    </form>
+                                                    {% if u.is_active %}
+                                                        <form method="POST" action="/ban-user/{{ u.id }}/" onsubmit="return confirm('Ban user?')">
+                                                            {% csrf_token %}
+                                                            <button class="w-full text-left px-3 py-2 text-red-400 hover:bg-red-400/10 rounded-lg text-xs font-bold transition">🚫 Ban Citizen</button>
+                                                        </form>
+                                                    {% else %}
+                                                        <form method="POST" action="/unban-user/{{ u.id }}/">
+                                                            {% csrf_token %}
+                                                            <button class="w-full text-left px-3 py-2 text-emerald-400 hover:bg-emerald-400/10 rounded-lg text-xs font-bold transition">✅ Unban Citizen</button>
+                                                        </form>
+                                                    {% endif %}
+                                                    {% if not u.profile.is_creator %}
+                                                        <form method="POST" action="/promote-user/{{ u.id }}/">
+                                                            {% csrf_token %}
+                                                            <button class="w-full text-left px-3 py-2 text-ca-accent hover:bg-ca-accent/10 rounded-lg text-xs font-bold transition">👑 Make Creator</button>
+                                                        </form>
+                                                    {% endif %}
+                                                    <form method="POST" action="/delete-user/{{ u.id }}/" onsubmit="return confirm('DELETE PERMANENTLY?')">
+                                                        {% csrf_token %}
+                                                        <button class="w-full text-left px-3 py-2 text-gray-500 hover:bg-white/5 rounded-lg text-xs transition">🗑️ Delete Account</button>
+                                                    </form>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- TRUST ADJUST DRAWER -->
+                                <div id="trust-drawer-{{ u.id }}" class="hidden mt-3 bg-black/40 rounded-xl p-4 border border-ca-accent/20 text-left">
+                                    <form method="POST" action="/adjust-trust-score/{{ u.id }}/">
+                                        {% csrf_token %}
+                                        <p class="text-[10px] font-bold text-ca-accent uppercase mb-3">Adjust Trust Score for {{ u.username }}</p>
+                                        <div class="flex gap-3 items-end">
+                                            <div class="flex-1">
+                                                <label class="text-[9px] text-gray-500 uppercase font-bold mb-1 block">Points (+/-)</label>
+                                                <input type="number" name="amount" placeholder="e.g. -10 or 5" required class="w-full bg-black/40 border border-white/10 rounded-lg p-2 text-white text-xs outline-none focus:border-ca-accent">
+                                            </div>
+                                            <div class="flex-[2]">
+                                                <label class="text-[9px] text-gray-500 uppercase font-bold mb-1 block">Admin Note</label>
+                                                <input type="text" name="admin_note" placeholder="Reason for adjustment" class="w-full bg-black/40 border border-white/10 rounded-lg p-2 text-white text-xs outline-none focus:border-ca-accent">
+                                            </div>
+                                            <button type="submit" class="bg-ca-accent text-white px-4 py-2 rounded-lg text-xs font-bold hover:opacity-90 transition">Update</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- REMAINING TABS (TOURNAMENTS, CREATORS, REWARDS) -->
+    <div id="tab-tournaments" class="admin-tab-content hidden">
+        <h3 class="text-xl font-bold text-white mb-4">Platform Tournaments</h3>
+        <div class="grid md:grid-cols-2 gap-4">
+            {% for item in tournament_data %}
+            <div class="ca-panel p-4 flex flex-col justify-between">
+                <div>
+                    <div class="flex justify-between items-start mb-2">
+                        <h4 class="text-white font-bold text-sm truncate pr-2">{{ item.tournament.name }}</h4>
+                        {% if item.tournament.status == 'upcoming' %}
+                            <span class="text-[9px] font-black px-2 py-0.5 rounded border border-blue-500/30 text-blue-400 uppercase">Upcoming</span>
+                        {% elif item.tournament.status == 'ongoing' %}
+                            <span class="text-[9px] font-black px-2 py-0.5 rounded border border-emerald-500/30 text-emerald-400 uppercase animate-pulse">Live</span>
+                        {% elif item.tournament.status == 'completed' %}
+                            <span class="text-[9px] font-black px-2 py-0.5 rounded border border-yellow-500/30 text-yellow-400 uppercase">Done</span>
+                        {% else %}
+                            <span class="text-[9px] font-black px-2 py-0.5 rounded border border-red-500/30 text-red-400 uppercase">Cancelled</span>
+                        {% endif %}
+                    </div>
+                    <div class="flex gap-4 text-[10px] text-gray-500 mb-4">
+                        <span>👥 {{ item.count }} Players</span>
+                        <span>🕐 {{ item.tournament.start_time|date:"d M, H:i" }}</span>
+                        {% if item.tournament.is_paid %}
+                        <span class="text-emerald-400">💰 ₹{{ item.tournament.prize_pool }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <a href="/tournament/{{ item.tournament.id }}/" class="flex-1 ca-btn-outline text-[10px] py-2 text-center">View</a>
+                    <a href="/edit-tournament/{{ item.tournament.id }}/" class="flex-1 ca-btn-outline text-[10px] py-2 text-center">Edit</a>
+                    <form method="POST" action="/delete-tournament/{{ item.tournament.id }}/" onsubmit="return confirm('Delete?')" class="flex-1">
+                        {% csrf_token %}
+                        <button class="w-full bg-red-500/10 text-red-400 border border-red-500/20 rounded-xl py-2 text-[10px] font-bold">Delete</button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div id="tab-creators" class="admin-tab-content hidden">
+        <h3 class="text-xl font-bold text-white mb-4">Creator Memberships</h3>
+        <div class="ca-panel overflow-hidden">
+            <table class="w-full text-left">
+                <thead class="bg-white/[0.03] border-b border-white/[0.06]">
+                    <tr>
+                        <th class="px-6 py-4 text-[10px] font-bold text-gray-500 uppercase">User</th>
+                        <th class="px-6 py-4 text-[10px] font-bold text-gray-500 uppercase">Plan</th>
+                        <th class="px-6 py-4 text-[10px] font-bold text-gray-500 uppercase">Expiry</th>
+                        <th class="px-6 py-4 text-[10px] font-bold text-gray-500 uppercase">Status</th>
+                        <th class="px-6 py-4 text-[10px] font-bold text-gray-500 uppercase text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-white/[0.04]">
+                    {% for m in memberships %}
+                    <tr>
+                        <td class="px-6 py-4 text-white font-bold text-xs">{{ m.user.username }}</td>
+                        <td class="px-6 py-4 text-ca-accent text-xs">{{ m.get_plan_display }}</td>
+                        <td class="px-6 py-4 text-gray-500 text-xs">{{ m.expires_at|date:"d M Y" }}</td>
+                        <td class="px-6 py-4">
+                            {% if m.is_active %}
+                                <span class="text-emerald-400 text-[9px] font-bold">ACTIVE</span>
+                            {% else %}
+                                <span class="text-red-400 text-[9px] font-bold">INACTIVE</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 text-right">
+                            <form method="POST" action="{% if m.is_active %}/deactivate-membership/{{ m.id }}/{% else %}/reactivate-membership/{{ m.id }}/{% endif %}">
+                                {% csrf_token %}
+                                <button class="text-[10px] font-bold uppercase tracking-widest {% if m.is_active %}text-red-400{% else %}text-emerald-400{% endif %} hover:underline">
+                                    {% if m.is_active %}Deactivate{% else %}Reactivate{% endif %}
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="tab-rewards" class="admin-tab-content hidden">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-bold text-white">Global Reward Codes</h3>
+            <button onclick="toggleAddCode()" class="ca-btn text-xs px-4">＋ Add New Code</button>
+        </div>
+
+        <div id="addCodeForm" class="hidden ca-glass p-6 border-emerald-500/20 mb-6">
+            <form method="POST" action="/add-reward-code/">
                 {% csrf_token %}
-                <select name="plan"
-                        class="w-full p-2.5 bg-black/35 border border-white/10 rounded-xl text-white text-sm focus:outline-none">
-                    <option value="1month">⚡ 1 Month — 30 Tournaments</option>
-                    <option value="3month">🚀 3 Months — 90 Tournaments</option>
-                    <option value="1year">👑 1 Year — Unlimited</option>
-                </select>
-                <button type="submit"
-                        class="w-full bg-yellow-400 text-black py-2.5 rounded font-bold text-sm hover:bg-yellow-300 transition">
-                    🎁 Grant Membership
-                </button>
+                <div class="grid md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="text-[10px] text-gray-500 uppercase font-bold mb-1 block">Code</label>
+                        <input type="text" name="code" required placeholder="XXXX-XXXX-XXXX" class="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-emerald-500">
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-gray-500 uppercase font-bold mb-1 block">Description</label>
+                        <input type="text" name="description" placeholder="e.g. ₹500 Google Play" class="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-emerald-500">
+                    </div>
+                </div>
+                <button type="submit" class="w-full bg-emerald-500 text-white py-3 rounded-xl font-bold text-sm shadow-lg shadow-emerald-500/20 transition hover:bg-emerald-400">Save Code to Inventory</button>
             </form>
         </div>
-        {% endif %}
-        {% endfor %}
-    </div>
 
-    <!-- DISPUTES -->
-    <h2 class="text-lg font-bold text-white mb-3">Open disputes</h2>
-    <div class="ca-panel mb-8">
-        {% for d in open_disputes %}
-        <div class="p-4 border-b border-white/[0.06]">
-            <div class="mb-2">
-                <p class="text-white font-bold text-sm">{{ d.user.username }} — {{ d.tournament.name }}</p>
-                <p class="text-gray-400 text-xs">{{ d.message }}</p>
-                <p class="text-gray-600 text-xs">{{ d.created_at|date:"d M Y, H:i" }}</p>
-                {% if d.proof_image %}
-                <a href="{{ d.proof_image.url }}" target="_blank" class="text-ca-accent text-xs hover:underline">View proof</a>
-                {% endif %}
-            </div>
-            <div class="flex gap-2">
-                <form method="POST" action="/resolve-dispute/{{ d.id }}/" class="flex-1">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="resolve">
-                    <input type="text" name="admin_note" placeholder="Admin note (optional)"
-                           class="w-full p-2 mb-2 bg-black/35 border border-white/10 rounded-xl text-white text-xs">
-                    <button type="submit" class="w-full bg-green-500 text-white py-2 rounded text-xs font-bold hover:bg-green-400 transition">
-                        ✅ Resolve
-                    </button>
-                </form>
-                <form method="POST" action="/resolve-dispute/{{ d.id }}/" class="flex-1">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="reject">
-                    <input type="text" name="admin_note" placeholder="Admin note (optional)"
-                           class="w-full p-2 mb-2 bg-black/35 border border-white/10 rounded-xl text-white text-xs">
-                    <button type="submit" class="w-full bg-red-500 text-white py-2 rounded text-xs font-bold hover:bg-red-400 transition">
-                        ❌ Reject
-                    </button>
-                </form>
-            </div>
+        <div class="ca-panel overflow-hidden">
+            <table class="w-full text-left">
+                <thead class="bg-white/[0.03] border-b border-white/[0.06]">
+                    <tr>
+                        <th class="px-6 py-4 text-[10px] font-bold text-gray-500 uppercase">Code</th>
+                        <th class="px-6 py-4 text-[10px] font-bold text-gray-500 uppercase">Type/Info</th>
+                        <th class="px-6 py-4 text-[10px] font-bold text-gray-500 uppercase">Status</th>
+                        <th class="px-6 py-4 text-[10px] font-bold text-gray-500 uppercase text-right">Assigned To</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-white/[0.04]">
+                    {% for code in reward_codes %}
+                    <tr>
+                        <td class="px-6 py-4 font-mono text-white text-xs">{{ code.code }}</td>
+                        <td class="px-6 py-4 text-gray-400 text-xs">{{ code.description|default:"---" }}</td>
+                        <td class="px-6 py-4">
+                            {% if code.sent %}
+                                <span class="text-emerald-400 text-[9px] font-bold">SENT</span>
+                            {% else %}
+                                <span class="text-yellow-400 text-[9px] font-bold">AVAILABLE</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 text-right">
+                            <span class="text-white text-xs font-bold">{{ code.assigned_to.username|default:"---" }}</span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
-        {% empty %}
-        <p class="text-gray-500 text-sm p-5">No open disputes.</p>
-        {% endfor %}
-    </div>
-
-    <!-- ALL TRANSACTIONS -->
-    <h2 class="text-lg font-bold text-white mb-3">Recent transactions</h2>
-    <div class="ca-panel mb-8">
-        {% for t in all_transactions %}
-        <div class="flex items-center justify-between p-4 border-b border-white/[0.06] gap-2">
-            <div class="flex-1 min-w-0">
-                <p class="text-white text-xs font-semibold truncate">
-                    {{ t.user.username }} — {{ t.description }}
-                </p>
-                <p class="text-gray-600 text-xs">{{ t.created_at|date:"d M Y, H:i" }}</p>
-            </div>
-            {% if t.transaction_type == 'credit' %}
-                <span class="text-green-400 font-bold text-sm flex-shrink-0">+₹{{ t.amount }}</span>
-            {% else %}
-                <span class="text-red-400 font-bold text-sm flex-shrink-0">-₹{{ t.amount }}</span>
-            {% endif %}
-        </div>
-        {% empty %}
-        <p class="text-gray-500 text-sm p-5">No transactions yet.</p>
-        {% endfor %}
     </div>
 
 </div>
 
+<style>
+    .admin-tab-btn { color: #94a3b8; }
+    .admin-tab-btn:hover { background: rgba(255,255,255,0.05); color: white; }
+    .admin-tab-btn.active { background: #ff4d5e; color: white; box-shadow: 0 4px 12px rgba(255,77,94,0.3); }
+    .admin-tab-content.hidden { display: none; }
+    .admin-tab-content.active { display: block; animation: fadeIn 0.3s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+</style>
+
+<script>
+function showTab(tabId) {
+    // Hide all contents
+    document.querySelectorAll('.admin-tab-content').forEach(el => {
+        el.classList.add('hidden');
+        el.classList.remove('active');
+    });
+    // Deactivate all buttons
+    document.querySelectorAll('.admin-tab-btn').forEach(el => {
+        el.classList.remove('active');
+    });
+    
+    // Show selected content
+    const activeTab = document.getElementById('tab-' + tabId);
+    if (activeTab) {
+        activeTab.classList.remove('hidden');
+        activeTab.classList.add('active');
+    }
+    // Activate selected button
+    const activeBtn = document.getElementById('tab-btn-' + tabId);
+    if (activeBtn) activeBtn.classList.add('active');
+    
+    // Save tab preference
+    localStorage.setItem('admin_tab', tabId);
+}
+
+function filterUsers() {
+    const input = document.getElementById('userSearch');
+    const filter = input.value.toLowerCase();
+    const rows = document.querySelectorAll('.user-row');
+    
+    rows.forEach(row => {
+        const username = row.getAttribute('data-username');
+        if (username.includes(filter)) {
+            row.style.display = "";
+        } else {
+            row.style.display = "none";
+        }
+    });
+}
+
+function toggleTrustAdjust(userId) {
+    const drawer = document.getElementById('trust-drawer-' + userId);
+    drawer.classList.toggle('hidden');
+}
+
+function toggleAddCode() {
+    const form = document.getElementById('addCodeForm');
+    form.classList.toggle('hidden');
+}
+
+function toast(msg) {
+    const t = document.createElement('div');
+    t.className = 'fixed bottom-4 right-4 bg-ca-accent text-white px-6 py-3 rounded-2xl font-bold text-sm shadow-2xl z-[100] animate-bounce';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3000);
+}
+
+// Restore last tab on load
+document.addEventListener('DOMContentLoaded', () => {
+    const lastTab = localStorage.getItem('admin_tab') || 'overview';
+    showTab(lastTab);
+    
+    // Set trust bar widths
+    document.querySelectorAll('.trust-bar').forEach(el => {
+        const score = el.getAttribute('data-trust');
+        el.style.width = score + '%';
+    });
+});
+</script>
 {% endblock %}

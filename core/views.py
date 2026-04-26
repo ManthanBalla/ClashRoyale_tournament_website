@@ -336,7 +336,7 @@ def home(request):
             filter=Q(transactions__reason='tournament_win', transactions__transaction_type='credit')
         ),
         tournament_wins=Count('winner', distinct=True),
-        reward_wins=Count('rewardcode', filter=Q(rewardcode__sent=True), distinct=True)
+        reward_wins=Count('received_rewards', filter=Q(received_rewards__sent=True), distinct=True)
     ).filter(
         Q(total_winnings__gt=0) | Q(tournament_wins__gt=0) | Q(reward_wins__gt=0)
     ).order_by('-total_winnings', '-tournament_wins', '-reward_wins', 'username')[:50])
@@ -505,6 +505,9 @@ def profile_view(request):
         user=request.user
     ).order_by('-created_at')[:30]
 
+    from .models import WinnerCertificate
+    certificates = WinnerCertificate.objects.filter(user=request.user).select_related('tournament', 'cup').order_by('-created_at')
+
     breakdown = {'credit': Decimal('0.00'), 'debit': Decimal('0.00'), 'refund': Decimal('0.00'), 'winning': Decimal('0.00')}
     all_tx = Transaction.objects.filter(user=request.user)
     for tx in all_tx:
@@ -530,6 +533,7 @@ def profile_view(request):
                 'transactions': transactions,
                 'recent_topup': recent_topup,
                 'wallet_breakdown': breakdown,
+                'certificates': certificates,
                 'error': 'Full name, real email, UPI ID and in-game username are required to keep your profile complete.'
             })
 
@@ -542,6 +546,7 @@ def profile_view(request):
                     'transactions': transactions,
                     'recent_topup': recent_topup,
                     'wallet_breakdown': breakdown,
+                    'certificates': certificates,
                         'error': 'This email is already used by another account.'
                 })
 
@@ -559,6 +564,7 @@ def profile_view(request):
             'memberships': memberships,
             'transactions': transactions,
             'wallet_breakdown': breakdown,
+            'certificates': certificates,
             'success': 'Profile updated successfully!'
         })
 
@@ -568,6 +574,7 @@ def profile_view(request):
         'memberships': memberships,
         'transactions': transactions,
         'wallet_breakdown': breakdown,
+        'certificates': certificates,
     })
 
 
@@ -1195,6 +1202,14 @@ def tournament_detail(request, tournament_id):
     if winner_tx:
         likely_winner = winner_tx.user
 
+    certificate = None
+    if request.user.is_authenticated:
+        from .models import WinnerCertificate
+        certificate = WinnerCertificate.objects.filter(user=request.user, tournament=tournament).first()
+        if not certificate and likely_winner == request.user and tournament.status == 'completed':
+            # Fallback check if it was missed
+            pass
+
     prize_pool = tournament.entry_fee * count if tournament.is_paid else None
 
     return render(request, 'tournament_detail.html', {
@@ -1213,6 +1228,7 @@ def tournament_detail(request, tournament_id):
         'count': count,
         'prize_pool': prize_pool,
         'is_participant': is_participant,
+        'certificate': certificate,
     })
 
 
@@ -1260,6 +1276,19 @@ def upload_results(request, tournament_id):
             tournament.reward_screenshot = optimize_uploaded_image(request.FILES.get('reward_screenshot'))
         tournament.status = 'completed'
         tournament.save()
+
+        # Try to find winner for certificate (if matches exist)
+        try:
+            from .utils import generate_winner_certificate
+            from collections import Counter
+            all_matches = Match.objects.filter(tournament=tournament)
+            if all_matches.exists() and all(m.winner for m in all_matches):
+                wins = Counter(m.winner_id for m in all_matches if m.winner)
+                top_winner_id = wins.most_common(1)[0][0]
+                top_winner = User.objects.get(id=top_winner_id)
+                generate_winner_certificate(top_winner, tournament=tournament)
+        except Exception:
+            pass
 
         notify_all_participants(
             tournament,
@@ -1392,6 +1421,13 @@ def submit_result(request, match_id):
                 tournament.status = 'completed'
                 tournament.save()
 
+                # Generate Winner Certificate
+                try:
+                    from .utils import generate_winner_certificate
+                    generate_winner_certificate(top_winner, tournament=tournament)
+                except Exception:
+                    pass
+
                 notify_all_participants(
                     tournament,
                     'tournament_end',
@@ -1471,6 +1507,14 @@ def _advance_cup_winner(match, actor=None):
     if not match.next_match:
         match.cup.status = 'completed'
         match.cup.save(update_fields=['status'])
+        
+        # Generate Winner Certificate for Cup
+        try:
+            from .utils import generate_winner_certificate
+            if match.winner:
+                generate_winner_certificate(match.winner, cup=match.cup)
+        except Exception:
+            pass
         if not match.cup.action_logs.filter(action_type='player_dispute').exists():
             creator_profile = match.cup.creator.profile
             creator_profile.trust_score = min(100, creator_profile.trust_score + 3)
@@ -1821,7 +1865,7 @@ def confirm_cup_match_result(request, match_id):
         )
         
         if decision == 'accept' and match.winner and match.winner != request.user:
-            from core.utils import update_trust_score
+            from .utils import update_trust_score
             update_trust_score(request.user, 5)
         _log_cup_action(
             cup,
@@ -1854,7 +1898,7 @@ def confirm_cup_match_result(request, match_id):
             match.result_source = 'dual_confirmation'
             match.save(update_fields=['status', 'is_locked', 'is_disputed', 'dispute_reason', 'result_source'])
             
-            from core.utils import update_trust_score
+            from .utils import update_trust_score
             update_trust_score(match.player1, 5)
             update_trust_score(match.player2, 5)
             
@@ -1881,7 +1925,7 @@ def cup_player_action(request, cup_id):
         if action == 'kick':
             cp.kicked = True
             cp.save(update_fields=['kicked'])
-            from core.utils import update_trust_score
+            from .utils import update_trust_score
             update_trust_score(target, -20)
             _log_cup_action(cup, request.user, 'kick_player', message=f'{target.username} kicked from cup.', target_user=target)
         elif action == 'ban':
@@ -1890,7 +1934,7 @@ def cup_player_action(request, cup_id):
                 return redirect(f'/cups/{cup.id}/?error=ban_reason_required')
             cp.banned = True
             cp.save(update_fields=['banned'])
-            from core.utils import update_trust_score
+            from .utils import update_trust_score
             update_trust_score(target, -20)
             _log_cup_action(
                 cup,
@@ -1957,7 +2001,7 @@ def resolve_cup_dispute(request, match_id):
         match.result_source = 'admin_override' if request.user.profile.is_admin else 'creator_proof'
         match.save(update_fields=['winner', 'winner_label', 'status', 'is_locked', 'is_disputed', 'result_source'])
         
-        from core.utils import update_trust_score
+        from .utils import update_trust_score
         update_trust_score(winner, 10)
         loser = match.player1 if winner == match.player2 else match.player2
         update_trust_score(loser, -10)
@@ -2056,6 +2100,12 @@ def creator_admin(request):
     all_transactions = Transaction.objects.all().order_by('-created_at')[:50]
     open_disputes = DisputeReport.objects.filter(status='open').order_by('-created_at')[:50]
 
+    # Summary Stats
+    from django.db.models import Sum
+    total_reward_balance = Profile.objects.aggregate(Sum('reward_balance'))['reward_balance__sum'] or 0
+    pending_withdrawals_count = WithdrawalRequest.objects.filter(status='pending').count()
+    open_disputes_count = DisputeReport.objects.filter(status='open').count()
+
     tournament_data = []
     for t in tournaments:
         sync_tournament_status(t)
@@ -2070,6 +2120,9 @@ def creator_admin(request):
         'memberships': memberships,
         'all_transactions': all_transactions,
         'open_disputes': open_disputes,
+        'total_reward_balance': total_reward_balance,
+        'pending_withdrawals_count': pending_withdrawals_count,
+        'open_disputes_count': open_disputes_count,
     })
 
 
@@ -2086,7 +2139,7 @@ def resolve_dispute(request, dispute_id):
         dispute.status = 'resolved'
     elif action == 'reject':
         dispute.status = 'rejected'
-        from core.utils import update_trust_score
+        from .utils import update_trust_score
         update_trust_score(dispute.user, -10)
     else:
         return redirect('/creator-admin/')
@@ -2534,6 +2587,28 @@ def promote_user(request, user_id):
     u.profile.is_admin = True
     u.profile.is_creator = True
     u.profile.save()
+    return redirect('/creator-admin/')
+
+
+@login_required
+@require_POST
+def adjust_trust_score(request, user_id):
+    if not request.user.profile.is_admin:
+        return redirect('/')
+    u = get_object_or_404(User, id=user_id)
+    try:
+        amount = int(request.POST.get('amount', 0))
+        note = request.POST.get('admin_note', '').strip()
+        from .utils import update_trust_score
+        update_trust_score(u, amount)
+        if note:
+            send_notification(
+                u, 'general',
+                '🛡️ Trust Score Adjusted',
+                f'Your trust score was adjusted by {amount}. Admin Note: {note}'
+            )
+    except Exception:
+        pass
     return redirect('/creator-admin/')
 
 

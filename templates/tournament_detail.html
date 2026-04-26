@@ -1,6 +1,26 @@
 {% extends "base.html" %}
 {% load static %}
 
+{% block meta %}
+<title>{{ tournament.name }} — Clash Arena</title>
+<meta name="description" content="Join {{ tournament.name }} on Clash Arena. {{ tournament.description|truncatechars:150 }}">
+<meta property="og:title" content="{{ tournament.name }} — Clash Arena">
+<meta property="og:description" content="Join {{ tournament.name }} on Clash Arena. {{ tournament.description|truncatechars:150 }}">
+{% if certificate %}
+<meta property="og:image" content="{{ certificate.image_url }}">
+{% else %}
+<meta property="og:image" content="{% static 'images/og_default.png' %}">
+{% endif %}
+<meta property="og:url" content="{{ request.build_absolute_uri }}">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{ tournament.name }} — Clash Arena">
+<meta name="twitter:description" content="Join {{ tournament.name }} on Clash Arena. {{ tournament.description|truncatechars:150 }}">
+{% if certificate %}
+<meta name="twitter:image" content="{{ certificate.image_url }}">
+{% endif %}
+{% endblock %}
+
 {% block content %}
 
 <div class="max-w-4xl mx-auto px-3 sm:px-4 py-6 sm:py-8">
@@ -310,6 +330,67 @@
         <p class="text-gray-500 text-sm">👁️ Participant list is hidden</p>
         <p class="text-ca-accent font-bold mt-1">{{ count }} players joined</p>
     </div>
+    {% endif %}
+
+    <!-- VICTORY CERTIFICATE -->
+    {% if certificate %}
+    <div class="rounded-2xl p-6 mb-8 border relative overflow-hidden group shadow-2xl"
+         style="background: linear-gradient(135deg, #111, #1a1a1a); border-color: rgba(255,215,0,0.3);">
+        <div class="absolute -top-24 -right-24 w-48 h-48 bg-yellow-500/10 rounded-full blur-3xl group-hover:bg-yellow-500/20 transition-all duration-700"></div>
+        
+        <div class="relative">
+            <div class="flex items-center gap-3 mb-6">
+                <span class="text-4xl">🏆</span>
+                <div>
+                    <h2 class="text-2xl font-black text-white tracking-tight">Victory Achieved!</h2>
+                    <p class="text-yellow-400 text-xs font-bold uppercase tracking-widest">Official Clash Arena Certificate</p>
+                </div>
+            </div>
+
+            <div class="aspect-video w-full rounded-xl overflow-hidden border border-white/10 mb-6 bg-black/40 shadow-inner">
+                <img src="{{ certificate.image_url }}" alt="Winner Certificate" class="w-full h-full object-contain">
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <a href="{{ certificate.image_url }}" download="ClashArena_Victory.png" target="_blank"
+                   class="flex flex-col items-center justify-center p-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition group/btn">
+                    <span class="text-xl mb-1">💾</span>
+                    <span class="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Download</span>
+                </a>
+                
+                <a href="https://wa.me/?text=I just won the {{ tournament.name }} on Clash Arena! 🏆 Check out my certificate: {{ request.build_absolute_uri }}" target="_blank"
+                   class="flex flex-col items-center justify-center p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 transition">
+                    <span class="text-xl mb-1">💬</span>
+                    <span class="text-[10px] font-bold text-emerald-400 uppercase tracking-tighter">WhatsApp</span>
+                </a>
+
+                <a href="https://twitter.com/intent/tweet?text=Just dominated the {{ tournament.name }} on Clash Arena! 🏆 @ClashArena &url={{ request.build_absolute_uri }}" target="_blank"
+                   class="flex flex-col items-center justify-center p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 transition">
+                    <span class="text-xl mb-1">🐦</span>
+                    <span class="text-[10px] font-bold text-blue-400 uppercase tracking-tighter">Twitter</span>
+                </a>
+
+                <button onclick="copyCertLink()"
+                   class="flex flex-col items-center justify-center p-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition">
+                    <span class="text-xl mb-1">🔗</span>
+                    <span id="copyText" class="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Copy Link</span>
+                </button>
+            </div>
+        </div>
+    </div>
+    <script>
+    function copyCertLink() {
+        navigator.clipboard.writeText("{{ request.build_absolute_uri }}").then(() => {
+            const txt = document.getElementById('copyText');
+            txt.innerText = 'Copied!';
+            txt.classList.add('text-emerald-400');
+            setTimeout(() => { 
+                txt.innerText = 'Copy Link'; 
+                txt.classList.remove('text-emerald-400');
+            }, 2000);
+        });
+    }
+    </script>
     {% endif %}
 
     <!-- RESULTS -->

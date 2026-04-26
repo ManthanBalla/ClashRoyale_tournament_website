@@ -1,5 +1,17 @@
 {% extends "base.html" %}
 
+{% block meta %}
+<title>{{ cup.name }} — Clash Arena Cup</title>
+<meta name="description" content="Join {{ cup.name }}, a {{ cup.max_players }}-player bracket on Clash Arena. Prize pool: ₹{{ cup.prize_pool }}.">
+<meta property="og:title" content="{{ cup.name }} — Clash Arena Cup">
+<meta property="og:description" content="Join {{ cup.name }}, a {{ cup.max_players }}-player bracket on Clash Arena. Prize pool: ₹{{ cup.prize_pool }}.">
+<meta property="og:url" content="{{ request.build_absolute_uri }}">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{ cup.name }} — Clash Arena Cup">
+<meta name="twitter:description" content="Join {{ cup.name }}, a {{ cup.max_players }}-player bracket on Clash Arena. Prize pool: ₹{{ cup.prize_pool }}.">
+{% endblock %}
+
 {% block content %}
 <div class="max-w-6xl mx-auto px-4 py-8">
     <a href="/cups/" class="ca-muted hover:text-white text-sm">← Back to cups</a>

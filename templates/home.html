@@ -1,11 +1,21 @@
 {% extends "base.html" %}
 
+{% block meta %}
+<title>Clash Arena — Host & Play Esports Tournaments. Win Real Money.</title>
+<meta name="description" content="Join automated brackets, build your trust score, and withdraw winnings instantly. Built by players, for players.">
+<meta property="og:title" content="Clash Arena — Host & Play Esports Tournaments">
+<meta property="og:description" content="Join automated brackets, build your trust score, and withdraw winnings instantly. Built by players, for players.">
+<meta property="og:url" content="{{ request.build_absolute_uri }}">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+{% endblock %}
+
 {% block content %}
 
-<div class="flex flex-col py-6 sm:py-10">
-
-    {% if join_error %}
-    <div class="w-full max-w-4xl mx-auto mb-4 ca-glass px-4 py-3 border border-red-500/25">
+<!-- Error Messages -->
+{% if join_error %}
+<div class="flex justify-center py-4">
+    <div class="w-full max-w-4xl mx-auto ca-glass px-4 py-3 border border-red-500/25">
         {% if join_error == 'not_open' %}
             <p class="text-red-300 text-sm font-semibold">This tournament is not open for joining right now.</p>
         {% elif join_error == 'deadline' %}
@@ -16,134 +26,188 @@
             <p class="text-red-300 text-sm font-semibold">Unable to join this tournament.</p>
         {% endif %}
     </div>
-    {% endif %}
+</div>
+{% endif %}
 
-    <!-- HERO -->
-    <div class="text-center mb-10 sm:mb-14 px-2">
-        <p class="text-[10px] sm:text-xs font-bold uppercase tracking-[0.25em] text-ca-accent mb-3">Clash Royale</p>
-        <h1 class="text-[clamp(2rem,6vw,3.5rem)] font-extrabold leading-tight tracking-tight text-white">
-            COMPETE.<br>
-            <span class="bg-gradient-to-r from-white via-white to-ca-accent bg-clip-text text-transparent">DOMINATE.</span>
-        </h1>
-        <p class="ca-muted mt-4 max-w-lg mx-auto text-sm sm:text-base leading-relaxed">
-            Join tournaments, climb the ladder, and win rewards — built for mobile players first.
-        </p>
+<!-- Hero Section -->
+<div class="relative py-16 sm:py-24 text-center px-4 overflow-hidden">
+    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80vw] h-[80vw] max-w-[800px] max-h-[800px] bg-ca-accent/10 rounded-full blur-[100px] -z-10 pointer-events-none"></div>
+    <h1 class="text-[clamp(2.5rem,8vw,4.5rem)] font-extrabold leading-tight tracking-tight text-white mb-6">
+        Host & Play Esports Tournaments.<br>
+        <span class="bg-gradient-to-r from-white via-white to-ca-accent bg-clip-text text-transparent">Win Real Money.</span>
+    </h1>
+    <p class="ca-muted text-lg sm:text-xl max-w-2xl mx-auto mb-10 leading-relaxed">
+        Join automated brackets, build your trust score, and withdraw winnings instantly. Built by players, for players.
+    </p>
+    <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+        <a href="#live-tournaments" class="ca-btn w-full sm:w-auto min-w-[14rem] text-center text-lg">Browse Tournaments</a>
+        <a href="/subscription/" class="ca-btn-outline w-full sm:w-auto min-w-[14rem] text-center text-lg bg-white/5 border-white/20">Become a Creator</a>
+    </div>
+</div>
+
+<!-- Features Section -->
+<div class="max-w-6xl mx-auto px-4 py-16 border-t border-white/5">
+    <div class="text-center mb-12">
+        <h2 class="text-3xl font-extrabold text-white tracking-tight">Everything You Need to Compete</h2>
+        <p class="ca-muted mt-3 text-sm">A professional platform designed for fair play and fast payouts.</p>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="ca-glass p-8 hover:-translate-y-1 transition duration-300">
+            <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center text-2xl mb-6 shadow-glass">💸</div>
+            <h3 class="text-xl font-bold text-white mb-3">Real Money Wallet</h3>
+            <p class="ca-muted text-sm leading-relaxed">Top up instantly via secure gateways, pay entry fees effortlessly, and withdraw your winnings directly to your UPI ID without hassle.</p>
+        </div>
+        <div class="ca-glass p-8 hover:-translate-y-1 transition duration-300">
+            <div class="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center text-2xl mb-6 shadow-glass">🏆</div>
+            <h3 class="text-xl font-bold text-white mb-3">Automated Brackets</h3>
+            <p class="ca-muted text-sm leading-relaxed">Join Cups for seamless 8, 16, or 32-player bracket progression. Matches advance automatically as results are dual-confirmed.</p>
+        </div>
+        <div class="ca-glass p-8 hover:-translate-y-1 transition duration-300">
+            <div class="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center text-2xl mb-6 shadow-glass">🛡️</div>
+            <h3 class="text-xl font-bold text-white mb-3">Trust Score System</h3>
+            <p class="ca-muted text-sm leading-relaxed">Play fair, earn trust. Our unique Trust Score system filters out toxic players and actively rewards honest result reporting.</p>
+        </div>
+    </div>
+</div>
+
+<!-- How It Works Section -->
+<div class="max-w-5xl mx-auto px-4 py-16">
+    <div class="ca-panel p-8 sm:p-12 relative overflow-hidden border border-white/10">
+        <div class="absolute top-0 right-0 -mt-20 -mr-20 w-64 h-64 bg-ca-accent/10 rounded-full blur-3xl pointer-events-none"></div>
+        <h2 class="text-3xl font-extrabold text-white tracking-tight text-center mb-12 relative z-10">Path to Victory</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 relative z-10">
+            <div class="text-center relative">
+                <div class="w-16 h-16 rounded-full bg-white/5 border border-white/10 text-white font-bold text-2xl flex items-center justify-center mx-auto mb-4 shadow-glass">1</div>
+                <div class="hidden md:block absolute top-8 left-[60%] w-full h-[1px] bg-gradient-to-r from-white/20 to-transparent"></div>
+                <h3 class="text-lg font-bold text-white mb-2">Register & Top Up</h3>
+                <p class="ca-muted text-sm">Create your free account and load your wallet via secure Cashfree payments.</p>
+            </div>
+            <div class="text-center relative">
+                <div class="w-16 h-16 rounded-full bg-ca-accent text-white font-bold text-2xl flex items-center justify-center mx-auto mb-4 shadow-glow-accent">2</div>
+                <div class="hidden md:block absolute top-8 left-[60%] w-full h-[1px] bg-gradient-to-r from-ca-accent/50 to-transparent"></div>
+                <h3 class="text-lg font-bold text-white mb-2">Join a Tournament</h3>
+                <p class="ca-muted text-sm">Browse active events or cups, check the rules, and lock in your spot before it fills up.</p>
+            </div>
+            <div class="text-center relative">
+                <div class="w-16 h-16 rounded-full bg-white/5 border border-white/10 text-white font-bold text-2xl flex items-center justify-center mx-auto mb-4 shadow-glass">3</div>
+                <h3 class="text-lg font-bold text-white mb-2">Win & Withdraw</h3>
+                <p class="ca-muted text-sm">Crush your opponents, confirm the match result, and instantly withdraw your prize money.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Live Tournaments -->
+<div id="live-tournaments" class="max-w-6xl mx-auto px-4 py-16 border-t border-white/5">
+    <div class="flex flex-col sm:flex-row items-start sm:items-end justify-between mb-8 gap-4">
+        <div>
+            <h2 class="text-3xl font-extrabold text-white tracking-tight">Live Tournaments</h2>
+            <p class="ca-muted text-sm mt-1">Jump into the action right now. Don't miss your spot.</p>
+        </div>
+        <a href="/cups/" class="ca-link text-sm font-semibold flex items-center gap-1">View All Events &rarr;</a>
     </div>
 
-    <!-- TOURNAMENT LIST -->
-    <div class="w-full max-w-4xl mx-auto">
-
-        <div class="flex items-center justify-between gap-3 mb-5 sm:mb-6">
-            <h2 class="text-lg sm:text-xl font-bold text-white tracking-tight">Active tournaments</h2>
-            <span class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-white/40 hidden sm:inline">Live list</span>
-        </div>
-
-        {% for item in tournament_data %}
-        <div class="ca-glass p-4 sm:p-5 mb-4 hover:border-white/[0.12] transition duration-200">
-
-            <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
-
-                <div class="text-left flex-1 min-w-0 order-2 sm:order-1">
-                    <a href="/tournament/{{ item.tournament.id }}/"
-                       class="text-base sm:text-lg font-bold text-white hover:text-ca-accent transition block truncate">
-                        {{ item.tournament.name }}
-                    </a>
-                    <p class="ca-muted text-sm mt-1.5 line-clamp-2 leading-relaxed">
-                        {{ item.tournament.description }}
-                    </p>
-                    <p class="text-emerald-300/90 text-sm mt-2 font-medium">
-                        {{ item.count }} players joined
-                    </p>
-                </div>
-
-                <div class="w-full sm:w-auto sm:flex-shrink-0 order-1 sm:order-2 sm:mt-0">
-                    {% if item.tournament.id in joined_tournaments %}
-                        <span class="block w-full sm:w-auto text-center ca-btn-outline border-emerald-500/35 text-emerald-300 py-3 sm:py-2.5 sm:min-w-[7.5rem]">
-                            Joined
-                        </span>
-                    {% elif item.tournament.status != 'upcoming' %}
-                        {% if item.tournament.status == 'ongoing' %}
-                        <span class="block w-full sm:w-auto text-center ca-btn-outline border-amber-500/35 text-amber-200 py-3 sm:py-2.5">
-                            Live
-                        </span>
-                        {% elif item.tournament.status == 'completed' %}
-                        <span class="block w-full sm:w-auto text-center ca-btn-outline text-white/50 py-3 sm:py-2.5">
-                            Completed
-                        </span>
-                        {% else %}
-                        <span class="block w-full sm:w-auto text-center ca-btn-outline text-white/50 py-3 sm:py-2.5">
-                            Not open
-                        </span>
-                        {% endif %}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        {% for item in tournament_data|slice:":6" %}
+        <div class="ca-glass flex flex-col hover:border-ca-accent/30 transition duration-300 h-full">
+            <div class="p-5 flex-1">
+                <div class="flex justify-between items-start mb-4">
+                    <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded border border-white/10 bg-white/5 text-white/80">Standard</span>
+                    {% if item.tournament.is_paid %}
+                        <span class="text-[11px] font-bold text-ca-accent bg-ca-accent/10 border border-ca-accent/20 px-2.5 py-1 rounded-md tracking-wide">Entry: ₹{{ item.tournament.entry_fee }}</span>
                     {% else %}
-                        <a href="/join/{{ item.tournament.id }}/"
-                           class="ca-btn w-full sm:w-auto text-center no-underline">
-                            Join
-                        </a>
+                        <span class="text-[11px] font-bold text-emerald-400 bg-emerald-400/10 border border-emerald-400/20 px-2.5 py-1 rounded-md tracking-wide">FREE</span>
                     {% endif %}
                 </div>
-
-            </div>
-
-        </div>
-        {% empty %}
-            <div class="ca-glass px-5 py-10 text-center">
-                <p class="ca-muted text-sm">No tournaments yet. Check back soon.</p>
-            </div>
-        {% endfor %}
-
-    </div>
-
-    <div class="w-full max-w-4xl mx-auto mt-8">
-        <div class="flex items-center justify-between gap-3 mb-4">
-            <h2 class="text-lg sm:text-xl font-bold text-white tracking-tight">Creators with active membership</h2>
-            <a href="/creators/" class="ca-btn-outline text-xs">See creators</a>
-        </div>
-        <div class="ca-panel mb-6">
-            {% for creator in active_creators %}
-            <div class="flex items-center justify-between p-4 border-b border-white/[0.06]">
-                <div>
-                    <p class="text-white font-semibold text-sm">{{ creator.username }}</p>
-                    <p class="text-gray-500 text-xs">Plan active till {{ creator.profile.plan_expiry|date:"d M Y" }}</p>
+                <a href="/tournament/{{ item.tournament.id }}/" class="text-lg font-bold text-white hover:text-ca-accent transition block mb-2 line-clamp-1">
+                    {{ item.tournament.name }}
+                </a>
+                <p class="ca-muted text-xs line-clamp-2 mb-5 leading-relaxed">{{ item.tournament.description }}</p>
+                
+                <div class="mt-auto space-y-3">
+                    <div class="flex justify-between text-xs items-center border-t border-white/5 pt-3">
+                        <span class="ca-muted font-medium">Players Joined:</span>
+                        <span class="text-white font-bold bg-white/10 px-2 py-0.5 rounded">{{ item.count }}</span>
+                    </div>
+                    {% if item.prize_pool %}
+                    <div class="flex justify-between text-xs items-center">
+                        <span class="ca-muted font-medium">Prize Pool:</span>
+                        <span class="text-amber-400 font-extrabold text-sm shadow-sm">₹{{ item.prize_pool }}</span>
+                    </div>
+                    {% endif %}
                 </div>
-                {% if user.is_authenticated and user.id != creator.id %}
-                <div class="flex gap-2">
-                    <form method="POST" action="/creator/follow/{{ creator.id }}/">
-                        {% csrf_token %}
-                        <button type="submit" class="ca-btn-outline text-xs">
-                            {% if creator.id in followed_creator_ids %}Unfollow{% else %}Follow{% endif %}
-                        </button>
-                    </form>
-                    <form method="POST" action="/creator/follow-notifications/{{ creator.id }}/">
-                        {% csrf_token %}
-                        <button type="submit" class="ca-btn-outline text-xs">
-                            Alerts: {% if creator.id in follow_alert_on_ids %}ON{% else %}OFF{% endif %}
-                        </button>
-                    </form>
-                </div>
+            </div>
+            
+            <div class="p-5 pt-0 mt-auto">
+                {% if item.tournament.id in joined_tournaments %}
+                    <span class="block w-full text-center ca-btn-outline border-emerald-500/35 text-emerald-300 py-2.5 shadow-glass">Joined</span>
+                {% elif item.tournament.status != 'upcoming' %}
+                    <span class="block w-full text-center ca-btn-outline text-white/50 py-2.5">{{ item.tournament.get_status_display }}</span>
+                {% else %}
+                    <a href="/join/{{ item.tournament.id }}/" class="ca-btn w-full text-center py-2.5 shadow-glow-accent">Join Now</a>
                 {% endif %}
             </div>
-            {% empty %}
-            <p class="text-gray-500 text-sm p-5">No active creators right now.</p>
-            {% endfor %}
         </div>
+        {% empty %}
+        <div class="col-span-full ca-glass px-5 py-16 text-center border border-dashed border-white/20">
+            <span class="text-5xl mb-4 block opacity-80">🎮</span>
+            <h3 class="text-xl font-bold text-white mb-2">No active tournaments</h3>
+            <p class="ca-muted text-sm">Check back later or host your own to get started.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
 
-        <h2 class="text-lg sm:text-xl font-bold text-white tracking-tight mb-4">Global leaderboard</h2>
-        <div class="ca-panel">
-            {% for p in global_leaderboard %}
-            <div class="flex items-center justify-between p-4 border-b border-white/[0.06]">
-                <div>
-                    <p class="text-white text-sm font-semibold">{{ p.username }}</p>
-                    <p class="text-gray-500 text-xs">Wins: {{ p.display_wins|default:0 }}</p>
+<!-- Creator Section -->
+<div class="max-w-6xl mx-auto px-4 py-16 mb-8 border-t border-white/5">
+    <div class="ca-glass border-ca-accent/30 p-8 sm:p-12 flex flex-col md:flex-row items-center gap-10 relative overflow-hidden">
+        <div class="absolute inset-0 bg-gradient-to-br from-ca-accent/5 via-transparent to-transparent pointer-events-none"></div>
+        
+        <div class="flex-1 relative z-10">
+            <h2 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight mb-4">Host Your Own Tournaments</h2>
+            <p class="ca-muted text-base leading-relaxed mb-6">
+                Are you a community leader or streamer? Become a Clash Arena Creator. Host custom cups, set entry fees, and monetize your audience securely.
+            </p>
+            <ul class="space-y-3 mb-8">
+                <li class="flex items-center gap-3 text-sm text-white/90">
+                    <div class="w-5 h-5 rounded-full bg-ca-accent/20 flex items-center justify-center text-ca-accent font-bold text-[10px]">✓</div>
+                    Automated bracket generation (8, 16, 32 players)
+                </li>
+                <li class="flex items-center gap-3 text-sm text-white/90">
+                    <div class="w-5 h-5 rounded-full bg-ca-accent/20 flex items-center justify-center text-ca-accent font-bold text-[10px]">✓</div>
+                    Integrated dispute resolution & proof uploads
+                </li>
+                <li class="flex items-center gap-3 text-sm text-white/90">
+                    <div class="w-5 h-5 rounded-full bg-ca-accent/20 flex items-center justify-center text-ca-accent font-bold text-[10px]">✓</div>
+                    Zero manual payout hassle. Everything is automated.
+                </li>
+            </ul>
+            <a href="/subscription/" class="ca-btn text-lg px-8">Become a Creator</a>
+        </div>
+        
+        <div class="flex-1 w-full relative z-10 hidden md:block pl-8">
+            <div class="ca-panel p-6 transform rotate-2 shadow-2xl border-white/10 hover:rotate-0 hover:-translate-y-2 transition duration-500 bg-black/40">
+                <div class="flex justify-between items-center mb-4 border-b border-white/10 pb-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-ca-accent to-purple-600 shadow-glow-accent"></div>
+                        <div>
+                            <p class="text-white font-bold text-sm">Creator Dashboard</p>
+                            <p class="text-[10px] text-ca-accent uppercase tracking-wider font-bold mt-0.5">Pro Tier Active</p>
+                        </div>
+                    </div>
                 </div>
-                <span class="text-emerald-300 font-bold text-sm">₹{{ p.display_winnings|default:"0.00" }}</span>
+                <div class="space-y-4">
+                    <div class="h-2.5 bg-white/10 rounded-full w-full"></div>
+                    <div class="h-2.5 bg-white/10 rounded-full w-4/5"></div>
+                    <div class="h-2.5 bg-white/10 rounded-full w-5/6"></div>
+                    <div class="flex gap-3 pt-3">
+                        <div class="h-10 bg-ca-accent/20 border border-ca-accent/30 rounded w-1/2"></div>
+                        <div class="h-10 bg-white/5 border border-white/10 rounded w-1/2"></div>
+                    </div>
+                </div>
             </div>
-            {% empty %}
-            <p class="text-gray-500 text-sm p-5">Leaderboard will appear after match results are submitted.</p>
-            {% endfor %}
         </div>
     </div>
-
 </div>
 
 {% endblock %}

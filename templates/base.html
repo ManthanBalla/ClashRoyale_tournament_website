@@ -4,7 +4,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Clash Arena</title>
+    {% block meta %}
+    <title>Clash Arena — Esports Tournaments & Real Money Prizes</title>
+    <meta name="description" content="Host and play esports tournaments, join automated cup brackets, and win real money prizes securely on Clash Arena.">
+    <meta property="og:title" content="Clash Arena — Esports Tournaments & Real Money Prizes">
+    <meta property="og:description" content="Host and play esports tournaments, join automated cup brackets, and win real money prizes securely on Clash Arena.">
+    <meta property="og:image" content="https://clasharena.com/static/images/default_og.png">
+    <meta property="og:url" content="{{ request.build_absolute_uri }}">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Clash Arena — Esports Tournaments">
+    <meta name="twitter:description" content="Host and play esports tournaments, join automated cup brackets, and win real money prizes securely on Clash Arena.">
+    {% endblock %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">

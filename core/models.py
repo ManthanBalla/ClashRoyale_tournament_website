@@ -148,15 +148,27 @@ class WithdrawalRequest(models.Model):
 class RewardCode(models.Model):
     code = models.CharField(max_length=200)
     description = models.CharField(max_length=200, blank=True)
-    tournament = models.ForeignKey('Tournament', on_delete=models.SET_NULL, null=True, blank=True)
-    sent_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='sent_reward_codes')
-    assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    tournament = models.ForeignKey(Tournament, on_delete=models.SET_NULL, null=True, blank=True)
     sent = models.BooleanField(default=False)
     sent_at = models.DateTimeField(null=True, blank=True)
+    sent_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='sent_rewards')
+    assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='received_rewards')
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"{self.code} - {'Sent' if self.sent else 'Available'}"
+
+
+class WinnerCertificate(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='certificates')
+    tournament = models.ForeignKey(Tournament, on_delete=models.CASCADE, null=True, blank=True)
+    cup = models.ForeignKey('Cup', on_delete=models.CASCADE, null=True, blank=True)
+    image_url = models.URLField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        name = self.tournament.name if self.tournament else (self.cup.name if self.cup else 'Unknown')
+        return f"Certificate for {self.user.username} - {name}"
 
 
 class CreatorMembership(models.Model):

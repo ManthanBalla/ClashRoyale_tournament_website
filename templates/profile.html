@@ -1,5 +1,14 @@
 {% extends "base.html" %}
 
+{% block meta %}
+<title>{% if profile_user %}{{ profile_user.username }}'s Profile{% else %}My Profile{% endif %} — Clash Arena</title>
+<meta name="description" content="View profile on Clash Arena. Trust Score tracking and active tournaments.">
+<meta property="og:title" content="{% if profile_user %}{{ profile_user.username }}'s Profile{% else %}My Profile{% endif %} — Clash Arena">
+<meta property="og:description" content="View profile on Clash Arena. Trust Score tracking and active tournaments.">
+<meta property="og:url" content="{{ request.build_absolute_uri }}">
+<meta property="og:type" content="profile">
+{% endblock %}
+
 {% block content %}
 
 <div class="max-w-2xl mx-auto px-4 py-8">
@@ -129,6 +138,37 @@
         <p class="ca-muted text-xs mt-1">
             Tournaments used: <span class="text-ca-accent font-bold">{{ profile.tournaments_created_this_month }} / {{ profile.tournament_limit }}</span>
         </p>
+    </div>
+    {% endif %}
+
+    <!-- ACHIEVEMENTS GALLERY -->
+    <h2 class="text-lg font-bold text-yellow-400 mb-3 flex items-center gap-2">
+        <span>🏆 My Achievements</span>
+        <span class="text-[10px] bg-yellow-400/10 text-yellow-500 px-2 py-0.5 rounded border border-yellow-500/20 uppercase tracking-tighter">{{ certificates.count }}</span>
+    </h2>
+    
+    {% if certificates %}
+    <div class="grid grid-cols-2 gap-4 mb-8">
+        {% for cert in certificates %}
+        <div class="ca-glass p-2 relative group overflow-hidden border border-white/5 hover:border-yellow-500/30 transition-all duration-300">
+            <div class="aspect-video rounded-lg overflow-hidden bg-black/40 mb-2">
+                <img src="{{ cert.image_url }}" class="w-full h-full object-cover group-hover:scale-110 transition duration-500">
+            </div>
+            <div class="px-1">
+                <p class="text-white font-bold text-[10px] truncate">
+                    {% if cert.tournament %}{{ cert.tournament.name }}{% else %}{{ cert.cup.name }}{% endif %}
+                </p>
+                <p class="text-gray-500 text-[9px]">{{ cert.created_at|date:"d M Y" }}</p>
+            </div>
+            <a href="{% if cert.tournament %}/tournament/{{ cert.tournament.id }}/{% else %}/cups/{{ cert.cup.id }}/{% endif %}" 
+               class="absolute inset-0 z-10"></a>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="ca-glass p-8 text-center mb-8 border-dashed border-white/10">
+        <p class="text-2xl mb-2">🎮</p>
+        <p class="text-gray-500 text-sm italic">No certificates yet. Win a tournament to earn your first achievement!</p>
     </div>
     {% endif %}
 
