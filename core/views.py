@@ -1819,6 +1819,10 @@ def confirm_cup_match_result(request, match_id):
             decision=decision,
             dispute_reason=dispute_reason
         )
+        
+        if decision == 'accept' and match.winner and match.winner != request.user:
+            from core.utils import update_trust_score
+            update_trust_score(request.user, 5)
         _log_cup_action(
             cup,
             request.user,
@@ -1849,6 +1853,11 @@ def confirm_cup_match_result(request, match_id):
             match.dispute_reason = ''
             match.result_source = 'dual_confirmation'
             match.save(update_fields=['status', 'is_locked', 'is_disputed', 'dispute_reason', 'result_source'])
+            
+            from core.utils import update_trust_score
+            update_trust_score(match.player1, 5)
+            update_trust_score(match.player2, 5)
+            
             _advance_cup_winner(match, actor=request.user)
     return redirect(f'/cups/{cup.id}/')
 
@@ -1872,6 +1881,8 @@ def cup_player_action(request, cup_id):
         if action == 'kick':
             cp.kicked = True
             cp.save(update_fields=['kicked'])
+            from core.utils import update_trust_score
+            update_trust_score(target, -20)
             _log_cup_action(cup, request.user, 'kick_player', message=f'{target.username} kicked from cup.', target_user=target)
         elif action == 'ban':
             reason = (request.POST.get('reason') or '').strip()
@@ -1879,6 +1890,8 @@ def cup_player_action(request, cup_id):
                 return redirect(f'/cups/{cup.id}/?error=ban_reason_required')
             cp.banned = True
             cp.save(update_fields=['banned'])
+            from core.utils import update_trust_score
+            update_trust_score(target, -20)
             _log_cup_action(
                 cup,
                 request.user,
@@ -1943,6 +1956,22 @@ def resolve_cup_dispute(request, match_id):
         match.is_disputed = False
         match.result_source = 'admin_override' if request.user.profile.is_admin else 'creator_proof'
         match.save(update_fields=['winner', 'winner_label', 'status', 'is_locked', 'is_disputed', 'result_source'])
+        
+        from core.utils import update_trust_score
+        update_trust_score(winner, 10)
+        loser = match.player1 if winner == match.player2 else match.player2
+        update_trust_score(loser, -10)
+        
+        from django.db.models import Q
+        lost_count = CupMatch.objects.filter(
+            is_disputed=True, 
+            is_locked=True, 
+            status='completed'
+        ).exclude(winner=loser).filter(Q(player1=loser) | Q(player2=loser)).count()
+        
+        if lost_count == 3:
+            update_trust_score(loser, -30)
+
         _log_cup_action(
             cup,
             request.user,
@@ -2057,6 +2086,8 @@ def resolve_dispute(request, dispute_id):
         dispute.status = 'resolved'
     elif action == 'reject':
         dispute.status = 'rejected'
+        from core.utils import update_trust_score
+        update_trust_score(dispute.user, -10)
     else:
         return redirect('/creator-admin/')
 

@@ -152,6 +152,11 @@ def process_cup_deadlines_task():
                 locked_match.is_disputed = True
                 locked_match.dispute_reason = 'No player response before deadline.'
                 locked_match.save(update_fields=['status', 'is_disputed', 'dispute_reason'])
+                
+                from core.utils import update_trust_score
+                update_trust_score(locked_match.player1, -10)
+                update_trust_score(locked_match.player2, -10)
+                
                 CupActionLog.objects.create(
                     cup=locked_match.cup,
                     actor=None,

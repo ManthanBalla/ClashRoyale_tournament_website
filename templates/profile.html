@@ -65,19 +65,38 @@
     <h1 class="text-2xl sm:text-3xl font-extrabold text-white mb-1 tracking-tight">My profile</h1>
     <p class="ca-muted text-sm mb-6">Wallet, withdrawals, and account</p>
 
-    <!-- WALLET CARD -->
-    <div class="ca-glass p-5 sm:p-6 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border border-ca-accent/20">
-        <div>
-            <p class="ca-muted text-sm font-medium">Reward balance</p>
-            <p class="text-3xl sm:text-4xl font-extrabold text-white mt-1 tabular-nums">₹{{ profile.reward_balance }}</p>
+    <!-- WALLET & TRUST CARD -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+        <div class="ca-glass p-5 sm:p-6 flex flex-col justify-between border border-ca-accent/20">
+            <div>
+                <p class="ca-muted text-sm font-medium">Reward balance</p>
+                <p class="text-3xl sm:text-4xl font-extrabold text-white mt-1 tabular-nums">₹{{ profile.reward_balance }}</p>
+            </div>
+            <div class="flex gap-2 flex-wrap mt-4">
+                <a href="/payments/pay/" class="ca-btn text-center min-h-[2.75rem] font-bold text-sm shrink-0 flex-1">
+                    ➕ Add Money
+                </a>
+                <a href="/withdraw/" class="ca-btn-outline text-center min-h-[2.75rem] font-bold text-sm shrink-0 flex-1">
+                    Withdraw
+                </a>
+            </div>
         </div>
-        <div class="flex gap-2 flex-wrap">
-            <a href="/payments/pay/" class="ca-btn text-center min-h-[2.75rem] sm:min-w-[8rem] font-bold text-sm shrink-0">
-                ➕ Add Money
-            </a>
-            <a href="/withdraw/" class="ca-btn-outline text-center min-h-[2.75rem] sm:min-w-[7rem] font-bold text-sm shrink-0">
-                Withdraw
-            </a>
+
+        <div class="ca-glass p-5 sm:p-6 flex flex-col border border-ca-accent/20">
+            <div>
+                <p class="ca-muted text-sm font-medium">Trust Score</p>
+                <div class="flex items-end gap-3 mt-1">
+                    <p class="text-3xl sm:text-4xl font-extrabold text-white tabular-nums">{{ profile.trust_score }}</p>
+                    {% if profile.trust_score >= 150 %}
+                        <span class="mb-1 text-green-400 text-xs font-bold border border-green-400/40 px-3 py-1 rounded-full uppercase tracking-wider bg-green-400/10">Trusted</span>
+                    {% elif profile.trust_score >= 80 %}
+                        <span class="mb-1 text-yellow-400 text-xs font-bold border border-yellow-400/40 px-3 py-1 rounded-full uppercase tracking-wider bg-yellow-400/10">Neutral</span>
+                    {% else %}
+                        <span class="mb-1 text-red-400 text-xs font-bold border border-red-400/40 px-3 py-1 rounded-full uppercase tracking-wider bg-red-400/10">Flagged</span>
+                    {% endif %}
+                </div>
+                <p class="text-xs text-gray-400 mt-3">Reflects your fair play and honesty during tournaments.</p>
+            </div>
         </div>
     </div>
 
