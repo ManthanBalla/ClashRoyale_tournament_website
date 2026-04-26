@@ -9,3 +9,5 @@ resend==2.4.0
 requests==2.32.5
 cloudinary
 django-cloudinary-storage
+psycopg2-binary
+dj-database-url

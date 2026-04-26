@@ -1,0 +1,1106 @@
+[
+{
+  "model": "auth.user",
+  "fields": {
+    "password": "pbkdf2_sha256$1200000$3Kl25W6O07a0dTbr40RuXE$uTxy8z03QPLCkOsHLjZlxBh0GgoCKJaMcUANqqND7S4=",
+    "last_login": "2026-04-22T11:09:31.708Z",
+    "is_superuser": false,
+    "username": "ClashArena_Admin",
+    "first_name": "",
+    "last_name": "",
+    "email": "connectwithmanthan12@gmail.com",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2026-04-04T08:04:40.366Z",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "auth.user",
+  "fields": {
+    "password": "pbkdf2_sha256$1200000$v2CUW7pBwEZcWJbD7yGge9$Q48LQJ+LRTekk51yfEuKI6MjJbvcd5/ANGgX0VC/+pw=",
+    "last_login": "2026-04-22T11:29:44.423Z",
+    "is_superuser": false,
+    "username": "Manthan",
+    "first_name": "MANTHAN BALLA",
+    "last_name": "",
+    "email": "manthanballa08@gmail.com",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2026-04-12T04:50:29.423Z",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "auth.user",
+  "fields": {
+    "password": "pbkdf2_sha256$1200000$pXzRuivq22liLrAef9RgO1$9QmF9nt1ihJYHxi1EIbEJfmbTm4OpcLgEvH672kVf2M=",
+    "last_login": "2026-04-16T12:28:51.148Z",
+    "is_superuser": false,
+    "username": "manthan@1211",
+    "first_name": "",
+    "last_name": "",
+    "email": "manthanballa11@gmail.com",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2026-04-13T14:47:47.273Z",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "g6ufj4k45qv8irvli145a0b9y2f5l8dk",
+  "fields": {
+    "session_data": ".eJxVjDFuwzAMAP_CuTVshTJlj937BoEUyTpNYQWS0w5F_14EyJL17nC_kK_c-09tmpt1O_JRL7bDCkoTte_XREvRJJGS8oJkS0ohLlhGoxhEHF4g8-3Y8q1by2eFFeIzEy4X2-9CP3n_qEOp-9HOMtyT4WH78F7Vvt4e7dNg477BComjMQXWODJqQDrhLOMYUa2oz-4mblHC5IaejKaTlNlxRk_FlAL8_QPGaU27:1wCar7:DGbJHItehx-X3AMzJDA4Z5WAGwuNwQoQEgRUPWab4Do",
+    "expire_date": "2026-04-28T10:18:53.230Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "natvla8ll530f4k0vjsx9nuwv8dhc78u",
+  "fields": {
+    "session_data": ".eJxVjDEOgzAMAP_iuYqIAylh7M4bkB07DW0VJAJT1b9XSAztene6N0y0b3naq67TLDAAwuWXMcWnlkPIg8p9MXEp2zqzORJz2mrGRfR1O9u_QaaaYYBr2zi1EvpEAclxy0lEkJ234tRH77HRlMh1bHv0jabo0DJKCG0XEeHzBfYROCM:1w7s1w:EGxPWz9RzjiVPomgdeMP3z0qbPNUXVjFKeiZbtFq6t4",
+    "expire_date": "2026-04-15T09:38:32.909Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "u4cv6dhahak9a31h24jht4vfu8gvrqum",
+  "fields": {
+    "session_data": ".eJxVjMsKwkAMAP8lZ1nabfZBj979hpJsEluVLfRxEv9dCj3odWaYNwy0b-Owr7oMk0APAS6_jKk8tR5CHlTvsytz3ZaJ3ZG4067uNou-rmf7NxhpHaGHTEEpeZLQEIrH1GHkpgkoWsSimbJpYN-aomVNbcclGka0XFSSh88XCgo5KQ:1wFVm4:Y8aIuj67BX99V-2Fca4UO1IwVf0j4b2zRAtgKVV1-dE",
+    "expire_date": "2026-05-06T11:29:44.443Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "w4vonn038qpndvui1ijehdmtaxiezj36",
+  "fields": {
+    "session_data": ".eJxVjEsOwiAUAO_y1oaA_Lt03zOQBw-kaiAp7cp4d9OkC93OTOYNAfethn3kNSwEE0i4_LKI6ZnbIeiB7d5Z6m1bl8iOhJ12sLlTft3O9m9QcVSYgEentc9FcU-a2-IjcWPp6oxP3hGXPJEQGa2SSYmMzqM10emklCxWKPh8AdPUN1c:1wFUl0:krCUBhNMZ76ZYMz5DVz8Ha3tJJ3nvHoR9IIXqCBawM4",
+    "expire_date": "2026-05-06T10:24:34.041Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "yrglq70wjre5r86s3lw14q3brnmfj5d4",
+  "fields": {
+    "session_data": ".eJxVjLsOwjAMAP_FM4oSlwTckb3fEOVhkwJKpKadEP-OKnWA9e50b_BhW4vfOi9-zjCCgdMviyE9ue4iP0K9N5VaXZc5qj1Rh-1qaplft6P9G5TQC4wg5qzjgO7qotUkaFxwjowgiU6CQiya0CIby4MhjTlEssmmCzuNkuDzBcUIN3M:1wBUcM:8CoD6HVejuoK6fW4n-lrb4XLR1N6Bw-9oqAReo6nb8g",
+    "expire_date": "2026-04-25T09:27:06.505Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "znscyk9ing4y0q1y7k3jbijhwi36w6x6",
+  "fields": {
+    "session_data": ".eJxVjEsOwiAUAO_y1oaA_Lt03zOQBw-kaiAp7cp4d9OkC93OTOYNAfethn3kNSwEE0i4_LKI6ZnbIeiB7d5Z6m1bl8iOhJ12sLlTft3O9m9QcVSYgEentc9FcU-a2-IjcWPp6oxP3hGXPJEQGa2SSYmMzqM10emklCxWKPh8AdPUN1c:1wFUnk:HcbmUdTLGu90NAHkiBVF62JXYvPha0b_9aNhNIsEtOQ",
+    "expire_date": "2026-05-06T10:27:24.013Z"
+  }
+},
+{
+  "model": "core.profile",
+  "pk": 3,
+  "fields": {
+    "user": [
+      "ClashArena_Admin"
+    ],
+    "is_creator": true,
+    "is_admin": true,
+    "upi_id": null,
+    "reward_balance": "0.00",
+    "creator_plan": "none",
+    "plan_expiry": null,
+    "tournaments_created_this_month": 0,
+    "notify_new_tournaments": true,
+    "trophies": 0,
+    "ingame_username": null,
+    "trust_score": 100
+  }
+},
+{
+  "model": "core.profile",
+  "pk": 5,
+  "fields": {
+    "user": [
+      "Manthan"
+    ],
+    "is_creator": true,
+    "is_admin": false,
+    "upi_id": "manthan@okicici",
+    "reward_balance": "60.00",
+    "creator_plan": "1year",
+    "plan_expiry": "2028-05-12T14:28:48.173Z",
+    "tournaments_created_this_month": 0,
+    "notify_new_tournaments": true,
+    "trophies": 0,
+    "ingame_username": "Manthan",
+    "trust_score": 100
+  }
+},
+{
+  "model": "core.profile",
+  "pk": 6,
+  "fields": {
+    "user": [
+      "manthan@1211"
+    ],
+    "is_creator": false,
+    "is_admin": false,
+    "upi_id": null,
+    "reward_balance": "0.00",
+    "creator_plan": "none",
+    "plan_expiry": null,
+    "tournaments_created_this_month": 0,
+    "notify_new_tournaments": true,
+    "trophies": 0,
+    "ingame_username": null,
+    "trust_score": 100
+  }
+},
+{
+  "model": "core.withdrawalrequest",
+  "pk": 1,
+  "fields": {
+    "user": [
+      "Manthan"
+    ],
+    "amount": "10.00",
+    "upi_id": "manthan@okicici",
+    "status": "approved",
+    "requested_at": "2026-04-22T11:09:03.761Z"
+  }
+},
+{
+  "model": "core.withdrawalrequest",
+  "pk": 2,
+  "fields": {
+    "user": [
+      "Manthan"
+    ],
+    "amount": "10.00",
+    "upi_id": "manthan@okicici",
+    "status": "approved",
+    "requested_at": "2026-04-22T11:22:36.585Z"
+  }
+},
+{
+  "model": "core.withdrawalrequest",
+  "pk": 3,
+  "fields": {
+    "user": [
+      "Manthan"
+    ],
+    "amount": "10.00",
+    "upi_id": "manthan@okicici",
+    "status": "approved",
+    "requested_at": "2026-04-22T11:27:43.712Z"
+  }
+},
+{
+  "model": "core.withdrawalrequest",
+  "pk": 4,
+  "fields": {
+    "user": [
+      "Manthan"
+    ],
+    "amount": "10.00",
+    "upi_id": "manthan@okicici",
+    "status": "approved",
+    "requested_at": "2026-04-22T11:30:24.095Z"
+  }
+},
+{
+  "model": "core.rewardcode",
+  "pk": 1,
+  "fields": {
+    "code": "QWYEIYIWIOOPEOWIOU",
+    "description": "",
+    "tournament": null,
+    "sent_by": null,
+    "assigned_to": [
+      "ClashArena_Admin"
+    ],
+    "sent": true,
+    "sent_at": null,
+    "created_at": "2026-04-11T09:21:49.151Z"
+  }
+},
+{
+  "model": "core.rewardcode",
+  "pk": 2,
+  "fields": {
+    "code": "YRWBHGUTSDFHJNNKN",
+    "description": "500 RS GOOGLEPLAY RECHARGE CODE",
+    "tournament": null,
+    "sent_by": null,
+    "assigned_to": [
+      "Manthan"
+    ],
+    "sent": true,
+    "sent_at": null,
+    "created_at": "2026-04-12T04:49:20.141Z"
+  }
+},
+{
+  "model": "core.rewardcode",
+  "pk": 3,
+  "fields": {
+    "code": "VFGUHFNVJHJXNNNHJ",
+    "description": "500 RS GOOGLEPLAY RECHARGE CODE",
+    "tournament": null,
+    "sent_by": [
+      "ClashArena_Admin"
+    ],
+    "assigned_to": [
+      "manthan@1211"
+    ],
+    "sent": true,
+    "sent_at": "2026-04-13T14:59:03.636Z",
+    "created_at": "2026-04-13T14:54:55.402Z"
+  }
+},
+{
+  "model": "core.rewardcode",
+  "pk": 4,
+  "fields": {
+    "code": "SONICNSJISJDNBCDYSJO",
+    "description": "1000 RS CODE ",
+    "tournament": null,
+    "sent_by": [
+      "ClashArena_Admin"
+    ],
+    "assigned_to": [
+      "Manthan"
+    ],
+    "sent": true,
+    "sent_at": "2026-04-14T06:39:57.872Z",
+    "created_at": "2026-04-14T06:39:50.874Z"
+  }
+},
+{
+  "model": "core.rewardcode",
+  "pk": 5,
+  "fields": {
+    "code": "VFGUHFNVJHJXNNNHJ",
+    "description": "500 RS GOOGLEPLAY RECHARGE CODE",
+    "tournament": null,
+    "sent_by": [
+      "Manthan"
+    ],
+    "assigned_to": [
+      "Manthan"
+    ],
+    "sent": true,
+    "sent_at": "2026-04-14T07:00:59.829Z",
+    "created_at": "2026-04-14T07:00:45.147Z"
+  }
+},
+{
+  "model": "core.rewardcode",
+  "pk": 6,
+  "fields": {
+    "code": "QWYEIYIWIOOPEOWIOU",
+    "description": "10 RS Google Play Recharge Code",
+    "tournament": null,
+    "sent_by": [
+      "Manthan"
+    ],
+    "assigned_to": null,
+    "sent": false,
+    "sent_at": null,
+    "created_at": "2026-04-14T10:28:21.419Z"
+  }
+},
+{
+  "model": "core.creatormembership",
+  "pk": 2,
+  "fields": {
+    "user": [
+      "Manthan"
+    ],
+    "plan": "1year",
+    "started_at": "2026-04-13T14:28:48.173Z",
+    "expires_at": "2027-04-13T14:28:48.173Z",
+    "is_active": true
+  }
+},
+{
+  "model": "core.creatormembership",
+  "pk": 3,
+  "fields": {
+    "user": [
+      "Manthan"
+    ],
+    "plan": "1month",
+    "started_at": "2026-04-22T11:16:05.061Z",
+    "expires_at": "2027-05-13T14:28:48.173Z",
+    "is_active": true
+  }
+},
+{
+  "model": "core.creatormembership",
+  "pk": 4,
+  "fields": {
+    "user": [
+      "Manthan"
+    ],
+    "plan": "1year",
+    "started_at": "2026-04-22T11:32:54.470Z",
+    "expires_at": "2028-05-12T14:28:48.173Z",
+    "is_active": true
+  }
+},
+{
+  "model": "core.transaction",
+  "pk": 9,
+  "fields": {
+    "user": [
+      "Manthan"
+    ],
+    "transaction_type": "credit",
+    "category": "credit",
+    "reason": "admin_topup",
+    "amount": "50.00",
+    "tournament": null,
+    "payment": 3,
+    "description": "💳 UPI wallet top-up — ₹50.00 (UTR: 611216575937)",
+    "created_at": "2026-04-22T10:32:16.679Z"
+  }
+},
+{
+  "model": "core.transaction",
+  "pk": 10,
+  "fields": {
+    "user": [
+      "Manthan"
+    ],
+    "transaction_type": "credit",
+    "category": "credit",
+    "reason": "admin_topup",
+    "amount": "50.00",
+    "tournament": null,
+    "payment": 4,
+    "description": "💳 UPI wallet top-up — ₹50.00 (UTR: 123543768904)",
+    "created_at": "2026-04-22T10:33:08.816Z"
+  }
+},
+{
+  "model": "core.transaction",
+  "pk": 11,
+  "fields": {
+    "user": [
+      "Manthan"
+    ],
+    "transaction_type": "debit",
+    "category": "debit",
+    "reason": "withdrawal",
+    "amount": "10.00",
+    "tournament": null,
+    "payment": null,
+    "description": "💸 Withdrawal request of ₹10 to manthan@okicici",
+    "created_at": "2026-04-22T11:09:03.778Z"
+  }
+},
+{
+  "model": "core.transaction",
+  "pk": 12,
+  "fields": {
+    "user": [
+      "Manthan"
+    ],
+    "transaction_type": "debit",
+    "category": "debit",
+    "reason": "membership_purchase",
+    "amount": "499.00",
+    "tournament": null,
+    "payment": 5,
+    "description": "💎 Creator membership (1month) via UPI — UTR: 097876567788",
+    "created_at": "2026-04-22T11:16:05.062Z"
+  }
+},
+{
+  "model": "core.transaction",
+  "pk": 13,
+  "fields": {
+    "user": [
+      "Manthan"
+    ],
+    "transaction_type": "debit",
+    "category": "debit",
+    "reason": "withdrawal",
+    "amount": "10.00",
+    "tournament": null,
+    "payment": null,
+    "description": "💸 Auto-Withdrawal of ₹10 to manthan@okicici",
+    "created_at": "2026-04-22T11:22:36.602Z"
+  }
+},
+{
+  "model": "core.transaction",
+  "pk": 14,
+  "fields": {
+    "user": [
+      "Manthan"
+    ],
+    "transaction_type": "debit",
+    "category": "debit",
+    "reason": "withdrawal",
+    "amount": "10.00",
+    "tournament": null,
+    "payment": null,
+    "description": "💸 Auto-Withdrawal of ₹10 to manthan@okicici",
+    "created_at": "2026-04-22T11:27:43.734Z"
+  }
+},
+{
+  "model": "core.transaction",
+  "pk": 15,
+  "fields": {
+    "user": [
+      "Manthan"
+    ],
+    "transaction_type": "debit",
+    "category": "debit",
+    "reason": "withdrawal",
+    "amount": "10.00",
+    "tournament": null,
+    "payment": null,
+    "description": "💸 Auto-Withdrawal of ₹10 to manthan@okicici",
+    "created_at": "2026-04-22T11:30:24.112Z"
+  }
+},
+{
+  "model": "core.transaction",
+  "pk": 16,
+  "fields": {
+    "user": [
+      "Manthan"
+    ],
+    "transaction_type": "debit",
+    "category": "debit",
+    "reason": "membership_purchase",
+    "amount": "4000.00",
+    "tournament": null,
+    "payment": 7,
+    "description": "💎 Creator membership (+365 days) via UPI — UTR: 89737298217899",
+    "created_at": "2026-04-22T11:32:54.471Z"
+  }
+},
+{
+  "model": "core.notification",
+  "pk": 5,
+  "fields": {
+    "user": [
+      "ClashArena_Admin"
+    ],
+    "notification_type": "general",
+    "title": "🎁 Reward Code Received!",
+    "message": "You received a reward code: QWYEIYIWIOOPEOWIOU. Check your email for details.",
+    "url": "",
+    "tournament": null,
+    "is_read": true,
+    "created_at": "2026-04-11T09:21:59.229Z"
+  }
+},
+{
+  "model": "core.notification",
+  "pk": 7,
+  "fields": {
+    "user": [
+      "Manthan"
+    ],
+    "notification_type": "general",
+    "title": "🎁 Reward Code Received!",
+    "message": "You received a reward code: YRWBHGUTSDFHJNNKN. Check your email for details.",
+    "url": "",
+    "tournament": null,
+    "is_read": true,
+    "created_at": "2026-04-12T04:51:07.669Z"
+  }
+},
+{
+  "model": "core.notification",
+  "pk": 8,
+  "fields": {
+    "user": [
+      "Manthan"
+    ],
+    "notification_type": "general",
+    "title": "👑 Creator Membership Activated!",
+    "message": "Your 1year creator membership is now active! You can start hosting tournaments.",
+    "url": "",
+    "tournament": null,
+    "is_read": true,
+    "created_at": "2026-04-13T14:28:48.202Z"
+  }
+},
+{
+  "model": "core.notification",
+  "pk": 9,
+  "fields": {
+    "user": [
+      "Manthan"
+    ],
+    "notification_type": "general",
+    "title": "✅ Joined Manthan's Cup",
+    "message": "You have successfully joined Manthan's Cup.",
+    "url": "",
+    "tournament": null,
+    "is_read": true,
+    "created_at": "2026-04-13T14:32:49.416Z"
+  }
+},
+{
+  "model": "core.notification",
+  "pk": 12,
+  "fields": {
+    "user": [
+      "manthan@1211"
+    ],
+    "notification_type": "general",
+    "title": "✅ Joined Manthan's Cup",
+    "message": "You have successfully joined Manthan's Cup.",
+    "url": "",
+    "tournament": null,
+    "is_read": true,
+    "created_at": "2026-04-13T14:48:28.325Z"
+  }
+},
+{
+  "model": "core.notification",
+  "pk": 13,
+  "fields": {
+    "user": [
+      "Manthan"
+    ],
+    "notification_type": "general",
+    "title": "✅ Joined Manthan's Cup",
+    "message": "You have successfully joined Manthan's Cup.",
+    "url": "",
+    "tournament": null,
+    "is_read": true,
+    "created_at": "2026-04-13T14:49:32.913Z"
+  }
+},
+{
+  "model": "core.notification",
+  "pk": 14,
+  "fields": {
+    "user": [
+      "ClashArena_Admin"
+    ],
+    "notification_type": "general",
+    "title": "✅ Joined Manthan's Cup",
+    "message": "You have successfully joined Manthan's Cup.",
+    "url": "",
+    "tournament": null,
+    "is_read": true,
+    "created_at": "2026-04-13T14:54:19.942Z"
+  }
+},
+{
+  "model": "core.notification",
+  "pk": 15,
+  "fields": {
+    "user": [
+      "manthan@1211"
+    ],
+    "notification_type": "general",
+    "title": "Reward Code Received",
+    "message": "You received a reward code. Check your email for full details.",
+    "url": "",
+    "tournament": null,
+    "is_read": true,
+    "created_at": "2026-04-13T14:59:03.651Z"
+  }
+},
+{
+  "model": "core.notification",
+  "pk": 16,
+  "fields": {
+    "user": [
+      "Manthan"
+    ],
+    "notification_type": "general",
+    "title": "Reward Code Received",
+    "message": "You received a reward code. Check your email for full details.",
+    "url": "",
+    "tournament": null,
+    "is_read": true,
+    "created_at": "2026-04-14T06:39:57.890Z"
+  }
+},
+{
+  "model": "core.notification",
+  "pk": 19,
+  "fields": {
+    "user": [
+      "Manthan"
+    ],
+    "notification_type": "general",
+    "title": "✅ Joined Mystic Cup 👑",
+    "message": "You have successfully joined Mystic Cup 👑.",
+    "url": "",
+    "tournament": null,
+    "is_read": true,
+    "created_at": "2026-04-14T06:50:31.596Z"
+  }
+},
+{
+  "model": "core.notification",
+  "pk": 20,
+  "fields": {
+    "user": [
+      "manthan@1211"
+    ],
+    "notification_type": "general",
+    "title": "✅ Joined Mystic Cup 👑",
+    "message": "You have successfully joined Mystic Cup 👑.",
+    "url": "",
+    "tournament": null,
+    "is_read": true,
+    "created_at": "2026-04-14T06:52:48.329Z"
+  }
+},
+{
+  "model": "core.notification",
+  "pk": 23,
+  "fields": {
+    "user": [
+      "Manthan"
+    ],
+    "notification_type": "general",
+    "title": "Cup Update",
+    "message": "Cup \"Manthans Cup\" has been cancelled and deleted by the organizer.",
+    "url": "/cups/",
+    "tournament": null,
+    "is_read": true,
+    "created_at": "2026-04-22T10:04:53.210Z"
+  }
+},
+{
+  "model": "core.notification",
+  "pk": 24,
+  "fields": {
+    "user": [
+      "Manthan"
+    ],
+    "notification_type": "wallet_credit",
+    "title": "✅ Wallet Top-up Successful — ₹50.00",
+    "message": "₹50.00 added to your wallet. UTR: 611216575937",
+    "url": "",
+    "tournament": null,
+    "is_read": true,
+    "created_at": "2026-04-22T10:32:16.681Z"
+  }
+},
+{
+  "model": "core.notification",
+  "pk": 25,
+  "fields": {
+    "user": [
+      "Manthan"
+    ],
+    "notification_type": "wallet_credit",
+    "title": "✅ Wallet Top-up Successful — ₹50.00",
+    "message": "₹50.00 added to your wallet. UTR: 123543768904",
+    "url": "",
+    "tournament": null,
+    "is_read": true,
+    "created_at": "2026-04-22T10:33:08.818Z"
+  }
+},
+{
+  "model": "core.notification",
+  "pk": 26,
+  "fields": {
+    "user": [
+      "Manthan"
+    ],
+    "notification_type": "wallet_credit",
+    "title": "💸 Withdrawal Requested — ₹10",
+    "message": "Your withdrawal of ₹10 to manthan@okicici has been submitted. Admin will process within 24hrs.",
+    "url": "",
+    "tournament": null,
+    "is_read": true,
+    "created_at": "2026-04-22T11:09:03.786Z"
+  }
+},
+{
+  "model": "core.notification",
+  "pk": 27,
+  "fields": {
+    "user": [
+      "Manthan"
+    ],
+    "notification_type": "wallet_credit",
+    "title": "✅ Withdrawal Approved — ₹10.00",
+    "message": "Your withdrawal of ₹10.00 has been approved and sent to manthan@okicici.",
+    "url": "",
+    "tournament": null,
+    "is_read": true,
+    "created_at": "2026-04-22T11:09:46.104Z"
+  }
+},
+{
+  "model": "core.notification",
+  "pk": 28,
+  "fields": {
+    "user": [
+      "Manthan"
+    ],
+    "notification_type": "general",
+    "title": "✅ Membership Activated",
+    "message": "Your 1month creator membership is now active. UTR: 097876567788",
+    "url": "",
+    "tournament": null,
+    "is_read": true,
+    "created_at": "2026-04-22T11:16:05.062Z"
+  }
+},
+{
+  "model": "core.notification",
+  "pk": 29,
+  "fields": {
+    "user": [
+      "Manthan"
+    ],
+    "notification_type": "wallet_credit",
+    "title": "💸 Withdrawal Approved — ₹10",
+    "message": "Your withdrawal of ₹10 to manthan@okicici has been automatically approved.",
+    "url": "",
+    "tournament": null,
+    "is_read": true,
+    "created_at": "2026-04-22T11:22:36.615Z"
+  }
+},
+{
+  "model": "core.notification",
+  "pk": 30,
+  "fields": {
+    "user": [
+      "Manthan"
+    ],
+    "notification_type": "wallet_credit",
+    "title": "💸 Withdrawal Completed — ₹10",
+    "message": "Your withdrawal of ₹10 to manthan@okicici has been completed successfully.",
+    "url": "",
+    "tournament": null,
+    "is_read": true,
+    "created_at": "2026-04-22T11:27:43.745Z"
+  }
+},
+{
+  "model": "core.notification",
+  "pk": 31,
+  "fields": {
+    "user": [
+      "Manthan"
+    ],
+    "notification_type": "wallet_credit",
+    "title": "💸 Withdrawal Completed — ₹10",
+    "message": "Your withdrawal of ₹10 to manthan@okicici has been completed successfully.",
+    "url": "",
+    "tournament": null,
+    "is_read": true,
+    "created_at": "2026-04-22T11:30:24.126Z"
+  }
+},
+{
+  "model": "core.notification",
+  "pk": 32,
+  "fields": {
+    "user": [
+      "Manthan"
+    ],
+    "notification_type": "general",
+    "title": "✅ Membership Activated",
+    "message": "Your 1year creator membership is now active. UTR: 89737298217899",
+    "url": "",
+    "tournament": null,
+    "is_read": true,
+    "created_at": "2026-04-22T11:32:54.471Z"
+  }
+},
+{
+  "model": "core.payment",
+  "pk": 1,
+  "fields": {
+    "user": [
+      "ClashArena_Admin"
+    ],
+    "amount": "50.00",
+    "order_id": null,
+    "payment_session_id": null,
+    "purpose": "wallet_topup",
+    "plan": null,
+    "status": "pending",
+    "wallet_credited": false,
+    "failure_reason": null,
+    "raw_payload": null,
+    "created_at": "2026-04-22T10:27:24.082Z",
+    "updated_at": "2026-04-22T10:27:24.082Z"
+  }
+},
+{
+  "model": "core.payment",
+  "pk": 2,
+  "fields": {
+    "user": [
+      "Manthan"
+    ],
+    "amount": "50.00",
+    "order_id": null,
+    "payment_session_id": null,
+    "purpose": "wallet_topup",
+    "plan": null,
+    "status": "pending",
+    "wallet_credited": false,
+    "failure_reason": null,
+    "raw_payload": null,
+    "created_at": "2026-04-22T10:28:09.730Z",
+    "updated_at": "2026-04-22T10:28:09.730Z"
+  }
+},
+{
+  "model": "core.payment",
+  "pk": 3,
+  "fields": {
+    "user": [
+      "Manthan"
+    ],
+    "amount": "50.00",
+    "order_id": null,
+    "payment_session_id": null,
+    "purpose": "wallet_topup",
+    "plan": null,
+    "status": "success",
+    "wallet_credited": true,
+    "failure_reason": null,
+    "raw_payload": {
+      "user_submitted_utr": "611216575937",
+      "awaiting_sms": true
+    },
+    "created_at": "2026-04-22T10:31:07.204Z",
+    "updated_at": "2026-04-22T10:32:16.666Z"
+  }
+},
+{
+  "model": "core.payment",
+  "pk": 4,
+  "fields": {
+    "user": [
+      "Manthan"
+    ],
+    "amount": "50.00",
+    "order_id": null,
+    "payment_session_id": null,
+    "purpose": "wallet_topup",
+    "plan": null,
+    "status": "success",
+    "wallet_credited": true,
+    "failure_reason": null,
+    "raw_payload": {
+      "user_submitted_utr": "123543768904",
+      "awaiting_sms": true
+    },
+    "created_at": "2026-04-22T10:32:40.368Z",
+    "updated_at": "2026-04-22T10:33:08.806Z"
+  }
+},
+{
+  "model": "core.payment",
+  "pk": 5,
+  "fields": {
+    "user": [
+      "Manthan"
+    ],
+    "amount": "499.00",
+    "order_id": null,
+    "payment_session_id": null,
+    "purpose": "creator_membership",
+    "plan": "1month",
+    "status": "success",
+    "wallet_credited": true,
+    "failure_reason": null,
+    "raw_payload": {
+      "user_submitted_utr": "097876567788",
+      "awaiting_sms": true
+    },
+    "created_at": "2026-04-22T11:15:45.157Z",
+    "updated_at": "2026-04-22T11:16:05.058Z"
+  }
+},
+{
+  "model": "core.payment",
+  "pk": 6,
+  "fields": {
+    "user": [
+      "Manthan"
+    ],
+    "amount": "4000.00",
+    "order_id": null,
+    "payment_session_id": null,
+    "purpose": "creator_membership",
+    "plan": "1year",
+    "status": "pending",
+    "wallet_credited": false,
+    "failure_reason": null,
+    "raw_payload": null,
+    "created_at": "2026-04-22T11:25:06.877Z",
+    "updated_at": "2026-04-22T11:25:06.877Z"
+  }
+},
+{
+  "model": "core.payment",
+  "pk": 7,
+  "fields": {
+    "user": [
+      "Manthan"
+    ],
+    "amount": "4000.00",
+    "order_id": null,
+    "payment_session_id": null,
+    "purpose": "creator_membership",
+    "plan": "1year",
+    "status": "success",
+    "wallet_credited": true,
+    "failure_reason": null,
+    "raw_payload": {
+      "user_submitted_utr": "89737298217899",
+      "awaiting_sms": true
+    },
+    "created_at": "2026-04-22T11:32:42.542Z",
+    "updated_at": "2026-04-22T11:32:54.468Z"
+  }
+},
+{
+  "model": "core.payment",
+  "pk": 8,
+  "fields": {
+    "user": [
+      "Manthan"
+    ],
+    "amount": "50.00",
+    "order_id": "CA_5_1776864670",
+    "payment_session_id": "session_vYyDExKsf4mn3NeMQ8Mt0pnhznNPlXincGVemNDE2QIkTJp2tKhJxEZ3G1GZ3Yc5m1eV7v3-VidPuCldFv03xPQ0lrNdFAsEWc8cDFbDgS1Okg38pjzTCh0K-2Yh9gpaymentpayment",
+    "purpose": "wallet_topup",
+    "plan": null,
+    "status": "created",
+    "wallet_credited": false,
+    "failure_reason": null,
+    "raw_payload": null,
+    "created_at": "2026-04-22T13:31:11.400Z",
+    "updated_at": "2026-04-22T13:31:11.400Z"
+  }
+},
+{
+  "model": "core.payment",
+  "pk": 9,
+  "fields": {
+    "user": [
+      "Manthan"
+    ],
+    "amount": "50.00",
+    "order_id": "CA_5_1776865653",
+    "payment_session_id": "session_lUPCP65mgjzwLvN04EcGRQeGVbjbQ-DLV7AJPGUW0_6E8oi6Z1zcZmk753Luzp4fAxh7DqYJEI9WUV9fw0TT3LwnZoypFhVcxgB72ZpK5pNWWTxACDBUa_GHfDa7kgpaymentpayment",
+    "purpose": "wallet_topup",
+    "plan": null,
+    "status": "created",
+    "wallet_credited": false,
+    "failure_reason": null,
+    "raw_payload": null,
+    "created_at": "2026-04-22T13:47:34.804Z",
+    "updated_at": "2026-04-22T13:47:34.804Z"
+  }
+},
+{
+  "model": "core.payment",
+  "pk": 10,
+  "fields": {
+    "user": [
+      "Manthan"
+    ],
+    "amount": "4000.00",
+    "order_id": "CA_5_1776865666",
+    "payment_session_id": "session_61dqulPMA0jTPoDydIN3G04SE9KZjlMKYKcSZWzs4afkKz2t_aDymgIpJ9Cmm9noZFKJyUj0wMkAlt0k2ntxbMGmyc60G-WgoNtgp1G26fRlGAUl36lINwXOk4eiNQpaymentpayment",
+    "purpose": "creator_membership",
+    "plan": "1year",
+    "status": "created",
+    "wallet_credited": false,
+    "failure_reason": null,
+    "raw_payload": null,
+    "created_at": "2026-04-22T13:47:47.069Z",
+    "updated_at": "2026-04-22T13:47:47.069Z"
+  }
+},
+{
+  "model": "core.payment",
+  "pk": 11,
+  "fields": {
+    "user": [
+      "Manthan"
+    ],
+    "amount": "4000.00",
+    "order_id": "CA_5_1776865704",
+    "payment_session_id": "session_kdDaN7h3QnfNEhu26p3-LnNr09jIl5Wo3FO7uzD_c4pcobFviGVx_-JCDwfMbdvhf_ZQj3WjL6g7leTERPttUkY-gH1fLHv2ZH-iXa4vxduWIvBjnphqqNuzLNkiyQpaymentpayment",
+    "purpose": "creator_membership",
+    "plan": "1year",
+    "status": "created",
+    "wallet_credited": false,
+    "failure_reason": null,
+    "raw_payload": null,
+    "created_at": "2026-04-22T13:48:25.301Z",
+    "updated_at": "2026-04-22T13:48:25.301Z"
+  }
+},
+{
+  "model": "core.payment",
+  "pk": 12,
+  "fields": {
+    "user": [
+      "Manthan"
+    ],
+    "amount": "4000.00",
+    "order_id": "CA_5_1776865713",
+    "payment_session_id": "session_Fxrj60_lpRQ-WT8GWpCVjmTz9i0G8jJx5wBXHzD60YcWR6c1TBjMghPL9QwZG5aIhf4MN94hHNXFdGp66WKqVB5WtM8qt2sc_4sY1C1hML10vE6DVDEo_ZZ2TaOoMgpaymentpayment",
+    "purpose": "creator_membership",
+    "plan": "1year",
+    "status": "created",
+    "wallet_credited": false,
+    "failure_reason": null,
+    "raw_payload": null,
+    "created_at": "2026-04-22T13:48:34.567Z",
+    "updated_at": "2026-04-22T13:48:34.567Z"
+  }
+},
+{
+  "model": "core.creatorfollow",
+  "pk": 1,
+  "fields": {
+    "follower": [
+      "ClashArena_Admin"
+    ],
+    "creator": [
+      "Manthan"
+    ],
+    "notifications_enabled": false,
+    "created_at": "2026-04-13T14:29:08.381Z"
+  }
+},
+{
+  "model": "core.creatorfollow",
+  "pk": 2,
+  "fields": {
+    "follower": [
+      "manthan@1211"
+    ],
+    "creator": [
+      "Manthan"
+    ],
+    "notifications_enabled": true,
+    "created_at": "2026-04-13T14:48:14.833Z"
+  }
+}
+]

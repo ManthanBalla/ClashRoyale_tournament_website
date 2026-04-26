@@ -109,13 +109,23 @@ TEMPLATES = [
 # WSGI
 WSGI_APPLICATION = 'clash_arena.wsgi.application'
 
-# Database
+# Database — PostgreSQL
+import dj_database_url
+
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.getenv('DB_NAME', 'clash_arena'),
+        'USER': os.getenv('DB_USER', 'postgres'),
+        'PASSWORD': os.getenv('DB_PASSWORD', ''),
+        'HOST': os.getenv('DB_HOST', 'localhost'),
+        'PORT': os.getenv('DB_PORT', '5432'),
     }
 }
+
+# If DATABASE_URL is provided (e.g., on Render), use it to override the local config
+if os.getenv('DATABASE_URL'):
+    DATABASES['default'] = dj_database_url.config(default=os.getenv('DATABASE_URL'), conn_max_age=600)
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
