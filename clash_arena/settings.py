@@ -225,6 +225,10 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'core.tasks.notify_unresolved_cup_disputes_task',
         'schedule': 3600.0,
     },
+    'daily-financial-reconciliation': {
+        'task': 'core.tasks.reconcile_payments_task',
+        'schedule': 86400.0, # 24 hours
+    },
 }
 
 ALLOWED_HOSTS = ['*']

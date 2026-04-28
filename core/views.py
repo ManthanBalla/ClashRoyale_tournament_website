@@ -32,8 +32,15 @@ import uuid
 from PIL import Image
 from django.contrib.auth.views import PasswordResetConfirmView
 
+from django.core.paginator import Paginator
 from .models import Tournament, Participant, Match, Profile, WithdrawalRequest, RewardCode, CreatorMembership, Transaction, Notification, Payment, DisputeReport, CreatorFollow, Cup, CupJoinGuide, CupParticipant, CupMatch, CupMatchConfirmation, CupActionLog
 from .forms import NoReuseSetPasswordForm
+from .fraud import track_user_fraud_metrics, check_withdrawal_safety, check_creator_limits
+from .utils import (
+    check_rate_limit, update_trust_score, add_transaction, credit_wallet,
+    debit_wallet, send_notification, notify_all_participants
+)
+from .tasks import enqueue_task, distribute_tournament_prizes_task
 
 
 logger = logging.getLogger(__name__)
@@ -59,77 +66,6 @@ class CustomPasswordResetConfirmView(PasswordResetConfirmView):
 
 
 # ─── HELPERS ───────────────────────────────────────────────────────────────
-
-def add_transaction(user, transaction_type, reason, amount, description='', category=None, tournament=None, payment=None):
-    if category is None:
-        if reason in ('tournament_win',):
-            category = 'winning'
-        elif reason in ('tournament_refund', 'withdrawal_refund'):
-            category = 'refund'
-        elif transaction_type == 'debit':
-            category = 'debit'
-        else:
-            category = 'credit'
-
-    Transaction.objects.create(
-        user=user,
-        transaction_type=transaction_type,
-        category=category,
-        reason=reason,
-        amount=amount,
-        tournament=tournament,
-        payment=payment,
-        description=description
-    )
-
-
-def credit_wallet(user, amount, reason, description='', tournament=None, payment=None):
-    amount = Decimal(str(amount))
-    if amount <= 0:
-        raise ValueError('Credit amount must be greater than zero.')
-
-    with transaction.atomic():
-        profile = Profile.objects.select_for_update().get(user=user)
-        profile.reward_balance += amount
-        profile.save(update_fields=['reward_balance'])
-        add_transaction(
-            user, 'credit', reason, amount, description,
-            tournament=tournament, payment=payment
-        )
-
-
-def debit_wallet(user, amount, reason, description='', tournament=None, payment=None):
-    amount = Decimal(str(amount))
-    if amount <= 0:
-        raise ValueError('Debit amount must be greater than zero.')
-
-    with transaction.atomic():
-        profile = Profile.objects.select_for_update().get(user=user)
-        if profile.reward_balance < amount:
-            raise ValueError('Insufficient wallet balance.')
-        profile.reward_balance -= amount
-        profile.save(update_fields=['reward_balance'])
-        add_transaction(
-            user, 'debit', reason, amount, description,
-            tournament=tournament, payment=payment
-        )
-
-
-def send_notification(user, notification_type, title, message, tournament=None):
-    Notification.objects.create(
-        user=user,
-        notification_type=notification_type,
-        title=title,
-        message=message,
-        tournament=tournament
-    )
-
-
-def notify_all_participants(tournament, notification_type, title, message):
-    participants = Participant.objects.filter(tournament=tournament)
-    for p in participants:
-        send_notification(p.user, notification_type, title, message, tournament)
-    send_notification(tournament.creator, notification_type, title, message, tournament)
 
 
 def parse_and_convert(dt_str, tz_choice):
@@ -194,8 +130,10 @@ def maybe_auto_start_tournament(tournament):
                         user,
                         tournament.entry_fee,
                         'tournament_refund',
-                        f'♻️ Refund — {tournament.name} cancelled (minimum players not reached)',
-                        tournament=tournament
+                        balance_type='deposit',
+                        description=f'♻️ Refund — {tournament.name} cancelled (minimum players not reached)',
+                        tournament=tournament,
+                        reference_id=str(tournament.id)
                     )
         tournament.status = 'cancelled'
         tournament.cancel_reason = (
@@ -265,13 +203,6 @@ def extract_reward_amount(text):
     return Decimal('0.00')
 
 
-def enqueue_task(task_func, *args):
-    if getattr(settings, 'CELERY_TASK_ALWAYS_EAGER', False):
-        # In eager mode on low-CPU/free hosts, run task in daemon thread
-        # so request-response is not blocked by network calls.
-        threading.Thread(target=lambda: task_func.delay(*args), daemon=True).start()
-    else:
-        task_func.delay(*args)
 
 
 def optimize_uploaded_image(uploaded_file, max_dimension=1600, jpeg_quality=82):
@@ -309,20 +240,28 @@ def optimize_uploaded_image(uploaded_file, max_dimension=1600, jpeg_quality=82):
 # ─── AUTH ──────────────────────────────────────────────────────────────────
 
 def home(request):
-    tournaments = Tournament.objects.exclude(status='cancelled').select_related('creator').order_by('-created_at')
+    tournament_list = Tournament.objects.exclude(status='cancelled').select_related('creator').order_by('-created_at')
+    
+    # Pagination for tournaments
+    paginator = Paginator(tournament_list, 12)
+    page_number = request.GET.get('page')
+    tournaments = paginator.get_page(page_number)
+
     joined_tournaments = []
     if request.user.is_authenticated:
         joined_tournaments = Participant.objects.filter(
-            user=request.user
+            user=request.user,
+            tournament__in=tournaments.object_list
         ).values_list('tournament_id', flat=True)
 
     participant_counts = {
         row['tournament']: row['cnt']
-        for row in Participant.objects.filter(tournament__in=tournaments).values('tournament').annotate(cnt=Count('id'))
+        for row in Participant.objects.filter(tournament__in=tournaments.object_list).values('tournament').annotate(cnt=Count('id'))
     }
+    
     tournament_data = []
     for t in tournaments:
-        sync_tournament_status(t)
+        # sync_tournament_status(t) # Optimization: maybe run this in a background job or daily beat instead of on every request
         count = participant_counts.get(t.id, 0)
         tournament_data.append({
             'tournament': t,
@@ -330,6 +269,7 @@ def home(request):
             'prize_pool': t.entry_fee * count if t.is_paid else None
         })
 
+    # Cache global leaderboard if possible (omitted for brevity)
     global_leaderboard = list(User.objects.annotate(
         total_winnings=Sum(
             'transactions__amount',
@@ -339,33 +279,16 @@ def home(request):
         reward_wins=Count('received_rewards', filter=Q(received_rewards__sent=True), distinct=True)
     ).filter(
         Q(total_winnings__gt=0) | Q(tournament_wins__gt=0) | Q(reward_wins__gt=0)
-    ).order_by('-total_winnings', '-tournament_wins', '-reward_wins', 'username')[:50])
-
-    reward_codes = RewardCode.objects.filter(sent=True, assigned_to__isnull=False).only(
-        'assigned_to_id', 'description'
-    )
-    reward_amount_by_user = {}
-    for rc in reward_codes:
-        amount = extract_reward_amount(rc.description)
-        if amount > 0:
-            reward_amount_by_user[rc.assigned_to_id] = reward_amount_by_user.get(rc.assigned_to_id, Decimal('0.00')) + amount
+    ).order_by('-total_winnings', '-tournament_wins', '-reward_wins', 'username')[:20])
 
     for user in global_leaderboard:
-        tx_amount = user.total_winnings or Decimal('0.00')
-        reward_amount = reward_amount_by_user.get(user.id, Decimal('0.00'))
-        user.display_winnings = tx_amount + reward_amount
+        user.display_winnings = (user.total_winnings or 0)
         user.display_wins = (user.tournament_wins or 0) + (user.reward_wins or 0)
-
-    global_leaderboard.sort(
-        key=lambda u: (u.display_winnings, u.display_wins, -(u.id or 0)),
-        reverse=True
-    )
-    global_leaderboard = global_leaderboard[:20]
 
     active_creators = User.objects.filter(
         profile__is_creator=True,
         profile__plan_expiry__gt=timezone.now()
-    ).select_related('profile').order_by('username')
+    ).select_related('profile').order_by('username')[:12]
 
     followed_creator_ids = set()
     follow_alert_on_ids = set()
@@ -377,6 +300,7 @@ def home(request):
         )
 
     return render(request, 'home.html', {
+        'tournaments': tournaments, # Use paginated object
         'tournament_data': tournament_data,
         'joined_tournaments': joined_tournaments,
         'global_leaderboard': global_leaderboard,
@@ -409,9 +333,16 @@ def login_view(request):
     if request.method == "POST":
         username = request.POST['username']
         password = request.POST['password']
+        
+        # Rate limiting login
+        if not check_rate_limit(f"login_attempt:{username}", limit=10, window_seconds=600):
+            return render(request, 'auth/login.html', {'error': 'Too many login attempts. Try again in 10 minutes.'})
+
         user = authenticate(request, username=username, password=password)
         if user:
             login(request, user)
+            track_user_fraud_metrics(request, user) # Track IP/Device
+            logger.info(f"User login: {user.username} from {user.profile.last_ip}")
             return redirect('/')
         else:
             return render(request, 'auth/login.html', {'error': 'Invalid credentials'})
@@ -435,7 +366,9 @@ def register_view(request):
         if not email:
             return render(request, 'auth/register.html', {'error': 'Email is required.'})
 
-        User.objects.create_user(username=username, email=email, password=password)
+        user = User.objects.create_user(username=username, email=email, password=password)
+        track_user_fraud_metrics(request, user)
+        logger.info(f"New user registered: {user.username} from {user.profile.last_ip}")
         return redirect('/login/?registered=1')
 
     return render(request, 'auth/register.html')
@@ -501,9 +434,14 @@ def profile_view(request):
     memberships = CreatorMembership.objects.filter(
         user=request.user
     ).order_by('-started_at')
-    transactions = Transaction.objects.filter(
+    transactions_list = Transaction.objects.filter(
         user=request.user
-    ).order_by('-created_at')[:30]
+    ).order_by('-created_at')
+    
+    # Paginate transactions
+    paginator = Paginator(transactions_list, 10)
+    page_number = request.GET.get('page')
+    transactions = paginator.get_page(page_number)
 
     from .models import WinnerCertificate
     certificates = WinnerCertificate.objects.filter(user=request.user).select_related('tournament', 'cup').order_by('-created_at')
@@ -727,18 +665,18 @@ def _fulfill_cashfree_payment(payment, payload):
         user = payment.user
         if payment.purpose == 'wallet_topup':
             profile = Profile.objects.select_for_update().get(user=user)
-            profile.reward_balance += payment.amount
-            profile.save()
+            profile.deposit_balance += payment.amount
+            profile.save(update_fields=['deposit_balance'])
             
             add_transaction(
-                user, 'credit', 'admin_topup', payment.amount,
-                f'💳 Wallet top-up via Cashfree — Order: {payment.order_id}',
-                category='credit', payment=payment
+                user, 'credit', 'cashfree_deposit', payment.amount,
+                f'💳 Deposit via Cashfree — Order: {payment.order_id}',
+                category='credit', payment=payment, reference_id=payment.order_id
             )
             send_notification(
                 user, 'wallet_credit',
                 f'✅ Wallet Top-up Successful — ₹{payment.amount}',
-                f'₹{payment.amount} added to your wallet via Cashfree.'
+                f'₹{payment.amount} added to your deposit balance via Cashfree.'
             )
         elif payment.purpose == 'creator_membership':
             _activate_membership_cashfree(payment)
@@ -822,37 +760,51 @@ def withdraw_view(request):
                 'error': 'Invalid amount.', 'profile': profile
             })
 
-        if amount <= 0:
+        if amount < Decimal('100.00'):
             return render(request, 'withdraw.html', {
-                'error': 'Amount must be greater than 0.', 'profile': profile
+                'error': 'Minimum withdrawal amount is ₹100.', 'profile': profile
             })
 
-        if amount > profile.reward_balance:
+        # Fraud & Limit checks
+        is_safe, error_msg = check_withdrawal_safety(request.user, amount)
+        if not is_safe:
             return render(request, 'withdraw.html', {
-                'error': f'Insufficient balance. Your balance is ₹{profile.reward_balance}.',
-                'profile': profile
+                'error': error_msg, 'profile': profile
             })
 
-        WithdrawalRequest.objects.create(
-            user=request.user,
-            amount=amount,
-            upi_id=profile.upi_id,
-            status='approved'
-        )
-        try:
-            debit_wallet(
-                request.user, amount, 'withdrawal',
-                f'💸 Auto-Withdrawal of ₹{amount} to {profile.upi_id}'
+        with transaction.atomic():
+            # Lock profile
+            profile = Profile.objects.select_for_update().get(user=request.user)
+            
+            if amount > profile.winnings_balance:
+                return render(request, 'withdraw.html', {
+                    'error': f'Insufficient winnings balance. You can only withdraw from earnings. Your winnings balance is ₹{profile.winnings_balance}.',
+                    'profile': profile
+                })
+
+            # 1. Deduct from winnings balance
+            profile.winnings_balance -= amount
+            profile.save(update_fields=['winnings_balance'])
+
+            # 2. Create withdrawal request
+            wr = WithdrawalRequest.objects.create(
+                user=request.user,
+                amount=amount,
+                upi_id=profile.upi_id,
+                status='pending'
             )
-        except ValueError:
-            return render(request, 'withdraw.html', {
-                'error': f'Insufficient balance. Your balance is ₹{request.user.profile.reward_balance}.',
-                'profile': request.user.profile
-            })
+
+            # 3. Create transaction log
+            add_transaction(
+                request.user, 'debit', 'withdrawal', amount,
+                f'💸 Withdrawal Request of ₹{amount} to {profile.upi_id}',
+                status='pending', reference_id=str(wr.id)
+            )
+
         send_notification(
             request.user, 'wallet_credit',
-            f'💸 Withdrawal Completed — ₹{amount}',
-            f'Your withdrawal of ₹{amount} to {profile.upi_id} has been completed successfully.'
+            f'💸 Withdrawal Requested — ₹{amount}',
+            f'Your withdrawal request of ₹{amount} has been submitted and is pending admin approval.'
         )
         return redirect('/profile/?withdrawn=1')
 
@@ -927,55 +879,55 @@ def join_tournament(request, tournament_id):
             if not agreed:
                 return redirect(f'/rules/{tournament.id}/')
 
-            profile = request.user.profile
-            if profile.reward_balance < tournament.entry_fee:
-                return render(request, 'tournament_rules.html', {
-                    'tournament': tournament,
-                    'count': current_count,
-                    'prize_pool': tournament.entry_fee * current_count,
-                    'error': f'Insufficient balance. You need ₹{tournament.entry_fee} to join. Your balance is ₹{profile.reward_balance}.'
-                })
+            with transaction.atomic():
+                # LOCK USER AND TOURNAMENT
+                profile = Profile.objects.select_for_update().get(user=request.user)
+                
+                # Check double join again inside lock
+                if Participant.objects.filter(user=request.user, tournament=tournament).exists():
+                    return redirect(f'/tournament/{tournament.id}/')
 
-            # deduct fee
-            try:
+                if profile.total_balance < tournament.entry_fee:
+                    return render(request, 'tournament_rules.html', {
+                        'tournament': tournament,
+                        'count': current_count,
+                        'prize_pool': tournament.entry_fee * current_count,
+                        'error': f'Insufficient balance. You need ₹{tournament.entry_fee} to join. Your total balance is ₹{profile.total_balance}.'
+                    })
+
+                # deduct fee (handles deposit first then winnings)
                 debit_wallet(
                     request.user,
                     tournament.entry_fee,
                     'tournament_join',
                     f'🎮 Entry fee for {tournament.name}',
-                    tournament=tournament
+                    tournament=tournament,
+                    reference_id=str(tournament.id)
                 )
-            except ValueError:
-                return render(request, 'tournament_rules.html', {
-                    'tournament': tournament,
-                    'count': current_count,
-                    'prize_pool': tournament.entry_fee * current_count,
-                    'error': f'Insufficient balance. You need ₹{tournament.entry_fee} to join. Your balance is ₹{request.user.profile.reward_balance}.'
-                })
 
-            # notify deduction
-            send_notification(
-                request.user,
-                'wallet_credit',
-                f'💸 ₹{tournament.entry_fee} Deducted — {tournament.name}',
-                f'₹{tournament.entry_fee} entry fee deducted for joining {tournament.name}. New balance: ₹{request.user.profile.reward_balance}',
-                tournament
-            )
+                # notify deduction
+                send_notification(
+                    request.user,
+                    'wallet_credit',
+                    f'💸 ₹{tournament.entry_fee} Deducted — {tournament.name}',
+                    f'₹{tournament.entry_fee} entry fee deducted for joining {tournament.name}. New balance: ₹{request.user.profile.total_balance}',
+                    tournament
+                )
 
-            tournament.prize_pool += tournament.entry_fee
-            tournament.save()
+                tournament.prize_pool += tournament.entry_fee
+                tournament.save(update_fields=['prize_pool'])
 
-            Participant.objects.create(
-                user=request.user,
-                tournament=tournament,
-                fee_paid=True
-            )
-            send_notification(
-                request.user, 'general',
-                f'✅ Joined {tournament.name}',
-                f'You have successfully joined {tournament.name}.'
-            )
-            return redirect(f'/tournament/{tournament.id}/')
+                Participant.objects.create(
+                    user=request.user,
+                    tournament=tournament,
+                    fee_paid=True
+                )
+                send_notification(
+                    request.user, 'general',
+                    f'✅ Joined {tournament.name}',
+                    f'You have successfully joined {tournament.name}.'
+                )
+                return redirect(f'/tournament/{tournament.id}/')
 
         return redirect(f'/rules/{tournament.id}/')
 
@@ -1026,11 +978,18 @@ def create_tournament(request):
     if not profile.is_admin and not profile.is_creator:
         return redirect('/')
 
-    # CREATOR: check plan limits only
-    if not profile.is_admin and not profile.can_create_tournament():
-        return render(request, 'create_tournament.html', {
-            'error': 'You have reached your tournament limit or your plan has expired. Please upgrade your plan.'
-        })
+    # CREATOR: check plan limits and fraud limits
+    if not profile.is_admin:
+        if not profile.can_create_tournament():
+            return render(request, 'create_tournament.html', {
+                'error': 'You have reached your tournament limit or your plan has expired.'
+            })
+        
+        is_allowed, creator_error = check_creator_limits(request.user)
+        if not is_allowed:
+            return render(request, 'create_tournament.html', {
+                'error': creator_error
+            })
 
     if request.method == "POST":
         name = request.POST['name']
@@ -1111,13 +1070,15 @@ def delete_tournament(request, tournament_id):
                     p.user,
                     tournament.entry_fee,
                     'tournament_refund',
-                    f'♻️ Refund — {tournament.name} deleted by organizer',
-                    tournament=tournament
+                    balance_type='deposit',
+                    description=f'♻️ Refund — {tournament.name} deleted by organizer',
+                    tournament=tournament,
+                    reference_id=str(tournament.id)
                 )
                 send_notification(
                     p.user, 'tournament_cancel',
                     f'♻️ Refund — {tournament.name} Deleted',
-                    f'Tournament {tournament.name} was deleted. ₹{tournament.entry_fee} refunded to your wallet.',
+                    f'Tournament {tournament.name} was deleted. ₹{tournament.entry_fee} refunded to your deposit balance.',
                     tournament
                 )
         tournament.delete()
@@ -1236,12 +1197,26 @@ def tournament_detail(request, tournament_id):
 @require_POST
 def submit_dispute(request, tournament_id):
     tournament = get_object_or_404(Tournament, id=tournament_id)
+    
+    # 1. Participation Check
+    if not Participant.objects.filter(user=request.user, tournament=tournament).exists():
+        return redirect(f'/tournament/{tournament.id}/?dispute_error=not_participant')
+
+    # 2. Rate Limit: 3 disputes per day
+    if not check_rate_limit(f"dispute_user:{request.user.id}", limit=3, window_seconds=86400):
+        return redirect(f'/tournament/{tournament.id}/?dispute_error=rate_limit')
+
+    # 3. Time Limit: 24h after tournament end (if completed)
+    if tournament.status == 'completed' and tournament.end_time:
+        if timezone.now() > tournament.end_time + timedelta(hours=24):
+            return redirect(f'/tournament/{tournament.id}/?dispute_error=too_late')
+
     message = (request.POST.get('message') or '').strip()
     match_id = request.POST.get('match_id')
     proof_image = optimize_uploaded_image(request.FILES.get('proof_image'))
 
     if not message:
-        return redirect(f'/tournament/{tournament.id}/?dispute_error=1')
+        return redirect(f'/tournament/{tournament.id}/?dispute_error=empty')
 
     match = None
     if match_id:
@@ -1257,8 +1232,9 @@ def submit_dispute(request, tournament_id):
     send_notification(
         request.user, 'general',
         '📨 Dispute Submitted',
-        f'Your dispute for {tournament.name} has been submitted and will be reviewed by admin.'
+        f'Your dispute for {tournament.name} has been submitted.'
     )
+    logger.info(f"Dispute submitted by {request.user.username} for tournament {tournament.id}")
     return redirect(f'/tournament/{tournament.id}/?dispute_submitted=1')
 
 
@@ -1319,8 +1295,10 @@ def cancel_tournament(request, tournament_id):
                     p.user,
                     tournament.entry_fee,
                     'tournament_refund',
-                    f'♻️ Refund — {tournament.name} cancelled: {reason}',
-                    tournament=tournament
+                    balance_type='deposit',
+                    description=f'♻️ Refund — {tournament.name} cancelled: {reason}',
+                    tournament=tournament,
+                    reference_id=str(tournament.id)
                 )
 
         notify_all_participants(
@@ -1328,7 +1306,7 @@ def cancel_tournament(request, tournament_id):
             'tournament_cancel',
             f'❌ Tournament Cancelled — {tournament.name}',
             f'Reason: {reason}' +
-            (f'\n♻️ ₹{tournament.entry_fee} has been refunded to your wallet.' if tournament.is_paid else '')
+            (f'\n♻️ ₹{tournament.entry_fee} has been refunded to your deposit balance.' if tournament.is_paid else '')
         )
 
         tournament.status = 'cancelled'
@@ -1367,73 +1345,9 @@ def submit_result(request, match_id):
         all_matches = Match.objects.filter(tournament=tournament)
 
         if all_matches.count() > 0 and all(m.winner for m in all_matches):
-            if tournament.is_paid and tournament.status == 'ongoing':
-                from collections import Counter
-                wins = Counter(m.winner_id for m in all_matches if m.winner)
-                top_winner_id = wins.most_common(1)[0][0]
-                top_winner = User.objects.get(id=top_winner_id)
-
-                total_players = Participant.objects.filter(tournament=tournament).count()
-                total_collection = tournament.entry_fee * total_players
-                prize_pool = (total_collection * Decimal('0.70')).quantize(Decimal('0.01'))
-                remaining = total_collection - prize_pool
-                creator_share = (remaining * Decimal('0.60')).quantize(Decimal('0.01'))
-                admin_share = remaining - creator_share
-
-                # pay winner
-                credit_wallet(
-                    top_winner, prize_pool,
-                    'tournament_win',
-                    f'🏆 Prize — Won {tournament.name}',
-                    tournament=tournament
-                )
-                send_notification(
-                    top_winner, 'wallet_credit',
-                    f'🏆 You Won! ₹{prize_pool} Added',
-                    f'Congratulations! You won {tournament.name}. ₹{prize_pool} has been added to your wallet.',
-                    tournament
-                )
-
-                # pay creator
-                credit_wallet(
-                    tournament.creator, creator_share,
-                    'creator_share',
-                    f'🎮 Creator earnings — {tournament.name}',
-                    tournament=tournament
-                )
-                send_notification(
-                    tournament.creator, 'wallet_credit',
-                    f'💰 Creator Earnings — ₹{creator_share}',
-                    f'₹{creator_share} creator share added from {tournament.name}.',
-                    tournament
-                )
-
-                # pay admin
-                admin = User.objects.filter(profile__is_admin=True).first()
-                if admin:
-                    credit_wallet(
-                        admin, admin_share,
-                        'admin_share',
-                        f'⚙️ Platform fee — {tournament.name}',
-                        tournament=tournament
-                    )
-
-                tournament.status = 'completed'
-                tournament.save()
-
-                # Generate Winner Certificate
-                try:
-                    from .utils import generate_winner_certificate
-                    generate_winner_certificate(top_winner, tournament=tournament)
-                except Exception:
-                    pass
-
-                notify_all_participants(
-                    tournament,
-                    'tournament_end',
-                    f'🏆 {tournament.name} Has Ended!',
-                    f'{tournament.name} has ended! Winner: {top_winner.username}. Check the results now.'
-                )
+            if not tournament.prize_distributed:
+                enqueue_task(distribute_tournament_prizes_task, tournament.id)
+                logger.info(f"Prize distribution task enqueued for tournament {tournament.id}")
 
     return redirect(f'/tournament/{match.tournament.id}/')
 
@@ -2102,7 +2016,11 @@ def creator_admin(request):
 
     # Summary Stats
     from django.db.models import Sum
-    total_reward_balance = Profile.objects.aggregate(Sum('reward_balance'))['reward_balance__sum'] or 0
+    balances = Profile.objects.aggregate(
+        total_dep=Sum('deposit_balance'),
+        total_win=Sum('winnings_balance')
+    )
+    total_reward_balance = (balances['total_dep'] or 0) + (balances['total_win'] or 0)
     pending_withdrawals_count = WithdrawalRequest.objects.filter(status='pending').count()
     open_disputes_count = DisputeReport.objects.filter(status='open').count()
 
@@ -2185,7 +2103,8 @@ def topup_wallet(request, user_id):
                 credit_wallet(
                     u, amount,
                     'admin_topup',
-                    f'💰 ₹{amount} added to your wallet by Admin'
+                    balance_type='deposit',
+                    description=f'💰 ₹{amount} added to your deposit balance by Admin'
                 )
                 send_notification(
                     u, 'wallet_credit',
@@ -2220,7 +2139,8 @@ def reject_withdrawal(request, withdrawal_id):
     credit_wallet(
         w.user, w.amount,
         'withdrawal_refund',
-        f'♻️ Withdrawal rejected — ₹{w.amount} refunded to wallet'
+        balance_type='winnings',
+        description=f'♻️ Withdrawal rejected — ₹{w.amount} refunded to winnings'
     )
     send_notification(
         w.user, 'wallet_credit',

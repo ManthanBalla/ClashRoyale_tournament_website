@@ -16,7 +16,8 @@ class Profile(models.Model):
     is_creator = models.BooleanField(default=False)
     is_admin = models.BooleanField(default=False)
     upi_id = models.CharField(max_length=100, blank=True, null=True)
-    reward_balance = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    deposit_balance = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    winnings_balance = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     creator_plan = models.CharField(max_length=20, choices=PLAN_CHOICES, default='none')
     plan_expiry = models.DateTimeField(null=True, blank=True)
     tournaments_created_this_month = models.IntegerField(default=0)
@@ -24,6 +25,14 @@ class Profile(models.Model):
     trophies = models.IntegerField(default=0)
     ingame_username = models.CharField(max_length=100, blank=True, null=True)
     trust_score = models.IntegerField(default=100)
+    last_ip = models.GenericIPAddressField(null=True, blank=True)
+    device_fingerprint = models.CharField(max_length=255, null=True, blank=True)
+    is_flagged = models.BooleanField(default=False)
+    flag_reason = models.TextField(blank=True, null=True)
+
+    @property
+    def total_balance(self):
+        return self.deposit_balance + self.winnings_balance
 
     def is_complete(self):
         return bool(self.upi_id and self.user.first_name and self.user.email and self.ingame_username)
@@ -95,6 +104,7 @@ class Tournament(models.Model):
     show_participants = models.BooleanField(default=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='upcoming')
     cancel_reason = models.TextField(blank=True, null=True)
+    prize_distributed = models.BooleanField(default=False)
 
     def current_prize_pool(self):
         count = self.participant_set.count()
@@ -209,15 +219,17 @@ class Transaction(models.Model):
         ('refund', 'Refund'),
         ('winning', 'Winning'),
     ]
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='transactions')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='transactions', db_index=True)
     transaction_type = models.CharField(max_length=10, choices=TYPE_CHOICES)
     category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default='credit')
     reason = models.CharField(max_length=30, choices=REASON_CHOICES)
+    status = models.CharField(max_length=20, default='success', help_text='pending, success, failed')
     amount = models.DecimalField(max_digits=10, decimal_places=2)
-    tournament = models.ForeignKey('Tournament', on_delete=models.SET_NULL, null=True, blank=True, related_name='transactions')
+    tournament = models.ForeignKey('Tournament', on_delete=models.SET_NULL, null=True, blank=True, related_name='transactions', db_index=True)
     payment = models.ForeignKey('Payment', on_delete=models.SET_NULL, null=True, blank=True, related_name='transactions')
+    reference_id = models.CharField(max_length=100, blank=True, null=True, help_text='order_id / tournament_id / withdrawal_id')
     description = models.CharField(max_length=255, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     def __str__(self):
         return f"{self.user.username} - {self.transaction_type} - ₹{self.amount}"
@@ -290,7 +302,7 @@ class DisputeReport(models.Model):
     proof_image = models.ImageField(upload_to='disputes/', blank=True, null=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open')
     admin_note = models.TextField(blank=True, null=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     resolved_at = models.DateTimeField(blank=True, null=True)
 
     def __str__(self):

@@ -78,8 +78,18 @@
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         <div class="ca-glass p-5 sm:p-6 flex flex-col justify-between border border-ca-accent/20">
             <div>
-                <p class="ca-muted text-sm font-medium">Reward balance</p>
-                <p class="text-3xl sm:text-4xl font-extrabold text-white mt-1 tabular-nums">₹{{ profile.reward_balance }}</p>
+                <p class="ca-muted text-xs font-medium uppercase tracking-widest">Total Balance</p>
+                <p class="text-4xl font-extrabold text-white mt-1 tabular-nums">₹{{ profile.total_balance }}</p>
+                <div class="flex gap-4 mt-3">
+                    <div>
+                        <p class="text-[10px] text-gray-500 uppercase font-bold">Deposit</p>
+                        <p class="text-sm font-bold text-emerald-400">₹{{ profile.deposit_balance }}</p>
+                    </div>
+                    <div class="border-l border-white/10 pl-4">
+                        <p class="text-[10px] text-gray-500 uppercase font-bold">Winnings</p>
+                        <p class="text-sm font-bold text-amber-400">₹{{ profile.winnings_balance }}</p>
+                    </div>
+                </div>
             </div>
             <div class="flex gap-2 flex-wrap mt-4">
                 <a href="/payments/pay/" class="ca-btn text-center min-h-[2.75rem] font-bold text-sm shrink-0 flex-1">
@@ -266,6 +276,23 @@
         <p class="text-gray-500 text-sm p-5">No transactions yet.</p>
         {% endfor %}
     </div>
+
+    <!-- Pagination for Transactions -->
+    {% if transactions.has_other_pages %}
+    <div class="flex justify-center mt-6 mb-12 gap-2">
+        {% if transactions.has_previous %}
+            <a href="?page={{ transactions.previous_page_number }}" class="ca-btn-outline px-4 py-2 text-xs">&larr; Previous</a>
+        {% endif %}
+        
+        <span class="ca-glass px-4 py-2 text-white font-bold text-xs border-ca-accent/30">
+            Page {{ transactions.number }} of {{ transactions.paginator.num_pages }}
+        </span>
+
+        {% if transactions.has_next %}
+            <a href="?page={{ transactions.next_page_number }}" class="ca-btn-outline px-4 py-2 text-xs">Next &rarr;</a>
+        {% endif %}
+    </div>
+    {% endif %}
 
     <!-- MEMBERSHIP HISTORY -->
     {% if memberships %}

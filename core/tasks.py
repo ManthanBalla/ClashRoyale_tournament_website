@@ -9,18 +9,20 @@ from django.db import transaction
 from django.utils import timezone
 from .models import CreatorFollow, Notification, Tournament, CupMatch, CupMatchConfirmation, CupActionLog
 
+import threading
 logger = logging.getLogger(__name__)
 
 
-def check_rate_limit(key, limit=20, window_seconds=60):
-    current = cache.get(key, 0)
-    if current >= limit:
-        return False
-    if current == 0:
-        cache.set(key, 1, timeout=window_seconds)
+def enqueue_task(task_func, *args):
+    if getattr(settings, 'CELERY_TASK_ALWAYS_EAGER', False):
+        # In eager mode on low-CPU/free hosts, run task in daemon thread
+        # so request-response is not blocked by network calls.
+        threading.Thread(target=lambda: task_func.delay(*args), daemon=True).start()
     else:
-        cache.incr(key)
-    return True
+        task_func.delay(*args)
+
+
+from .utils import check_rate_limit, update_trust_score
 
 
 def _advance_cup_match_winner(locked_match):
@@ -153,7 +155,6 @@ def process_cup_deadlines_task():
                 locked_match.dispute_reason = 'No player response before deadline.'
                 locked_match.save(update_fields=['status', 'is_disputed', 'dispute_reason'])
                 
-                from core.utils import update_trust_score
                 update_trust_score(locked_match.player1, -10)
                 update_trust_score(locked_match.player2, -10)
                 
@@ -203,3 +204,84 @@ def notify_unresolved_cup_disputes_task():
             title='Unresolved Cup Disputes',
             message='You have disputed cup matches pending resolution.'
         )
+@shared_task
+def distribute_tournament_prizes_task(tournament_id):
+    from .models import Tournament, Match, Participant, User
+    from decimal import Decimal
+    from collections import Counter
+    from .utils import credit_wallet, send_notification, notify_all_participants
+
+    try:
+        with transaction.atomic():
+            tournament = Tournament.objects.select_for_update().get(id=tournament_id)
+            if tournament.prize_distributed:
+                return
+
+            all_matches = Match.objects.filter(tournament=tournament)
+            total_players = Participant.objects.filter(tournament=tournament).count()
+            
+            if total_players < tournament.min_players:
+                logger.warning(f"Tournament {tournament_id} has insufficient participants ({total_players}/{tournament.min_players}). Skipping prize distribution.")
+                return
+
+            if not all_matches.exists() or not all(m.winner for m in all_matches):
+                return
+
+            if tournament.is_paid and tournament.status == 'ongoing':
+                wins = Counter(m.winner_id for m in all_matches if m.winner)
+                top_winner_id = wins.most_common(1)[0][0]
+                top_winner = User.objects.get(id=top_winner_id)
+
+                total_players = Participant.objects.filter(tournament=tournament).count()
+                total_collection = tournament.entry_fee * total_players
+                
+                # 70% to winner, 30% split (60% creator, 40% admin)
+                prize_pool = (total_collection * Decimal('0.70')).quantize(Decimal('0.01'))
+                remaining = total_collection - prize_pool
+                creator_share = (remaining * Decimal('0.60')).quantize(Decimal('0.01'))
+                admin_share = remaining - creator_share
+
+                credit_wallet(top_winner, prize_pool, 'tournament_win', balance_type='winnings',
+                            description=f'🏆 Prize — Won {tournament.name}', tournament=tournament, reference_id=str(tournament.id))
+                
+                credit_wallet(tournament.creator, creator_share, 'creator_share', balance_type='winnings',
+                            description=f'🎮 Creator earnings — {tournament.name}', tournament=tournament, reference_id=str(tournament.id))
+                
+                admin = User.objects.filter(profile__is_admin=True).first()
+                if admin:
+                    credit_wallet(admin, admin_share, 'admin_share', balance_type='winnings',
+                                description=f'⚙️ Platform fee — {tournament.name}', tournament=tournament, reference_id=str(tournament.id))
+
+                tournament.status = 'completed'
+                tournament.prize_distributed = True
+                tournament.save(update_fields=['status', 'prize_distributed'])
+
+                # Generate certificate
+                from .utils import generate_winner_certificate
+                generate_winner_certificate(top_winner, tournament=tournament)
+
+                notify_all_participants(
+                    tournament, 'tournament_end', f'🏆 {tournament.name} Has Ended!',
+                    f'{tournament.name} has ended! Winner: {top_winner.username}.'
+                )
+    except Exception:
+        logger.exception("Prize distribution task failed tournament_id=%s", tournament_id)
+
+@shared_task
+def reconcile_payments_task():
+    """Daily reconciliation between Cashfree and internal wallet balances."""
+    from .models import Payment, Profile, User
+    from django.db.models import Sum
+    
+    total_cashfree = Payment.objects.filter(status='success', purpose='wallet_topup').aggregate(s=Sum('amount'))['s'] or 0
+    total_deposits = Profile.objects.aggregate(s=Sum('deposit_balance'))['s'] or 0
+    
+    # This is a naive check (doesn't account for entry fee deductions from deposit)
+    # A better check would be sum(Cashfree SUCCESS) == sum(credit transactions for reason=cashfree_deposit)
+    from .models import Transaction
+    total_tx_credits = Transaction.objects.filter(reason='cashfree_deposit', status='success').aggregate(s=Sum('amount'))['s'] or 0
+    
+    if total_cashfree != total_tx_credits:
+        logger.error(f"Reconciliation Mismatch! Cashfree SUCCESS: {total_cashfree}, Internal Credits: {total_tx_credits}")
+    else:
+        logger.info(f"Reconciliation Success. Total: {total_cashfree}")

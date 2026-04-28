@@ -10,9 +10,10 @@
         <p class="ca-muted text-sm text-center mb-6">Funds are sent to your UPI ID</p>
 
         <div class="ca-glass-sm border border-ca-accent/20 p-4 mb-6 text-center">
-            <p class="ca-muted text-sm">Available balance</p>
-            <p class="text-3xl font-extrabold text-white mt-1 tabular-nums">₹{{ profile.reward_balance }}</p>
+            <p class="ca-muted text-sm">Winnings balance</p>
+            <p class="text-3xl font-extrabold text-white mt-1 tabular-nums">₹{{ profile.winnings_balance }}</p>
             <p class="text-white/40 text-xs mt-2 break-all">UPI: {{ profile.upi_id }}</p>
+            <p class="text-xs text-amber-400 mt-2 font-semibold">Only winnings can be withdrawn.</p>
         </div>
 
         {% if error %}
@@ -24,8 +25,8 @@
         <form method="POST">
             {% csrf_token %}
 
-            <label class="ca-label text-xs font-medium mb-1.5 block">Amount (₹)</label>
-            <input type="number" name="amount" placeholder="Enter amount" min="1" max="{{ profile.reward_balance }}"
+            <label class="ca-label text-xs font-medium mb-1.5 block">Amount (₹) — <span class="text-gray-400">Min ₹100</span></label>
+            <input type="number" name="amount" placeholder="Enter amount" min="100" max="{{ profile.winnings_balance }}"
                 required class="ca-input mb-4">
 
             <div class="ca-glass-sm border border-amber-500/25 px-4 py-3 mb-5">
@@ -40,7 +41,7 @@
             </button>
         </form>
 
-        <p class="ca-muted text-xs text-center mt-5">Withdrawals are completed automatically.</p>
+        <p class="ca-muted text-xs text-center mt-5">Withdrawals are reviewed by admin within 24-48 hours.</p>
 
     </div>
 

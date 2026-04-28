@@ -1,4 +1,101 @@
-from django.db import models
+from django.core.cache import cache
+
+def check_rate_limit(key, limit=20, window_seconds=60):
+    current = cache.get(key, 0)
+    if current >= limit:
+        return False
+    if current == 0:
+        cache.set(key, 1, timeout=window_seconds)
+    else:
+        cache.incr(key)
+    return True
+
+from .models import Transaction, Profile, Notification, Participant
+from decimal import Decimal
+from django.db import transaction
+
+def add_transaction(user, transaction_type, reason, amount, description='', category=None, tournament=None, payment=None, reference_id=None, status='success'):
+    if category is None:
+        if reason in ('tournament_win',):
+            category = 'winning'
+        elif reason in ('tournament_refund', 'withdrawal_refund'):
+            category = 'refund'
+        elif transaction_type == 'debit':
+            category = 'debit'
+        else:
+            category = 'credit'
+
+    return Transaction.objects.create(
+        user=user,
+        transaction_type=transaction_type,
+        category=category,
+        reason=reason,
+        amount=amount,
+        status=status,
+        tournament=tournament,
+        payment=payment,
+        reference_id=reference_id,
+        description=description
+    )
+
+def credit_wallet(user, amount, reason, balance_type='deposit', description='', tournament=None, payment=None, reference_id=None):
+    amount = Decimal(str(amount))
+    if amount <= 0:
+        raise ValueError('Credit amount must be greater than zero.')
+
+    with transaction.atomic():
+        profile = Profile.objects.select_for_update().get(user=user)
+        if balance_type == 'deposit':
+            profile.deposit_balance += amount
+        else:
+            profile.winnings_balance += amount
+        profile.save(update_fields=['deposit_balance', 'winnings_balance'])
+        
+        add_transaction(
+            user, 'credit', reason, amount, description,
+            tournament=tournament, payment=payment, reference_id=reference_id
+        )
+
+def debit_wallet(user, amount, reason, description='', tournament=None, payment=None, reference_id=None):
+    amount = Decimal(str(amount))
+    if amount <= 0:
+        raise ValueError('Debit amount must be greater than zero.')
+
+    with transaction.atomic():
+        profile = Profile.objects.select_for_update().get(user=user)
+        if profile.total_balance < amount:
+            raise ValueError('Insufficient wallet balance.')
+        
+        remaining = amount
+        if profile.deposit_balance > 0:
+            deduct_from_deposit = min(profile.deposit_balance, remaining)
+            profile.deposit_balance -= deduct_from_deposit
+            remaining -= deduct_from_deposit
+        
+        if remaining > 0:
+            profile.winnings_balance -= remaining
+            remaining = 0
+            
+        profile.save(update_fields=['deposit_balance', 'winnings_balance'])
+        add_transaction(
+            user, 'debit', reason, amount, description,
+            tournament=tournament, payment=payment, reference_id=reference_id
+        )
+
+def send_notification(user, notification_type, title, message, tournament=None):
+    return Notification.objects.create(
+        user=user,
+        notification_type=notification_type,
+        title=title,
+        message=message,
+        tournament=tournament
+    )
+
+def notify_all_participants(tournament, notification_type, title, message):
+    participants = Participant.objects.filter(tournament=tournament)
+    for p in participants:
+        send_notification(p.user, notification_type, title, message, tournament)
+    send_notification(tournament.creator, notification_type, title, message, tournament)
 
 def update_trust_score(user, amount):
     """

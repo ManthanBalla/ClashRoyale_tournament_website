@@ -108,7 +108,7 @@
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {% for item in tournament_data|slice:":6" %}
+        {% for item in tournament_data %}
         <div class="ca-glass flex flex-col hover:border-ca-accent/30 transition duration-300 h-full">
             <div class="p-5 flex-1">
                 <div class="flex justify-between items-start mb-4">
@@ -156,6 +156,23 @@
         </div>
         {% endfor %}
     </div>
+
+    <!-- Pagination -->
+    {% if tournaments.has_other_pages %}
+    <div class="flex justify-center mt-12 gap-2">
+        {% if tournaments.has_previous %}
+            <a href="?page={{ tournaments.previous_page_number }}#live-tournaments" class="ca-btn-outline px-4 py-2">&larr; Previous</a>
+        {% endif %}
+        
+        <span class="ca-glass px-4 py-2 text-white font-bold border-ca-accent/30">
+            Page {{ tournaments.number }} of {{ tournaments.paginator.num_pages }}
+        </span>
+
+        {% if tournaments.has_next %}
+            <a href="?page={{ tournaments.next_page_number }}#live-tournaments" class="ca-btn-outline px-4 py-2">Next &rarr;</a>
+        {% endif %}
+    </div>
+    {% endif %}
 </div>
 
 <!-- Creator Section -->
