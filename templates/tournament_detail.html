@@ -316,7 +316,7 @@
     <div class="ca-panel mb-5">
         {% for p in participants %}
         <div class="flex items-center justify-between px-4 py-3 border-b border-gray-800">
-            <span class="text-white text-sm">{{ p.user.username }}</span>
+            <span class="text-white text-sm">{{ p.user.profile.display_name }} <span class="text-gray-500 text-xs">(@{{ p.user.username }})</span></span>
             {% if p.fee_paid %}
                 <span class="text-green-400 text-xs">✅ Paid</span>
             {% endif %}
@@ -329,6 +329,73 @@
     <div class="ca-glass p-4 mb-5 text-center">
         <p class="text-gray-500 text-sm">👁️ Participant list is hidden</p>
         <p class="text-ca-accent font-bold mt-1">{{ count }} players joined</p>
+    </div>
+    {% endif %}
+
+    <!-- MATCHES -->
+    {% if matches %}
+    <h2 class="text-lg font-bold text-blue-400 mb-3">⚔️ Matches</h2>
+    <div class="grid grid-cols-1 gap-4 mb-5">
+        {% for match in matches %}
+        <div class="ca-glass p-4 relative {% if match.status == 'completed' %}opacity-70{% endif %}">
+            
+            <div class="flex justify-between items-center mb-3">
+                <span class="text-xs font-bold text-gray-500 uppercase tracking-widest">Match #{{ match.id }}</span>
+                {% if match.status == 'completed' %}
+                    <span class="text-xs px-2 py-1 rounded bg-green-500/20 text-green-400 font-bold">Completed</span>
+                {% else %}
+                    <span class="text-xs px-2 py-1 rounded bg-yellow-500/20 text-yellow-400 font-bold">Pending</span>
+                {% endif %}
+            </div>
+
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <!-- Player 1 -->
+                <button type="button" 
+                        class="player-card w-full sm:w-2/5 p-3 rounded-xl border {% if match.winner == match.player1 %}border-green-500 bg-green-500/10{% else %}border-gray-700 bg-black/40 hover:border-ca-accent{% endif %} transition flex flex-col items-center"
+                        {% if not match.winner and user == tournament.creator or user.profile.is_admin %}
+                        onclick="confirmWinner('{{ match.id }}', '{{ match.player1.id }}', '{{ match.player1.profile.display_name|escapejs }}')"
+                        {% else %}disabled{% endif %}>
+                    <div class="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center text-lg mb-2">👤</div>
+                    <span class="text-white font-bold text-sm">{{ match.player1.profile.display_name }}</span>
+                    {% if match.winner == match.player1 %}
+                        <span class="text-green-400 text-xs font-bold mt-1">👑 Winner</span>
+                    {% elif match.winner %}
+                        <span class="text-red-400 text-xs font-bold mt-1">💀 Eliminated</span>
+                    {% elif user == tournament.creator or user.profile.is_admin %}
+                        <span class="text-gray-500 text-[10px] uppercase mt-1">Click to select</span>
+                    {% endif %}
+                </button>
+
+                <div class="text-gray-600 font-black italic">VS</div>
+
+                <!-- Player 2 -->
+                <button type="button" 
+                        class="player-card w-full sm:w-2/5 p-3 rounded-xl border {% if match.winner == match.player2 %}border-green-500 bg-green-500/10{% else %}border-gray-700 bg-black/40 hover:border-ca-accent{% endif %} transition flex flex-col items-center"
+                        {% if not match.winner and user == tournament.creator or user.profile.is_admin %}
+                        onclick="confirmWinner('{{ match.id }}', '{{ match.player2.id }}', '{{ match.player2.profile.display_name|escapejs }}')"
+                        {% else %}disabled{% endif %}>
+                    <div class="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center text-lg mb-2">👤</div>
+                    <span class="text-white font-bold text-sm">{{ match.player2.profile.display_name }}</span>
+                    {% if match.winner == match.player2 %}
+                        <span class="text-green-400 text-xs font-bold mt-1">👑 Winner</span>
+                    {% elif match.winner %}
+                        <span class="text-red-400 text-xs font-bold mt-1">💀 Eliminated</span>
+                    {% elif user == tournament.creator or user.profile.is_admin %}
+                        <span class="text-gray-500 text-[10px] uppercase mt-1">Click to select</span>
+                    {% endif %}
+                </button>
+            </div>
+
+            {% if match.status == 'completed' %}
+            <div class="mt-4 pt-3 border-t border-gray-800 text-center">
+                <button onclick="document.querySelector('[name=match_id]').value='{{ match.id }}'; document.querySelector('[name=message]').focus();" class="text-xs text-red-400 hover:text-red-300 font-bold transition">
+                    🚩 Report Dispute
+                </button>
+            </div>
+            {% endif %}
+
+        </div>
+        {% endfor %}
     </div>
     {% endif %}
 
@@ -555,6 +622,37 @@ function showCancelBox() {
         document.getElementById('cancelReasonInput').value = reason;
         document.getElementById('cancelForm').submit();
     }
+}
+// ── MARK WINNER API ───────────────────────────────────────────────
+function confirmWinner(matchId, winnerId, winnerName) {
+    if(!confirm("Are you sure you want to select " + winnerName + " as the winner? This action cannot be easily reversed.")) {
+        return;
+    }
+
+    fetch('/api/match/mark-winner/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({
+            match_id: matchId,
+            winner_id: winnerId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if(data.success) {
+            alert("Winner selected successfully!");
+            window.location.reload();
+        } else {
+            alert("Error: " + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert("A network error occurred while updating the winner.");
+    });
 }
 
 </script>

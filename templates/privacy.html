@@ -1,12 +1,227 @@
 {% extends "base.html" %}
+
+{% block meta %}
+<title>Privacy Policy — Clash Arena</title>
+<meta name="description" content="Read Clash Arena's Privacy Policy to understand how we collect, use, and protect your personal data.">
+{% endblock %}
+
 {% block content %}
-<div class="max-w-3xl mx-auto py-8 sm:py-10 px-3 sm:px-4">
-    <h1 class="text-2xl sm:text-3xl font-extrabold text-white mb-2 tracking-tight">Privacy Policy</h1>
-    <p class="ca-muted text-sm mb-6">How we handle your data</p>
-    <div class="ca-glass p-5 sm:p-6 text-sm text-white/80 space-y-4 leading-relaxed">
-        <p>We store account, wallet, tournament, and transaction data needed to operate the platform.</p>
-        <p>Payment details are verified with CashFree Payments and stored for audit, fraud prevention, and support.</p>
-        <p>You can contact support or admin for data correction requests related to your profile.</p>
+<div class="max-w-4xl mx-auto px-4 py-12 min-h-[60vh]">
+    <div class="ca-glass p-8 sm:p-12 border border-ca-accent/20 rounded-2xl relative overflow-hidden">
+
+        <!-- Header -->
+        <div class="mb-8">
+            <h1 class="text-4xl font-extrabold text-white mb-2 tracking-tight">Privacy Policy</h1>
+            <p class="text-gray-400 text-sm">Effective Date: April 2026 &nbsp;|&nbsp; Last Updated: April 2026</p>
+        </div>
+
+        <!-- Owner Banner -->
+        <div class="bg-ca-accent/10 border border-ca-accent/30 rounded-xl p-5 mb-10">
+            <p class="text-white font-bold text-base">Clash Arena is owned and operated by <span class="text-ca-accent">Manthan Kumar Balla</span>.</p>
+            <p class="text-gray-400 text-sm mt-1">Your privacy is important to us. This policy explains exactly what data we collect, why we collect it, how it is stored, and your rights regarding your personal information.</p>
+        </div>
+
+        <div class="prose prose-invert max-w-none text-gray-300 space-y-10">
+
+            <!-- Section 1 -->
+            <section>
+                <h2 class="text-2xl font-bold text-white border-b border-white/10 pb-3 mb-5">1. Information We Collect</h2>
+                <p class="mb-6">We collect the following categories of data when you use Clash Arena:</p>
+
+                <div class="space-y-4">
+                    <div class="bg-white/3 border border-white/10 rounded-xl p-5">
+                        <p class="text-white font-semibold mb-3">A. Account Information</p>
+                        <ul class="list-disc pl-5 space-y-1 text-sm text-gray-300">
+                            <li>Full name (as entered in profile)</li>
+                            <li>Username / gaming alias</li>
+                            <li>Email address</li>
+                            <li>UPI ID (for withdrawal purposes only)</li>
+                            <li>In-game username</li>
+                            <li>Account creation date and last login time</li>
+                        </ul>
+                    </div>
+                    <div class="bg-white/3 border border-white/10 rounded-xl p-5">
+                        <p class="text-white font-semibold mb-3">B. Security & Fraud Detection Data</p>
+                        <ul class="list-disc pl-5 space-y-1 text-sm text-gray-300">
+                            <li>IP address (recorded on registration, login, and transactions)</li>
+                            <li>Device fingerprint / user-agent string (browser and OS information)</li>
+                            <li>Trust Score and flag status</li>
+                            <li>Login attempt history</li>
+                        </ul>
+                        <p class="text-yellow-400 text-xs mt-3">This data is collected solely to prevent multi-account fraud, automated abuse, and protect the financial integrity of the platform.</p>
+                    </div>
+                    <div class="bg-white/3 border border-white/10 rounded-xl p-5">
+                        <p class="text-white font-semibold mb-3">C. Financial & Transaction Data</p>
+                        <ul class="list-disc pl-5 space-y-1 text-sm text-gray-300">
+                            <li>Cashfree Order ID and Payment Reference ID</li>
+                            <li>Payment amount, currency, status, and timestamp</li>
+                            <li>Wallet balances (Deposit Balance and Winnings Balance)</li>
+                            <li>Transaction history (credits, debits, refunds, winnings)</li>
+                            <li>Withdrawal requests and approval status</li>
+                        </ul>
+                        <p class="text-emerald-400 text-xs mt-3">We do <strong>NOT</strong> store, process, or have access to your card numbers, CVV codes, net banking credentials, or UPI PINs. All payment processing is handled exclusively by Cashfree Payments.</p>
+                    </div>
+                    <div class="bg-white/3 border border-white/10 rounded-xl p-5">
+                        <p class="text-white font-semibold mb-3">D. Platform Activity Data</p>
+                        <ul class="list-disc pl-5 space-y-1 text-sm text-gray-300">
+                            <li>Tournaments joined and created</li>
+                            <li>Match results and uploaded proof screenshots</li>
+                            <li>Dispute reports filed</li>
+                            <li>Notifications received and read</li>
+                            <li>Creators followed and notifications preferences</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 2 -->
+            <section>
+                <h2 class="text-2xl font-bold text-white border-b border-white/10 pb-3 mb-5">2. Why We Collect This Data</h2>
+                <p class="mb-4">Every piece of data we collect serves a specific, legitimate purpose:</p>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm border border-white/10 rounded-lg overflow-hidden">
+                        <thead class="bg-white/5">
+                            <tr>
+                                <th class="text-left text-white font-bold p-3 border-b border-white/10">Data Type</th>
+                                <th class="text-left text-ca-accent font-bold p-3 border-b border-white/10">Purpose</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-white/5 text-gray-300">
+                            <tr>
+                                <td class="p-3">Name, Email</td>
+                                <td class="p-3">Account identification, password recovery, winner notifications</td>
+                            </tr>
+                            <tr>
+                                <td class="p-3">UPI ID</td>
+                                <td class="p-3">Processing your withdrawal requests to your bank account</td>
+                            </tr>
+                            <tr>
+                                <td class="p-3">IP Address</td>
+                                <td class="p-3">Multi-account detection, fraud prevention, security logging</td>
+                            </tr>
+                            <tr>
+                                <td class="p-3">Device Fingerprint</td>
+                                <td class="p-3">Identifying shared-device abuse and suspicious access patterns</td>
+                            </tr>
+                            <tr>
+                                <td class="p-3">Payment Metadata</td>
+                                <td class="p-3">Financial reconciliation, dispute resolution, refund processing</td>
+                            </tr>
+                            <tr>
+                                <td class="p-3">Transaction History</td>
+                                <td class="p-3">Audit trail, financial compliance, user account transparency</td>
+                            </tr>
+                            <tr>
+                                <td class="p-3">Match Screenshots</td>
+                                <td class="p-3">Result verification, dispute investigation</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Section 3 -->
+            <section>
+                <h2 class="text-2xl font-bold text-white border-b border-white/10 pb-3 mb-5">3. Payment Processing &amp; Cashfree Security</h2>
+                <p class="mb-4">Clash Arena integrates with <strong class="text-white">Cashfree Payments</strong>, a PCI DSS compliant payment aggregator regulated by the Reserve Bank of India (RBI). The following applies to all payment data:</p>
+                <ul class="list-disc pl-6 space-y-2 mb-4">
+                    <li>All payment pages and checkout flows are hosted and secured by Cashfree's infrastructure.</li>
+                    <li>Clash Arena <strong class="text-white">never sees or stores</strong> your card number, CVV, OTP, UPI PIN, or net banking password.</li>
+                    <li>Payment confirmation is received via a <strong class="text-white">server-to-server webhook</strong> secured with HMAC-SHA256 signature verification. We do not rely on client-side (browser) confirmations.</li>
+                    <li>Cashfree's data practices are governed by their own Privacy Policy, available at cashfree.com.</li>
+                </ul>
+            </section>
+
+            <!-- Section 4 -->
+            <section>
+                <h2 class="text-2xl font-bold text-white border-b border-white/10 pb-3 mb-5">4. Data Storage &amp; Security</h2>
+                <p class="mb-4">We are committed to protecting your personal data from unauthorized access, loss, or misuse:</p>
+                <ul class="list-disc pl-6 space-y-2 mb-4">
+                    <li>All data is stored in a secure, encrypted PostgreSQL database hosted on a private server infrastructure.</li>
+                    <li>Access to production data is restricted to authorized personnel only (platform administrators).</li>
+                    <li>All financial operations (wallet changes) are performed using atomic database transactions with row-level locking to prevent data corruption.</li>
+                    <li>User passwords are hashed using Django's PBKDF2 algorithm and are never stored in plaintext.</li>
+                    <li>Platform communications between users and the server use HTTPS (TLS encryption).</li>
+                    <li>Rate limiting and automated fraud flagging are in place to prevent unauthorized access attempts.</li>
+                </ul>
+                <p>Despite these measures, no system is 100% secure. We encourage users to use strong, unique passwords and to keep their account credentials private.</p>
+            </section>
+
+            <!-- Section 5 -->
+            <section>
+                <h2 class="text-2xl font-bold text-white border-b border-white/10 pb-3 mb-5">5. Data Sharing &amp; Third Parties</h2>
+                <p class="mb-4">We do <strong class="text-white">not</strong> sell, trade, or rent your personal information to third parties. Data is shared only in the following limited circumstances:</p>
+                <ul class="list-disc pl-6 space-y-3 mb-4">
+                    <li>
+                        <strong class="text-white">Cashfree Payments:</strong> Necessary transaction details (order amount, user reference) are shared to initiate and confirm payments.
+                    </li>
+                    <li>
+                        <strong class="text-white">Email Service Provider:</strong> Your email address is shared with our email service provider solely to send account-related communications (reward notifications, password resets, support responses).
+                    </li>
+                    <li>
+                        <strong class="text-white">Legal Authorities:</strong> We may disclose your information if required to do so by a court order, law enforcement agency, or applicable Indian law (e.g., under the Information Technology Act, 2000).
+                    </li>
+                    <li>
+                        <strong class="text-white">Fraud Investigation:</strong> In the event of suspected fraud, data may be shared with relevant payment networks or cybercrime authorities.
+                    </li>
+                </ul>
+            </section>
+
+            <!-- Section 6 -->
+            <section>
+                <h2 class="text-2xl font-bold text-white border-b border-white/10 pb-3 mb-5">6. Data Retention</h2>
+                <p class="mb-4">We retain your personal data for the duration of your account's existence and for a period thereafter as required by financial and legal regulations:</p>
+                <ul class="list-disc pl-6 space-y-2 mb-4">
+                    <li>Account data is retained for the lifetime of your account.</li>
+                    <li>Transaction and financial records are retained for a minimum of <strong class="text-white">7 years</strong> in compliance with Indian financial record-keeping requirements.</li>
+                    <li>Upon account deletion, personally identifiable information is anonymized, but transaction records are retained for compliance.</li>
+                </ul>
+            </section>
+
+            <!-- Section 7 -->
+            <section>
+                <h2 class="text-2xl font-bold text-white border-b border-white/10 pb-3 mb-5">7. Cookies &amp; Tracking</h2>
+                <p class="mb-4">Clash Arena uses session cookies to maintain your logged-in state. These are essential for the platform to function and do not track you across other websites. We do not use third-party advertising trackers or analytics platforms that profile you for advertising purposes.</p>
+            </section>
+
+            <!-- Section 8 -->
+            <section>
+                <h2 class="text-2xl font-bold text-white border-b border-white/10 pb-3 mb-5">8. Your Rights</h2>
+                <p class="mb-4">As a user of Clash Arena, you have the following rights regarding your personal data:</p>
+                <ul class="list-disc pl-6 space-y-2 mb-4">
+                    <li><strong class="text-white">Access:</strong> You may request a summary of personal data we hold about you.</li>
+                    <li><strong class="text-white">Correction:</strong> You may update your profile information (name, email, UPI ID, in-game username) at any time via your Profile page.</li>
+                    <li><strong class="text-white">Deletion:</strong> You may request account deletion by contacting our support team. Note that transaction records will be anonymized and retained for compliance.</li>
+                    <li><strong class="text-white">Data Portability:</strong> You may request a copy of your transaction history in a structured format.</li>
+                </ul>
+                <p>To exercise any of these rights, contact: <a href="mailto:connectwithmanthan12@gmail.com" class="text-ca-accent hover:text-white font-bold transition break-all">connectwithmanthan12@gmail.com</a></p>
+            </section>
+
+            <!-- Section 9 -->
+            <section>
+                <h2 class="text-2xl font-bold text-white border-b border-white/10 pb-3 mb-5">9. Children's Privacy</h2>
+                <p>Clash Arena is not intended for users under the age of 18. We do not knowingly collect personal information from minors. If we discover that a minor has provided us with personal information without parental consent, we will delete it immediately.</p>
+            </section>
+
+            <!-- Section 10 -->
+            <section>
+                <h2 class="text-2xl font-bold text-white border-b border-white/10 pb-3 mb-5">10. Changes to This Policy</h2>
+                <p>We may update this Privacy Policy from time to time. When we do, we will update the "Last Updated" date at the top of this page. Continued use of the platform after changes are posted constitutes your acceptance of the revised policy. For significant changes, we will make reasonable efforts to notify registered users via email.</p>
+            </section>
+
+            <!-- Contact -->
+            <section>
+                <h2 class="text-2xl font-bold text-white border-b border-white/10 pb-3 mb-5">11. Contact Us</h2>
+                <p class="mb-2">For any privacy-related concerns, data requests, or questions about this policy, please contact:</p>
+                <div class="bg-ca-accent/10 border border-ca-accent/30 rounded-xl p-5">
+                    <p class="text-white font-bold">Manthan Kumar Balla</p>
+                    <p class="text-gray-400 text-sm">Platform Owner, Clash Arena</p>
+                    <p class="mt-2"><a href="mailto:connectwithmanthan12@gmail.com" class="text-ca-accent hover:text-white font-bold transition break-all">connectwithmanthan12@gmail.com</a></p>
+                </div>
+            </section>
+
+            <p class="text-xs text-gray-500 text-center pt-6">Last Updated: April 2026 &nbsp;|&nbsp; Clash Arena — Skill-Based Esports Platform, India</p>
+        </div>
     </div>
 </div>
 {% endblock %}

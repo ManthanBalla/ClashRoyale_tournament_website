@@ -1,52 +1,159 @@
 {% extends "base.html" %}
 
-{% block title %}Contact Us - Clash Arena{% endblock %}
-{% block meta_description %}Contact Clash Arena for support, inquiries, or feedback. We usually respond within 24 hours.{% endblock %}
+{% block meta %}
+<title>Contact Us — Clash Arena</title>
+<meta name="description" content="Get in touch with the Clash Arena support team for assistance with payments, tournaments, withdrawals, and account issues.">
+{% endblock %}
 
 {% block content %}
-<div class="max-w-3xl mx-auto px-4 py-12 min-h-[60vh]">
-    <div class="text-center mb-10">
-        <h1 class="text-3xl sm:text-4xl font-extrabold text-white mb-4 tracking-tight">Contact Us</h1>
-        <p class="ca-muted text-lg max-w-xl mx-auto leading-relaxed">
-            Clash Arena is a skill-based gaming platform where users participate in tournaments and win rewards.
+<div class="max-w-6xl mx-auto px-4 py-12 min-h-[70vh]">
+    
+    <!-- Section 1: Page Introduction -->
+    <div class="text-center mb-12">
+        <h1 class="text-3xl sm:text-5xl font-extrabold text-white mb-4 tracking-tight">Contact Us</h1>
+        <p class="text-gray-400 text-lg max-w-2xl mx-auto">
+            If you have any questions, payment issues, or need assistance, our support team is here to help you.
         </p>
     </div>
 
-    <div class="ca-glass p-8 sm:p-10 border border-ca-accent/20 rounded-2xl relative overflow-hidden">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
-        <!-- Decorative Glow -->
-        <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[80%] h-[150px] bg-ca-accent/10 blur-[80px] rounded-full pointer-events-none"></div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
-            <!-- Email -->
-            <div class="bg-black/30 p-6 rounded-xl border border-white/5 flex flex-col items-center text-center transition hover:border-ca-accent/30 hover:bg-black/40">
-                <div class="w-12 h-12 bg-ca-accent/20 rounded-full flex items-center justify-center mb-4 text-2xl">
-                    📧
+        <!-- Left Column: Contact Details & Info -->
+        <div class="lg:col-span-5 space-y-6">
+            
+            <!-- Section 2: Contact Details -->
+            <div class="ca-glass p-8 border border-ca-accent/20 rounded-2xl">
+                <h2 class="text-xl font-bold text-white mb-6 border-b border-white/10 pb-3">Contact Information</h2>
+                <div class="space-y-6">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-full bg-ca-accent/20 flex items-center justify-center text-xl shrink-0">✉️</div>
+                        <div>
+                            <p class="text-gray-400 text-sm font-medium mb-1">Email Support</p>
+                            <a href="mailto:connectwithmanthan12@gmail.com" class="text-white font-semibold hover:text-ca-accent transition block break-all">
+                                connectwithmanthan12@gmail.com
+                            </a>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-full bg-ca-accent/20 flex items-center justify-center text-xl shrink-0">📞</div>
+                        <div>
+                            <p class="text-gray-400 text-sm font-medium mb-1">Phone</p>
+                            <a href="tel:+918652278179" class="text-white font-semibold hover:text-ca-accent transition block">
+                                +91-8652278179
+                            </a>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-full bg-ca-accent/20 flex items-center justify-center text-xl shrink-0">📍</div>
+                        <div>
+                            <p class="text-gray-400 text-sm font-medium mb-1">Registered Address</p>
+                            <p class="text-white font-semibold leading-relaxed">
+                                Dombivali, Mumbai<br>India
+                            </p>
+                        </div>
+                    </div>
                 </div>
-                <h3 class="text-white font-bold text-lg mb-2">Email Us</h3>
-                <p class="ca-muted text-sm mb-4">Drop us an email for any queries or support requests.</p>
-                <a href="mailto:connectwithmanthan12@gmail.com" class="text-ca-accent font-bold hover:text-white transition">
-                    connectwithmanthan12@gmail.com
-                </a>
             </div>
 
-            <!-- Support Hours -->
-            <div class="bg-black/30 p-6 rounded-xl border border-white/5 flex flex-col items-center text-center transition hover:border-ca-accent/30 hover:bg-black/40">
-                <div class="w-12 h-12 bg-ca-accent/20 rounded-full flex items-center justify-center mb-4 text-2xl">
-                    🕒
+            <!-- Section 4: Support Hours -->
+            <div class="ca-glass p-8 border border-ca-accent/20 rounded-2xl">
+                <h2 class="text-xl font-bold text-white mb-6 border-b border-white/10 pb-3">Support Hours</h2>
+                <div class="flex items-center gap-3 mb-4">
+                    <span class="text-2xl">🕒</span>
+                    <div>
+                        <p class="text-white font-bold">Monday to Sunday</p>
+                        <p class="text-ca-accent font-semibold">10:00 AM to 8:00 PM</p>
+                    </div>
                 </div>
-                <h3 class="text-white font-bold text-lg mb-2">Support Hours</h3>
-                <p class="ca-muted text-sm mb-3">Our team is available to assist you during these hours.</p>
-                <p class="text-white font-bold">Monday to Sunday</p>
-                <p class="text-ca-accent font-semibold">10:00 AM – 8:00 PM</p>
+                <div class="bg-black/30 border border-white/10 rounded-lg p-4 mt-4">
+                    <p class="text-gray-300 text-sm flex items-center gap-2">
+                        <span>⚡</span> We usually respond within <strong>24 hours</strong>.
+                    </p>
+                </div>
             </div>
+
         </div>
 
-        <div class="mt-8 text-center bg-black/30 p-5 rounded-xl border border-white/5">
-            <p class="text-white/80 font-medium">
-                ⚡ <span class="text-white font-bold">Response time:</span> We usually respond within 24 hours.
+        <!-- Right Column: Form & Guidelines -->
+        <div class="lg:col-span-7 space-y-6">
+            
+            <!-- Section 5: Contact Form -->
+            <div class="ca-glass p-8 border border-ca-accent/20 rounded-2xl">
+                <h2 class="text-2xl font-bold text-white mb-6">Send us a message</h2>
+                
+                {% if messages %}
+                    <div class="mb-6">
+                        {% for message in messages %}
+                            <div class="p-4 rounded-lg {% if message.tags == 'success' %}bg-emerald-500/10 border border-emerald-500/20 text-emerald-400{% else %}bg-red-500/10 border border-red-500/20 text-red-400{% endif %}">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                
+                <form action="{% url 'contact' %}" method="POST" class="space-y-5">
+                    {% csrf_token %}
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div>
+                            <label class="block text-gray-400 text-sm font-medium mb-2">Your Name</label>
+                            <input type="text" name="name" required class="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-ca-accent focus:ring-1 focus:ring-ca-accent transition" placeholder="Enter Name">
+                        </div>
+                        <div>
+                            <label class="block text-gray-400 text-sm font-medium mb-2">Your Email</label>
+                            <input type="email" name="email" required class="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-ca-accent focus:ring-1 focus:ring-ca-accent transition" placeholder="Enter Email">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-gray-400 text-sm font-medium mb-2">Subject</label>
+                        <select name="subject" required class="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-ca-accent focus:ring-1 focus:ring-ca-accent transition appearance-none">
+                            <option value="" disabled selected>Select a topic...</option>
+                            <!-- Section 3: Support Categories integrated here -->
+                            <option value="payment">Payment Issue (Money not added)</option>
+                            <option value="withdrawal">Withdrawal Query</option>
+                            <option value="tournament">Tournament Issue / Dispute</option>
+                            <option value="account">Account Problem</option>
+                            <option value="general">General Support</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-gray-400 text-sm font-medium mb-2">Message</label>
+                        <textarea name="message" required rows="5" class="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-ca-accent focus:ring-1 focus:ring-ca-accent transition resize-none" placeholder="Please describe your issue in detail. If it's a payment issue, include the Order ID or Transaction Reference."></textarea>
+                    </div>
+                    <button type="submit" class="w-full bg-ca-accent hover:bg-ca-accent/90 text-white font-bold py-4 rounded-lg shadow-[0_0_15px_rgba(var(--ca-accent-rgb),0.5)] transition duration-200 uppercase tracking-wide">
+                        Send Message
+                    </button>
+                </form>
+            </div>
+
+            <!-- Section 6: Payment Support Note -->
+            <div class="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-6 flex items-start gap-4">
+                <span class="text-3xl">🛡️</span>
+                <div>
+                    <h3 class="text-blue-400 font-bold mb-1">Payment Security Note</h3>
+                    <p class="text-gray-300 text-sm leading-relaxed">
+                        All payments on Clash Arena are processed securely via <strong>Cashfree</strong>. If your payment is successful but not reflected in your wallet, please contact us with your transaction details. Our daily reconciliation system will automatically verify and credit delayed payments.
+                    </p>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Bottom Footer Elements -->
+    <div class="mt-12 text-center space-y-4">
+        <!-- Section 8: Trust Message -->
+        <p class="text-lg text-emerald-400 font-medium italic">
+            "We are committed to providing a fair, secure, and transparent gaming experience for all users."
+        </p>
+        
+        <!-- Section 7: Legal Information -->
+        <div class="inline-block bg-white/5 border border-white/10 rounded-lg px-6 py-3 mt-4">
+            <p class="text-gray-400 text-sm font-medium">
+                Clash Arena is owned and operated by <strong class="text-white">Manthan Kumar Balla</strong>.
             </p>
         </div>
     </div>
+
 </div>
 {% endblock %}

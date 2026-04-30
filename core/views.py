@@ -1329,6 +1329,53 @@ def generate_matches(request, tournament_id):
 
 
 @login_required
+@require_POST
+def api_mark_winner(request):
+    import json
+    try:
+        data = json.loads(request.body)
+        match_id = data.get('match_id')
+        winner_id = data.get('winner_id')
+    except Exception:
+        return JsonResponse({'error': 'Invalid request'}, status=400)
+
+    with transaction.atomic():
+        match = Match.objects.select_for_update().select_related('tournament').filter(id=match_id).first()
+        if not match:
+            return JsonResponse({'error': 'Match not found'}, status=404)
+        
+        tournament = match.tournament
+        
+        # Security: Only creator or admin
+        if request.user != tournament.creator and not request.user.profile.is_admin:
+            return JsonResponse({'error': 'Unauthorized'}, status=403)
+            
+        # Prevent double marking
+        if match.status == 'completed' or match.winner is not None:
+            return JsonResponse({'error': 'Winner already selected'}, status=400)
+            
+        if tournament.prize_distributed:
+            return JsonResponse({'error': 'Prizes already distributed'}, status=400)
+            
+        winner = User.objects.filter(id=winner_id).first()
+        if winner not in [match.player1, match.player2]:
+            return JsonResponse({'error': 'Invalid winner'}, status=400)
+            
+        match.winner = winner
+        match.status = 'completed'
+        match.save()
+        
+        # Final check for unstructured tournaments
+        all_matches = Match.objects.filter(tournament=tournament)
+        if all_matches.count() > 0 and all(m.status == 'completed' for m in all_matches):
+            if not tournament.prize_distributed:
+                enqueue_task(distribute_tournament_prizes_task, tournament.id)
+                logger.info(f"Prize distribution task enqueued for tournament {tournament.id}")
+
+    return JsonResponse({'success': True, 'message': 'Winner selected successfully'})
+
+
+@login_required
 def submit_result(request, match_id):
     match = get_object_or_404(Match, id=match_id)
 
@@ -1455,7 +1502,7 @@ def _resolve_match_winner(match, winner_user=None, winner_label='', source='crea
     if match.is_locked:
         return
     match.winner = winner_user
-    match.winner_label = winner_label or (winner_user.username if winner_user else '')
+    match.winner_label = winner_label or (winner_user.profile.display_name if winner_user else '')
     match.result_source = source
     if proof_image:
         match.proof_image = optimize_uploaded_image(proof_image)
@@ -1484,8 +1531,8 @@ def _resolve_match_winner(match, winner_user=None, winner_label='', source='crea
 def _auto_advance_bye_in_match(match, actor=None):
     if match.winner or match.winner_label or match.is_locked:
         return
-    p1_label = match.player1_label or (match.player1.username if match.player1 else '')
-    p2_label = match.player2_label or (match.player2.username if match.player2 else '')
+    p1_label = match.player1_label or (match.player1.profile.display_name if match.player1 else '')
+    p2_label = match.player2_label or (match.player2.profile.display_name if match.player2 else '')
     if p1_label and p2_label:
         if p1_label == 'BYE' and p2_label != 'BYE':
             _resolve_match_winner(match, winner_user=match.player2, winner_label=p2_label, source='auto_bye', actor=actor, completed=True)
@@ -1686,14 +1733,14 @@ def generate_cup_matches(request, cup_id):
         if p1_id:
             u1 = User.objects.get(id=p1_id)
             match.player1 = u1
-            match.player1_label = u1.username
+            match.player1_label = u1.profile.display_name
         else:
             match.player1 = None
             match.player1_label = 'BYE'
         if p2_id:
             u2 = User.objects.get(id=p2_id)
             match.player2 = u2
-            match.player2_label = u2.username
+            match.player2_label = u2.profile.display_name
         else:
             match.player2 = None
             match.player2_label = 'BYE'
@@ -1732,7 +1779,7 @@ def mark_cup_winner(request, match_id):
         _resolve_match_winner(
             match,
             winner_user=winner,
-            winner_label=winner.username,
+            winner_label=winner.profile.display_name,
             source='creator_proof',
             proof_image=proof_image,
             actor=request.user,
@@ -1908,7 +1955,7 @@ def resolve_cup_dispute(request, match_id):
             return redirect(f'/cups/{cup.id}/?error=invalid_winner')
 
         match.winner = winner
-        match.winner_label = winner.username
+        match.winner_label = winner.profile.display_name
         match.status = 'completed'
         match.is_locked = True
         match.is_disputed = False
@@ -2697,6 +2744,29 @@ def payment_page(request):
     })
 
 
+from django.core.mail import send_mail
+from django.contrib import messages
+
 def contact_page(request):
-    """Public Contact Us page for business verification."""
+    """Public Contact Us page for business verification and support."""
+    if request.method == 'POST':
+        name = request.POST.get('name')
+        email = request.POST.get('email')
+        subject = request.POST.get('subject')
+        message = request.POST.get('message')
+        
+        full_message = f"Message from {name} ({email}):\n\nSubject Category: {subject}\n\n{message}"
+        
+        try:
+            send_mail(
+                subject=f"Contact Form: {subject} - {name}",
+                message=full_message,
+                from_email=None,
+                recipient_list=['connectwithmanthan12@gmail.com'],
+                fail_silently=False,
+            )
+            messages.success(request, "Message sent successfully! Our team will get back to you soon.")
+        except Exception as e:
+            messages.error(request, "Failed to send message. Please email us directly at connectwithmanthan12@gmail.com")
+            
     return render(request, 'contact.html')

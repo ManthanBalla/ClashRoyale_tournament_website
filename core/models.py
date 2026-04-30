@@ -34,6 +34,10 @@ class Profile(models.Model):
     def total_balance(self):
         return self.deposit_balance + self.winnings_balance
 
+    @property
+    def display_name(self):
+        return self.ingame_username if self.ingame_username else self.user.username
+
     def is_complete(self):
         return bool(self.upi_id and self.user.first_name and self.user.email and self.ingame_username)
 
@@ -133,6 +137,7 @@ class Match(models.Model):
     player2 = models.ForeignKey(User, on_delete=models.CASCADE, related_name='player2')
     winner = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='winner')
     round_number = models.IntegerField(default=1)
+    status = models.CharField(max_length=20, default='pending')
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

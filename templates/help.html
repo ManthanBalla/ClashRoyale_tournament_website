@@ -1,40 +1,293 @@
 {% extends "base.html" %}
+
+{% block meta %}
+<title>Help & How It Works — Clash Arena</title>
+<meta name="description" content="Learn how Clash Arena works, from adding money to joining tournaments and withdrawing your winnings securely.">
+{% endblock %}
+
 {% block content %}
-<div class="max-w-4xl mx-auto py-8 sm:py-10 px-3 sm:px-4">
-    <h1 class="text-2xl sm:text-3xl font-extrabold text-white mb-2 tracking-tight">Help Center</h1>
-    <p class="ca-muted text-sm mb-6">Quick guide for Players, Creators, and Admins.</p>
+<div class="max-w-4xl mx-auto px-4 py-12 min-h-[60vh]">
+    <div class="ca-glass p-8 sm:p-12 border border-ca-accent/20 rounded-2xl relative overflow-hidden">
 
-    <div class="ca-glass p-5 sm:p-6 mb-5">
-        <h2 class="text-lg font-bold text-white mb-3">Player Checklist</h2>
-        <ul class="space-y-2 text-sm text-white/85">
-            <li>• Complete profile: full name, email, and UPI ID.</li>
-            <li>• Join tournament from home list, then follow status updates.</li>
-            <li>• For paid tournaments, ensure wallet balance before joining.</li>
-            <li>• Use dispute form if result or fairness issue appears.</li>
-            <li>• Check notifications for results, rewards, and refunds.</li>
-        </ul>
-    </div>
+        <!-- Header -->
+        <div class="text-center mb-10">
+            <h1 class="text-3xl sm:text-4xl font-extrabold text-white mb-3 tracking-tight">Help &amp; How It Works</h1>
+            <p class="text-gray-400 text-base max-w-2xl mx-auto">Everything you need to know about playing, competing, and earning securely on Clash Arena.</p>
+        </div>
 
-    <div class="ca-glass p-5 sm:p-6 mb-5">
-        <h2 class="text-lg font-bold text-white mb-3">Creator Checklist</h2>
-        <ul class="space-y-2 text-sm text-white/85">
-            <li>• Activate creator plan, then host tournament with correct details.</li>
-            <li>• Set rules clearly and verify start/end timings.</li>
-            <li>• Upload leaderboard and reward proof after completion.</li>
-            <li>• Open Send Rewards, choose codes + players, then dispatch.</li>
-            <li>• Verify winner profile details (name, email, UPI) before payout.</li>
-        </ul>
-    </div>
+        <div class="space-y-12">
 
-    <div class="ca-glass p-5 sm:p-6">
-        <h2 class="text-lg font-bold text-white mb-3">Admin Checklist</h2>
-        <ul class="space-y-2 text-sm text-white/85">
-            <li>• Monitor tournaments, disputes, and membership compliance.</li>
-            <li>• Process withdrawals and maintain transaction consistency.</li>
-            <li>• Manage user roles responsibly (promote/demote/ban).</li>
-            <li>• Enforce fair play and policy standards platform-wide.</li>
-            <li>• Review notifications and reports daily for quick resolution.</li>
-        </ul>
+            <!-- Section 1: WHAT IS CLASH ARENA? -->
+            <section>
+                <div class="flex items-center gap-3 mb-4">
+                    <span class="text-2xl">🎮</span>
+                    <h2 class="text-2xl font-bold text-white">What is Clash Arena?</h2>
+                </div>
+                <div class="bg-white/5 border border-white/10 rounded-xl p-5 text-gray-300 leading-relaxed">
+                    <p class="mb-2">Clash Arena is a <strong>skill-based esports platform</strong> built for competitive gamers.</p>
+                    <p class="mb-2">Users compete in skill-based tournaments to win real rewards based purely on their gaming abilities.</p>
+                    <div class="bg-red-500/10 border border-red-500/20 rounded text-red-400 px-3 py-2 mt-3 inline-block text-sm font-semibold">
+                        ⚠️ Note: There is absolutely NO gambling, betting, or games of chance involved on this platform.
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 2: QUICK START -->
+            <section>
+                <div class="flex items-center gap-3 mb-4">
+                    <span class="text-2xl">⚡</span>
+                    <h2 class="text-2xl font-bold text-white">Quick Start Guide</h2>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="bg-white/5 border border-white/10 rounded-xl p-4 text-center">
+                        <div class="w-8 h-8 rounded-full bg-ca-accent text-white flex items-center justify-center font-bold mx-auto mb-3">1</div>
+                        <p class="text-white font-semibold text-sm">Create an Account</p>
+                    </div>
+                    <div class="bg-white/5 border border-white/10 rounded-xl p-4 text-center">
+                        <div class="w-8 h-8 rounded-full bg-ca-accent text-white flex items-center justify-center font-bold mx-auto mb-3">2</div>
+                        <p class="text-white font-semibold text-sm">Add Money to Wallet</p>
+                    </div>
+                    <div class="bg-white/5 border border-white/10 rounded-xl p-4 text-center">
+                        <div class="w-8 h-8 rounded-full bg-ca-accent text-white flex items-center justify-center font-bold mx-auto mb-3">3</div>
+                        <p class="text-white font-semibold text-sm">Join a Tournament</p>
+                    </div>
+                    <div class="bg-white/5 border border-white/10 rounded-xl p-4 text-center">
+                        <div class="w-8 h-8 rounded-full bg-ca-accent text-white flex items-center justify-center font-bold mx-auto mb-3">4</div>
+                        <p class="text-white font-semibold text-sm">Play Your Match</p>
+                    </div>
+                    <div class="bg-white/5 border border-white/10 rounded-xl p-4 text-center">
+                        <div class="w-8 h-8 rounded-full bg-ca-accent text-white flex items-center justify-center font-bold mx-auto mb-3">5</div>
+                        <p class="text-white font-semibold text-sm">Submit Result</p>
+                    </div>
+                    <div class="bg-white/5 border border-white/10 rounded-xl p-4 text-center">
+                        <div class="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold mx-auto mb-3">6</div>
+                        <p class="text-white font-semibold text-sm">Win &amp; Earn Rewards</p>
+                    </div>
+                    <div class="bg-white/5 border border-white/10 rounded-xl p-4 text-center sm:col-span-2 lg:col-span-2">
+                        <div class="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold mx-auto mb-3">7</div>
+                        <p class="text-white font-semibold text-sm">Withdraw Winnings Safely</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 3: HOW MONEY WORKS -->
+            <section>
+                <div class="flex items-center gap-3 mb-4">
+                    <span class="text-2xl">💳</span>
+                    <h2 class="text-2xl font-bold text-white">How Money Works</h2>
+                </div>
+                <p class="text-gray-400 mb-4 text-sm">We use a strict <strong>Dual-Wallet System</strong> to protect our platform and ensure fair play.</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-5">
+                        <h3 class="text-emerald-400 font-bold mb-2 text-lg">Deposit Balance</h3>
+                        <ul class="text-sm space-y-2 text-gray-300 list-disc pl-4">
+                            <li>Money you add via Cashfree.</li>
+                            <li>Used exclusively to pay for tournament entry fees.</li>
+                            <li><strong class="text-white">Cannot be withdrawn to bank.</strong></li>
+                        </ul>
+                    </div>
+                    <div class="bg-amber-500/5 border border-amber-500/20 rounded-xl p-5">
+                        <h3 class="text-amber-400 font-bold mb-2 text-lg">Winnings Balance</h3>
+                        <ul class="text-sm space-y-2 text-gray-300 list-disc pl-4">
+                            <li>Money earned strictly by winning tournaments.</li>
+                            <li><strong class="text-white">Can be withdrawn</strong> directly to your UPI.</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="bg-ca-accent/10 border border-ca-accent/20 rounded-xl p-4 mt-4">
+                    <p class="text-sm text-gray-300"><strong>Why split the wallet?</strong> This prevents financial misuse (like money laundering) and guarantees that the platform is used for its intended purpose: competitive gaming.</p>
+                </div>
+            </section>
+
+            <!-- Section 4: HOW TO ADD MONEY -->
+            <section>
+                <div class="flex items-center gap-3 mb-4">
+                    <span class="text-2xl">➕</span>
+                    <h2 class="text-2xl font-bold text-white">How to Add Money</h2>
+                </div>
+                <ul class="space-y-3 text-gray-300 bg-white/5 border border-white/10 rounded-xl p-5">
+                    <li class="flex items-center gap-2">➔ Click the <strong>"Add Money"</strong> button in your profile.</li>
+                    <li class="flex items-center gap-2">➔ Enter the desired amount.</li>
+                    <li class="flex items-center gap-2">➔ Pay securely via Cashfree using UPI, Cards, or Netbanking.</li>
+                    <li class="flex items-center gap-2">➔ Your payment is verified instantly via secure servers.</li>
+                    <li class="flex items-center gap-2">➔ Wallet is credited automatically.</li>
+                </ul>
+                <p class="text-xs text-gray-400 mt-2 italic">Note: Sometimes it may take a few seconds to update your balance while we securely verify the payment directly with the bank.</p>
+            </section>
+
+            <!-- Section 5: HOW PAID TOURNAMENTS WORK -->
+            <section>
+                <div class="flex items-center gap-3 mb-4">
+                    <span class="text-2xl">🏆</span>
+                    <h2 class="text-2xl font-bold text-white">How Paid Tournaments Work</h2>
+                </div>
+                
+                <div class="space-y-6">
+                    <div class="bg-white/5 border border-white/10 rounded-xl p-5">
+                        <h3 class="text-white font-bold mb-2">1. Entry Fees & Prize Pool</h3>
+                        <p class="text-gray-300 text-sm">Every player pays a small entry fee to join. All entry fees combine to form the total prize pool.</p>
+                        <p class="text-emerald-400 text-sm mt-2 font-mono bg-black/30 p-2 rounded inline-block">Example: 10 players × ₹50 entry = ₹500 Prize Pool</p>
+                    </div>
+
+                    <div class="bg-white/5 border border-white/10 rounded-xl p-5">
+                        <h3 class="text-white font-bold mb-2">2. Reward Distribution</h3>
+                        <p class="text-gray-300 text-sm mb-3">Prizes are automatically calculated and split securely:</p>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div class="bg-black/20 p-3 rounded border border-white/5 text-center">
+                                <span class="block text-xl mb-1">🥇</span>
+                                <span class="block text-emerald-400 font-bold">70%</span>
+                                <span class="text-xs text-gray-400">To the Winner (₹350)</span>
+                            </div>
+                            <div class="bg-black/20 p-3 rounded border border-white/5 text-center">
+                                <span class="block text-xl mb-1">👑</span>
+                                <span class="block text-ca-accent font-bold">18%</span>
+                                <span class="text-xs text-gray-400">To the Creator (₹90)</span>
+                            </div>
+                            <div class="bg-black/20 p-3 rounded border border-white/5 text-center">
+                                <span class="block text-xl mb-1">⚙️</span>
+                                <span class="block text-gray-300 font-bold">12%</span>
+                                <span class="text-xs text-gray-400">Platform Fee (₹60)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white/5 border border-white/10 rounded-xl p-5">
+                        <h3 class="text-white font-bold mb-2">3. Who Holds the Money?</h3>
+                        <p class="text-gray-300 text-sm"><strong>The Platform holds all funds securely.</strong> Creators and hosts never touch your entry fees. When the tournament ends, our automated system distributes the rewards safely to everyone's wallet.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 6 & 7: MATCHES & WINNING -->
+            <section>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <div class="flex items-center gap-3 mb-4">
+                            <span class="text-2xl">⚔️</span>
+                            <h2 class="text-xl font-bold text-white">How Matches Work</h2>
+                        </div>
+                        <ul class="space-y-2 text-gray-300 text-sm bg-white/5 border border-white/10 rounded-xl p-5 h-full">
+                            <li>• You get matched with an opponent in the bracket.</li>
+                            <li>• Play your match in-game.</li>
+                            <li>• Upload a screenshot proving you won.</li>
+                            <li>• The system (or opponent) verifies the result.</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-3 mb-4">
+                            <span class="text-2xl">🎉</span>
+                            <h2 class="text-xl font-bold text-white">How Winning Works</h2>
+                        </div>
+                        <ul class="space-y-2 text-gray-300 text-sm bg-white/5 border border-white/10 rounded-xl p-5 h-full">
+                            <li>• Winners advance until the final match is decided.</li>
+                            <li>• The system finalizes the tournament.</li>
+                            <li>• Rewards are automatically calculated.</li>
+                            <li>• Winnings are instantly credited to your Winnings Balance.</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 8: WITHDRAWALS -->
+            <section>
+                <div class="flex items-center gap-3 mb-4">
+                    <span class="text-2xl">🏦</span>
+                    <h2 class="text-2xl font-bold text-white">How to Withdraw Money</h2>
+                </div>
+                <div class="bg-white/5 border border-white/10 rounded-xl p-5">
+                    <ol class="list-decimal pl-5 space-y-2 text-gray-300 mb-4">
+                        <li>Go to the <strong>Withdraw</strong> page from your profile.</li>
+                        <li>Enter the amount you wish to withdraw (Minimum ₹100).</li>
+                        <li>Enter your correct UPI ID.</li>
+                        <li>Submit the request.</li>
+                        <li>An admin will quickly review the request for security.</li>
+                        <li>Money is sent directly to your bank account.</li>
+                    </ol>
+                    <div class="bg-yellow-500/10 border border-yellow-500/20 rounded p-3 text-sm text-yellow-400">
+                        <strong>Important Rules:</strong> You can only withdraw from your Winnings Balance. Withdrawals undergo manual review for safety, which may take up to 24-48 hours depending on volume.
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 9: IMPORTANT RULES -->
+            <section>
+                <div class="flex items-center gap-3 mb-4">
+                    <span class="text-2xl">⚖️</span>
+                    <h2 class="text-2xl font-bold text-white">Important Rules</h2>
+                </div>
+                <ul class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                    <li class="bg-red-500/5 border border-red-500/20 text-gray-300 rounded-lg p-3">🚫 No cheating or hacking.</li>
+                    <li class="bg-red-500/5 border border-red-500/20 text-gray-300 rounded-lg p-3">🚫 No submitting fake screenshots.</li>
+                    <li class="bg-red-500/5 border border-red-500/20 text-gray-300 rounded-lg p-3">🚫 No multiple accounts per person.</li>
+                    <li class="bg-red-500/5 border border-red-500/20 text-gray-300 rounded-lg p-3">🚫 No abusing the dispute system.</li>
+                </ul>
+                <p class="text-red-400 text-xs mt-3 text-center">Violations of these rules will lead to immediate account suspension and forfeiture of funds.</p>
+            </section>
+
+            <!-- Section 10: SAFETY & TRUST -->
+            <section>
+                <div class="flex items-center gap-3 mb-4">
+                    <span class="text-2xl">🛡️</span>
+                    <h2 class="text-2xl font-bold text-white">Safety &amp; Trust</h2>
+                </div>
+                <div class="bg-white/5 border border-white/10 rounded-xl p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <h4 class="text-white font-semibold mb-1">Secure Payments</h4>
+                        <p class="text-gray-400 text-sm">All transactions are processed by Cashfree via encrypted connections.</p>
+                    </div>
+                    <div>
+                        <h4 class="text-white font-semibold mb-1">Server Verification</h4>
+                        <p class="text-gray-400 text-sm">Payments are verified via secure webhooks, bypassing client-side manipulation.</p>
+                    </div>
+                    <div>
+                        <h4 class="text-white font-semibold mb-1">Fraud Detection</h4>
+                        <p class="text-gray-400 text-sm">Automated IP tracking, device fingerprinting, and rate-limiting protect against bots.</p>
+                    </div>
+                    <div>
+                        <h4 class="text-white font-semibold mb-1">Active Moderation</h4>
+                        <p class="text-gray-400 text-sm">Admins monitor disputes and withdrawals to ensure every player gets treated fairly.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 11: FAQ -->
+            <section>
+                <div class="flex items-center gap-3 mb-6">
+                    <span class="text-2xl">❓</span>
+                    <h2 class="text-2xl font-bold text-white">Common Questions (FAQ)</h2>
+                </div>
+                <div class="space-y-4">
+                    <div class="bg-white/5 border border-white/10 rounded-xl p-4">
+                        <p class="text-white font-bold mb-1">Q: Why is my money split into two balances?</p>
+                        <p class="text-gray-400 text-sm">A: To ensure fair play, prevent money laundering, and secure withdrawals strictly for actual tournament winners.</p>
+                    </div>
+                    <div class="bg-white/5 border border-white/10 rounded-xl p-4">
+                        <p class="text-white font-bold mb-1">Q: I paid but money is not added?</p>
+                        <p class="text-gray-400 text-sm">A: It may take a few seconds due to secure server-to-server verification. If an issue persists, our daily automated reconciliation task will fix it.</p>
+                    </div>
+                    <div class="bg-white/5 border border-white/10 rounded-xl p-4">
+                        <p class="text-white font-bold mb-1">Q: Can I withdraw my deposit money?</p>
+                        <p class="text-gray-400 text-sm">A: No. Only funds in the Winnings Balance can be withdrawn. Deposit money is strictly for joining tournaments.</p>
+                    </div>
+                    <div class="bg-white/5 border border-white/10 rounded-xl p-4">
+                        <p class="text-white font-bold mb-1">Q: What if a tournament is cancelled?</p>
+                        <p class="text-gray-400 text-sm">A: Your entry fee is automatically and instantly refunded to your Deposit Balance.</p>
+                    </div>
+                    <div class="bg-white/5 border border-white/10 rounded-xl p-4">
+                        <p class="text-white font-bold mb-1">Q: How long does withdrawal take?</p>
+                        <p class="text-gray-400 text-sm">A: It depends on administrative approval and banking processing times, but typically within 1-3 business days.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 12: FINAL TRUST MESSAGE -->
+            <div class="mt-12 text-center bg-ca-accent/10 border border-ca-accent/30 rounded-2xl p-8">
+                <p class="text-lg text-white font-medium italic">
+                    "Clash Arena is built to provide a fair, secure, and skill-based gaming experience where players can compete and earn rewards safely."
+                </p>
+            </div>
+
+        </div>
     </div>
 </div>
 {% endblock %}

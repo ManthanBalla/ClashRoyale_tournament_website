@@ -17,7 +17,7 @@ from .views import (
     generate_cup_matches, mark_cup_winner, confirm_cup_match_result, cup_player_action,
     resolve_cup_dispute, unlock_cup_match, set_cup_match_deadline, cup_state_api,
     edit_cup, delete_cup, payment_page, contact_page, adjust_trust_score,
-    create_cashfree_order, cashfree_webhook, check_cashfree_status,
+    create_cashfree_order, cashfree_webhook, check_cashfree_status, api_mark_winner
 )
 from django.contrib.auth import views as auth_views
 from django.contrib.sitemaps.views import sitemap
@@ -74,6 +74,7 @@ urlpatterns = [
     path('tournament/<int:tournament_id>/', tournament_detail, name='tournament_detail'),
     path('generate-matches/<int:tournament_id>/', generate_matches, name='generate_matches'),
     path('submit-result/<int:match_id>/', submit_result, name='submit_result'),
+    path('api/match/mark-winner/', api_mark_winner, name='api_mark_winner'),
     path('delete-tournament/<int:tournament_id>/', delete_tournament, name='delete_tournament'),
     path('edit-tournament/<int:tournament_id>/', edit_tournament, name='edit_tournament'),
     path('cancel-tournament/<int:tournament_id>/', cancel_tournament, name='cancel_tournament'),

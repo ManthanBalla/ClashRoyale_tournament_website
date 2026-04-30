@@ -1,43 +1,213 @@
 {% extends "base.html" %}
 
-{% block title %}Refund Policy - Clash Arena{% endblock %}
+{% block meta %}
+<title>Refund Policy — Clash Arena</title>
+<meta name="description" content="Understand the refund and cancellation policy for Clash Arena's dual-wallet tournament platform.">
+{% endblock %}
 
 {% block content %}
 <div class="max-w-4xl mx-auto px-4 py-12 min-h-[60vh]">
-    <div class="ca-glass p-8 sm:p-10 border border-ca-accent/20 rounded-2xl relative overflow-hidden">
-        
-        <h1 class="text-3xl font-extrabold text-white mb-2">Refund Policy</h1>
-        
-        <div class="bg-ca-accent/10 p-4 rounded-lg border border-ca-accent/30 mt-6 mb-8 inline-block">
-            <p class="text-white font-semibold m-0">Clash Arena is owned and operated by Manthan Kumar Balla.</p>
+    <div class="ca-glass p-8 sm:p-12 border border-ca-accent/20 rounded-2xl relative overflow-hidden">
+
+        <!-- Header -->
+        <div class="mb-8">
+            <h1 class="text-4xl font-extrabold text-white mb-2 tracking-tight">Refund Policy</h1>
+            <p class="text-gray-400 text-sm">Effective Date: April 2026 &nbsp;|&nbsp; Last Updated: April 2026</p>
         </div>
 
-        <div class="prose prose-invert max-w-none text-gray-300">
-            <p class="mb-6">We strive to provide a seamless and fair tournament experience. However, we understand that issues may occasionally arise. This policy outlines the conditions under which refunds are provided.</p>
+        <!-- Owner Banner -->
+        <div class="bg-ca-accent/10 border border-ca-accent/30 rounded-xl p-5 mb-10">
+            <p class="text-white font-bold text-base">Clash Arena is owned and operated by <span class="text-ca-accent">Manthan Kumar Balla</span>.</p>
+            <p class="text-gray-400 text-sm mt-1">This policy governs all refund and cancellation matters on the Clash Arena platform. Please read it carefully before making any deposit or joining a paid tournament.</p>
+        </div>
 
-            <h2 class="text-xl font-bold text-white mt-8 mb-4">1. Refund Conditions</h2>
-            <p class="mb-4">Refunds for tournament entry fees will <strong>only</strong> be processed under the following circumstances:</p>
-            <ul class="list-disc pl-6 mb-4 space-y-2 text-green-400">
-                <li><span class="text-gray-300"><strong>Tournament Cancelled:</strong> If the tournament organizer cancels the tournament before it begins, all participants will receive a full automated refund.</span></li>
-                <li><span class="text-gray-300"><strong>Technical Issue:</strong> If a proven platform technical issue prevented you from participating, and you report it with evidence before the tournament starts.</span></li>
-            </ul>
+        <div class="prose prose-invert max-w-none text-gray-300 space-y-10">
 
-            <h2 class="text-xl font-bold text-white mt-8 mb-4">2. No Refund Cases</h2>
-            <p class="mb-4">To ensure fairness and prize pool integrity for all players, refunds will <strong>not</strong> be issued in the following scenarios:</p>
-            <ul class="list-disc pl-6 mb-4 space-y-2 text-red-400">
-                <li><span class="text-gray-300"><strong>User Joins and Leaves:</strong> If you join a paid tournament and then voluntarily decide to leave or not participate.</span></li>
-                <li><span class="text-gray-300"><strong>Match is Completed:</strong> Once the tournament has started or the match has been completed, entry fees are strictly non-refundable as they contribute to the winner's prize pool.</span></li>
-                <li><span class="text-gray-300"><strong>Disqualification:</strong> If you are disqualified for cheating, breaking the rules, or failing to show up on time.</span></li>
-            </ul>
+            <!-- Critical Understanding -->
+            <section>
+                <h2 class="text-2xl font-bold text-white border-b border-white/10 pb-3 mb-5">1. Understanding the Dual-Wallet System</h2>
+                <p class="mb-6">Before reading this policy, it is essential to understand how our wallet works, as it directly determines refund eligibility.</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div class="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-5">
+                        <p class="text-emerald-400 font-bold mb-2">Deposit Balance</p>
+                        <p class="text-sm text-gray-300">Money added via Cashfree. Used to pay entry fees. This balance <strong class="text-white">cannot be withdrawn as cash</strong>. In approved refund cases, it is credited back to this balance — not to your bank account.</p>
+                    </div>
+                    <div class="bg-amber-500/5 border border-amber-500/20 rounded-xl p-5">
+                        <p class="text-amber-400 font-bold mb-2">Winnings Balance</p>
+                        <p class="text-sm text-gray-300">Money earned from winning tournaments. This is the <strong class="text-white">only balance withdrawable</strong> to your UPI account. Not subject to refund policies — this is your earned income.</p>
+                    </div>
+                </div>
+                <div class="bg-yellow-500/5 border border-yellow-500/20 rounded-xl p-4">
+                    <p class="text-yellow-400 font-semibold text-sm">Important: Refunds are always credited to your Deposit Balance, not to your original payment method or bank account. Clash Arena does not reverse payments to external bank accounts except in cases of duplicate or fraudulent charges confirmed by Cashfree.</p>
+                </div>
+            </section>
 
-            <h2 class="text-xl font-bold text-white mt-8 mb-4">3. Processing Time</h2>
-            <p class="mb-4">If your refund request is approved, the funds will be credited back to your original payment method. Please note that <strong>refunds are processed within 5–7 business days</strong> depending on your bank.</p>
+            <!-- Eligible Refund Cases -->
+            <section>
+                <h2 class="text-2xl font-bold text-white border-b border-white/10 pb-3 mb-5">2. Cases Where Refunds Are Granted</h2>
+                <p class="mb-4">Refunds are provided automatically or upon request in the following specific circumstances:</p>
 
-            <h2 class="text-xl font-bold text-white mt-8 mb-4">4. Contact Us</h2>
-            <p class="mb-4">If you believe you are entitled to a refund based on the conditions above, please reach out to our support team immediately.</p>
-            <p class="mb-4">Email support for refund issues: <a href="mailto:connectwithmanthan12@gmail.com" class="text-ca-accent hover:text-white font-bold transition">connectwithmanthan12@gmail.com</a></p>
-            
-            <p class="text-xs text-gray-500 mt-10 text-center">Last Updated: April 2026</p>
+                <div class="space-y-4">
+                    <div class="flex gap-4 items-start bg-green-500/5 border border-green-500/20 rounded-xl p-4">
+                        <span class="text-green-400 text-xl mt-0.5">✓</span>
+                        <div>
+                            <p class="text-white font-semibold">Tournament Cancelled by Creator</p>
+                            <p class="text-gray-400 text-sm mt-1">If the tournament organizer cancels the event before it begins, <strong class="text-white">100% of the entry fee is automatically refunded</strong> to all participants' Deposit Balances. This is processed instantly by the system.</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-4 items-start bg-green-500/5 border border-green-500/20 rounded-xl p-4">
+                        <span class="text-green-400 text-xl mt-0.5">✓</span>
+                        <div>
+                            <p class="text-white font-semibold">Tournament Does Not Meet Minimum Players</p>
+                            <p class="text-gray-400 text-sm mt-1">If a tournament fails to attract the required minimum number of participants and is subsequently cancelled, all entry fees are <strong class="text-white">automatically refunded</strong> to participants' Deposit Balances.</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-4 items-start bg-green-500/5 border border-green-500/20 rounded-xl p-4">
+                        <span class="text-green-400 text-xl mt-0.5">✓</span>
+                        <div>
+                            <p class="text-white font-semibold">Platform Technical Failure</p>
+                            <p class="text-gray-400 text-sm mt-1">If a verified, documented technical failure on Clash Arena's side (not your device or internet) prevented you from participating in a tournament you had already joined and paid for, a refund may be issued upon review. Contact support within 24 hours of the incident with evidence.</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-4 items-start bg-green-500/5 border border-green-500/20 rounded-xl p-4">
+                        <span class="text-green-400 text-xl mt-0.5">✓</span>
+                        <div>
+                            <p class="text-white font-semibold">Duplicate or Erroneous Payment</p>
+                            <p class="text-gray-400 text-sm mt-1">If your account is charged more than once for a single transaction due to a payment gateway error, the duplicate amount is refunded to your Deposit Balance within 24 hours after confirmation from Cashfree. For external bank refunds, please raise a dispute with Cashfree directly.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- No Refund Cases -->
+            <section>
+                <h2 class="text-2xl font-bold text-white border-b border-white/10 pb-3 mb-5">3. Cases Where Refunds Are NOT Granted</h2>
+                <p class="mb-4">To protect the fairness of the prize pool for all participants, refunds will <strong class="text-white">not</strong> be issued in the following situations:</p>
+
+                <div class="space-y-4">
+                    <div class="flex gap-4 items-start bg-red-500/5 border border-red-500/20 rounded-xl p-4">
+                        <span class="text-red-400 text-xl mt-0.5">✗</span>
+                        <div>
+                            <p class="text-white font-semibold">Deposit Balance Withdrawal Request</p>
+                            <p class="text-gray-400 text-sm mt-1">Funds added to your Deposit Balance via Cashfree cannot be withdrawn to a bank account. This balance is strictly for platform activity (entry fees, memberships).</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-4 items-start bg-red-500/5 border border-red-500/20 rounded-xl p-4">
+                        <span class="text-red-400 text-xl mt-0.5">✗</span>
+                        <div>
+                            <p class="text-white font-semibold">Voluntary Exit After Joining</p>
+                            <p class="text-gray-400 text-sm mt-1">If you join a paid tournament and later decide not to participate, no refund is issued. Entry fees are locked into the prize pool upon joining.</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-4 items-start bg-red-500/5 border border-red-500/20 rounded-xl p-4">
+                        <span class="text-red-400 text-xl mt-0.5">✗</span>
+                        <div>
+                            <p class="text-white font-semibold">Tournament Has Already Started</p>
+                            <p class="text-gray-400 text-sm mt-1">Once a tournament transitions to "Ongoing" status, entry fees are non-refundable regardless of your participation or outcome.</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-4 items-start bg-red-500/5 border border-red-500/20 rounded-xl p-4">
+                        <span class="text-red-400 text-xl mt-0.5">✗</span>
+                        <div>
+                            <p class="text-white font-semibold">Disqualification Due to Rule Violation</p>
+                            <p class="text-gray-400 text-sm mt-1">If you are removed from a tournament for cheating, abusive behaviour, failing to submit results, or any rule violation, no refund will be provided.</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-4 items-start bg-red-500/5 border border-red-500/20 rounded-xl p-4">
+                        <span class="text-red-400 text-xl mt-0.5">✗</span>
+                        <div>
+                            <p class="text-white font-semibold">Account Suspension for Fraud</p>
+                            <p class="text-gray-400 text-sm mt-1">If your account is suspended for multi-accounting, fraud, or any terms violation, all wallet balances are forfeited and no refunds are issued.</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-4 items-start bg-red-500/5 border border-red-500/20 rounded-xl p-4">
+                        <span class="text-red-400 text-xl mt-0.5">✗</span>
+                        <div>
+                            <p class="text-white font-semibold">Membership / Subscription Fees</p>
+                            <p class="text-gray-400 text-sm mt-1">Creator membership plans are non-refundable once activated, as access to hosting features is granted immediately upon payment confirmation.</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-4 items-start bg-red-500/5 border border-red-500/20 rounded-xl p-4">
+                        <span class="text-red-400 text-xl mt-0.5">✗</span>
+                        <div>
+                            <p class="text-white font-semibold">Internet or Device Issues on Your End</p>
+                            <p class="text-gray-400 text-sm mt-1">Clash Arena is not responsible for connectivity or hardware failures on your side that affect your ability to participate in a tournament.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Refund Method -->
+            <section>
+                <h2 class="text-2xl font-bold text-white border-b border-white/10 pb-3 mb-5">4. How Refunds Are Processed</h2>
+                <div class="bg-white/3 border border-white/10 rounded-xl p-5">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                        <div class="p-4">
+                            <p class="text-3xl mb-2">⚡</p>
+                            <p class="text-white font-semibold">Refund Destination</p>
+                            <p class="text-gray-400 text-sm mt-1">All refunds are credited to your <strong class="text-white">Deposit Balance</strong> — not to your bank or UPI.</p>
+                        </div>
+                        <div class="p-4 border-x border-white/10">
+                            <p class="text-3xl mb-2">🕐</p>
+                            <p class="text-white font-semibold">Processing Time</p>
+                            <p class="text-gray-400 text-sm mt-1">Automated refunds (cancelled tournaments) are <strong class="text-white">instant</strong>. Manual refunds processed within <strong class="text-white">24 hours</strong>.</p>
+                        </div>
+                        <div class="p-4">
+                            <p class="text-3xl mb-2">📧</p>
+                            <p class="text-white font-semibold">Refund Request</p>
+                            <p class="text-gray-400 text-sm mt-1">For non-automatic cases, contact support at <a href="mailto:connectwithmanthan12@gmail.com" class="text-ca-accent hover:text-white transition font-bold break-all">connectwithmanthan12@gmail.com</a> with evidence.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Withdrawal Clarification -->
+            <section>
+                <h2 class="text-2xl font-bold text-white border-b border-white/10 pb-3 mb-5">5. Withdrawals vs. Refunds — Key Distinction</h2>
+                <p class="mb-4">These are two separate processes and must not be confused:</p>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm border border-white/10 rounded-lg overflow-hidden">
+                        <thead class="bg-white/5">
+                            <tr>
+                                <th class="text-left text-white font-bold p-3 border-b border-white/10">Aspect</th>
+                                <th class="text-left text-emerald-400 font-bold p-3 border-b border-white/10">Refund</th>
+                                <th class="text-left text-amber-400 font-bold p-3 border-b border-white/10">Withdrawal</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-white/5">
+                            <tr>
+                                <td class="p-3 text-gray-400">Source Balance</td>
+                                <td class="p-3 text-gray-300">Deposit Balance</td>
+                                <td class="p-3 text-gray-300">Winnings Balance only</td>
+                            </tr>
+                            <tr>
+                                <td class="p-3 text-gray-400">Destination</td>
+                                <td class="p-3 text-gray-300">Back to Deposit Balance</td>
+                                <td class="p-3 text-gray-300">Your UPI account</td>
+                            </tr>
+                            <tr>
+                                <td class="p-3 text-gray-400">Trigger</td>
+                                <td class="p-3 text-gray-300">Platform/system event</td>
+                                <td class="p-3 text-gray-300">User-initiated request</td>
+                            </tr>
+                            <tr>
+                                <td class="p-3 text-gray-400">Admin Approval</td>
+                                <td class="p-3 text-gray-300">Required (manual cases)</td>
+                                <td class="p-3 text-gray-300">Always required</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Contact -->
+            <section>
+                <h2 class="text-2xl font-bold text-white border-b border-white/10 pb-3 mb-5">6. Contact for Refund Requests</h2>
+                <p class="mb-4">If you believe you qualify for a refund under the conditions outlined above, please contact our support team with your username, the tournament name, and supporting evidence.</p>
+                <p>Email: <a href="mailto:connectwithmanthan12@gmail.com" class="text-ca-accent hover:text-white font-bold transition break-all">connectwithmanthan12@gmail.com</a></p>
+            </section>
+
+            <p class="text-xs text-gray-500 text-center pt-6">Last Updated: April 2026 &nbsp;|&nbsp; Clash Arena — Skill-Based Esports Platform, India</p>
         </div>
     </div>
 </div>
