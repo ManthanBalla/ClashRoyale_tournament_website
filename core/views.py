@@ -1331,13 +1331,27 @@ def generate_matches(request, tournament_id):
 @login_required
 @require_POST
 def api_mark_winner(request):
+    """
+    Atomic winner selection endpoint.
+    Security: rate-limited, creator/admin only, no double-marking.
+    """
     import json
+    from .utils import check_rate_limit
+
+    # Rate limit: max 10 winner selections per minute per user
+    rate_key = f"mark_winner_{request.user.id}"
+    if not check_rate_limit(rate_key, limit=10, window_seconds=60):
+        return JsonResponse({'error': 'Too many requests. Please wait.'}, status=429)
+
     try:
         data = json.loads(request.body)
         match_id = data.get('match_id')
         winner_id = data.get('winner_id')
     except Exception:
-        return JsonResponse({'error': 'Invalid request'}, status=400)
+        return JsonResponse({'error': 'Invalid request body'}, status=400)
+
+    if not match_id or not winner_id:
+        return JsonResponse({'error': 'match_id and winner_id are required'}, status=400)
 
     with transaction.atomic():
         match = Match.objects.select_for_update().select_related('tournament').filter(id=match_id).first()
@@ -1346,33 +1360,43 @@ def api_mark_winner(request):
         
         tournament = match.tournament
         
-        # Security: Only creator or admin
+        # Security: Only creator or admin can mark winners
         if request.user != tournament.creator and not request.user.profile.is_admin:
             return JsonResponse({'error': 'Unauthorized'}, status=403)
             
         # Prevent double marking
         if match.status == 'completed' or match.winner is not None:
-            return JsonResponse({'error': 'Winner already selected'}, status=400)
+            return JsonResponse({'error': 'Winner already selected for this match'}, status=400)
             
+        # Prevent modification after prizes distributed
         if tournament.prize_distributed:
-            return JsonResponse({'error': 'Prizes already distributed'}, status=400)
+            return JsonResponse({'error': 'Prizes already distributed. No changes allowed.'}, status=400)
             
         winner = User.objects.filter(id=winner_id).first()
-        if winner not in [match.player1, match.player2]:
-            return JsonResponse({'error': 'Invalid winner'}, status=400)
+        if not winner or winner not in [match.player1, match.player2]:
+            return JsonResponse({'error': 'Invalid winner selection'}, status=400)
             
         match.winner = winner
         match.status = 'completed'
-        match.save()
+        match.save(update_fields=['winner', 'status'])
         
-        # Final check for unstructured tournaments
+        # Check if ALL matches in the tournament are now completed
         all_matches = Match.objects.filter(tournament=tournament)
-        if all_matches.count() > 0 and all(m.status == 'completed' for m in all_matches):
-            if not tournament.prize_distributed:
+        all_completed = all(m.status == 'completed' for m in all_matches)
+        
+        prize_triggered = False
+        if all_completed and all_matches.count() > 0:
+            if not tournament.prize_distributed and tournament.is_paid:
                 enqueue_task(distribute_tournament_prizes_task, tournament.id)
-                logger.info(f"Prize distribution task enqueued for tournament {tournament.id}")
+                prize_triggered = True
+                logger.info("Prize distribution task enqueued for tournament %s", tournament.id)
 
-    return JsonResponse({'success': True, 'message': 'Winner selected successfully'})
+    return JsonResponse({
+        'success': True,
+        'message': 'Winner selected successfully',
+        'winner_name': winner.profile.display_name,
+        'prize_triggered': prize_triggered,
+    })
 
 
 @login_required
@@ -2770,3 +2794,234 @@ def contact_page(request):
             messages.error(request, "Failed to send message. Please email us directly at connectwithmanthan12@gmail.com")
             
     return render(request, 'contact.html')
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# ADMIN FINANCIAL DASHBOARD
+# ═══════════════════════════════════════════════════════════════════════════
+
+@login_required
+def admin_finance_dashboard(request):
+    """
+    Production-grade Admin Financial Dashboard.
+    Admin-only access with full visibility into deposits, withdrawals,
+    tournament rewards, fraud signals, and reconciliation.
+    """
+    if not request.user.profile.is_admin:
+        return redirect('/')
+
+    now = timezone.now()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    # ── SECTION 1: TOP METRICS ─────────────────────────────────────────
+    total_deposits = Payment.objects.filter(
+        status='success', purpose='wallet_topup'
+    ).aggregate(s=Sum('amount'))['s'] or Decimal('0')
+
+    total_withdrawals = WithdrawalRequest.objects.filter(
+        status='approved'
+    ).aggregate(s=Sum('amount'))['s'] or Decimal('0')
+
+    platform_revenue = Transaction.objects.filter(
+        reason='admin_share', transaction_type='credit'
+    ).aggregate(s=Sum('amount'))['s'] or Decimal('0')
+
+    total_wallet_balance = Profile.objects.aggregate(
+        d=Sum('deposit_balance'), w=Sum('winnings_balance')
+    )
+    total_wallet_balance = (total_wallet_balance['d'] or 0) + (total_wallet_balance['w'] or 0)
+
+    pending_wd_amount = WithdrawalRequest.objects.filter(
+        status='pending'
+    ).aggregate(s=Sum('amount'))['s'] or Decimal('0')
+
+    today_tx_count = Transaction.objects.filter(
+        created_at__gte=today_start
+    ).count()
+
+    metrics = {
+        'total_deposits': total_deposits,
+        'total_withdrawals': total_withdrawals,
+        'platform_revenue': platform_revenue,
+        'total_wallet_balance': total_wallet_balance,
+        'pending_withdrawals': pending_wd_amount,
+        'today_tx_count': today_tx_count,
+    }
+
+    # ── SECTION 7: RECONCILIATION ──────────────────────────────────────
+    cashfree_total = Payment.objects.filter(
+        status='success', purpose='wallet_topup'
+    ).aggregate(s=Sum('amount'))['s'] or Decimal('0')
+
+    internal_credits = Transaction.objects.filter(
+        reason__in=['cashfree_deposit', 'admin_topup'],
+        transaction_type='credit', status='success'
+    ).aggregate(s=Sum('amount'))['s'] or Decimal('0')
+
+    difference = abs(cashfree_total - internal_credits)
+    recon = {
+        'cashfree_total': cashfree_total,
+        'internal_credits': internal_credits,
+        'difference': difference,
+        'mismatch': difference > Decimal('0.01'),
+    }
+
+    # ── CHART DATA: 7-day trends ───────────────────────────────────────
+    chart_labels = []
+    chart_deposits = []
+    chart_withdrawals = []
+    chart_revenue = []
+
+    for i in range(6, -1, -1):
+        day = (now - timedelta(days=i)).date()
+        day_start = timezone.make_aware(datetime.combine(day, datetime.min.time()))
+        day_end = day_start + timedelta(days=1)
+
+        chart_labels.append(day.strftime('%d %b'))
+
+        dep = Payment.objects.filter(
+            status='success', purpose='wallet_topup',
+            created_at__gte=day_start, created_at__lt=day_end
+        ).aggregate(s=Sum('amount'))['s'] or 0
+        chart_deposits.append(float(dep))
+
+        wd = WithdrawalRequest.objects.filter(
+            status='approved',
+            requested_at__gte=day_start, requested_at__lt=day_end
+        ).aggregate(s=Sum('amount'))['s'] or 0
+        chart_withdrawals.append(float(wd))
+
+        rev = Transaction.objects.filter(
+            reason='admin_share', transaction_type='credit',
+            created_at__gte=day_start, created_at__lt=day_end
+        ).aggregate(s=Sum('amount'))['s'] or 0
+        chart_revenue.append(float(rev))
+
+    # ── SECTION 8: ALERTS ──────────────────────────────────────────────
+    alerts = []
+
+    if recon['mismatch']:
+        alerts.append({
+            'icon': '⚠️', 'color': 'red',
+            'title': 'Reconciliation Mismatch',
+            'message': f"Cashfree vs internal credits differ by ₹{recon['difference']:.2f}",
+        })
+
+    pending_wd_count = WithdrawalRequest.objects.filter(status='pending').count()
+    if pending_wd_count > 5:
+        alerts.append({
+            'icon': '💸', 'color': 'yellow',
+            'title': f'{pending_wd_count} Pending Withdrawals',
+            'message': 'Multiple withdrawal requests are waiting for approval.',
+        })
+
+    flagged_count = Profile.objects.filter(is_flagged=True).count()
+    if flagged_count > 0:
+        alerts.append({
+            'icon': '🚩', 'color': 'red',
+            'title': f'{flagged_count} Flagged Accounts',
+            'message': 'Users with suspicious activity need review.',
+        })
+
+    low_trust_count = Profile.objects.filter(trust_score__lt=30).count()
+    if low_trust_count > 0:
+        alerts.append({
+            'icon': '🛡️', 'color': 'yellow',
+            'title': f'{low_trust_count} Low Trust Users',
+            'message': 'Users with trust score below 30.',
+        })
+
+    # ── SECTION 4: WITHDRAWAL MANAGEMENT ───────────────────────────────
+    pending_withdrawals = WithdrawalRequest.objects.filter(
+        status='pending'
+    ).select_related('user').order_by('-requested_at')
+
+    # ── SECTION 5: TOURNAMENT FINANCIALS ───────────────────────────────
+    paid_tournaments = Tournament.objects.filter(
+        is_paid=True
+    ).select_related('creator').order_by('-created_at')[:20]
+
+    tournament_financials = []
+    for t in paid_tournaments:
+        player_count = Participant.objects.filter(tournament=t).count()
+        total_collection = t.entry_fee * player_count
+        winner_share = (total_collection * Decimal('0.70')).quantize(Decimal('0.01'))
+        remaining = total_collection - winner_share
+        creator_share = (remaining * Decimal('0.60')).quantize(Decimal('0.01'))
+        platform_share = remaining - creator_share
+
+        tournament_financials.append({
+            'name': t.name,
+            'creator_name': t.creator.username,
+            'total_collection': total_collection,
+            'winner_share': winner_share,
+            'creator_share': creator_share,
+            'platform_share': platform_share,
+            'prize_distributed': t.prize_distributed,
+        })
+
+    # ── SECTION 2: USER WALLETS (top 20) ───────────────────────────────
+    user_wallets = Profile.objects.select_related('user').order_by(
+        '-deposit_balance', '-winnings_balance'
+    )[:20]
+
+    user_wallet_data = []
+    for p in user_wallets:
+        user_wallet_data.append({
+            'display_name': p.display_name,
+            'deposit_balance': p.deposit_balance,
+            'winnings_balance': p.winnings_balance,
+            'total_balance': p.total_balance,
+            'trust_score': p.trust_score,
+            'is_flagged': p.is_flagged,
+        })
+
+    # ── SECTION 3: RECENT TRANSACTIONS ─────────────────────────────────
+    recent_transactions = Transaction.objects.select_related(
+        'user', 'tournament'
+    ).order_by('-created_at')[:50]
+
+    # ── SECTION 6: FRAUD MONITORING ────────────────────────────────────
+    flagged_profiles = Profile.objects.filter(
+        Q(is_flagged=True) | Q(trust_score__lt=40)
+    ).select_related('user').order_by('trust_score')[:20]
+
+    flagged_users = []
+    for p in flagged_profiles:
+        if p.trust_score < 20:
+            risk = 'high'
+        elif p.trust_score < 50:
+            risk = 'medium'
+        else:
+            risk = 'low'
+
+        reason = p.flag_reason or ''
+        if not reason:
+            reasons = []
+            if p.trust_score < 30:
+                reasons.append(f'Low trust ({p.trust_score})')
+            if p.is_flagged:
+                reasons.append('Manually flagged')
+            reason = ' · '.join(reasons) or 'Under review'
+
+        flagged_users.append({
+            'username': p.display_name,
+            'trust_score': p.trust_score,
+            'risk': risk,
+            'reason': reason,
+        })
+
+    return render(request, 'admin_finance.html', {
+        'metrics': metrics,
+        'recon': recon,
+        'chart_labels': json.dumps(chart_labels),
+        'chart_deposits': json.dumps(chart_deposits),
+        'chart_withdrawals': json.dumps(chart_withdrawals),
+        'chart_revenue': json.dumps(chart_revenue),
+        'alerts': alerts,
+        'pending_withdrawals': pending_withdrawals,
+        'tournament_financials': tournament_financials,
+        'user_wallets': user_wallet_data,
+        'recent_transactions': recent_transactions,
+        'flagged_users': flagged_users,
+    })

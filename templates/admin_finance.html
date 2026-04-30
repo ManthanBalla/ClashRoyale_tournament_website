@@ -1,0 +1,426 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block meta %}
+<title>Financial Dashboard — Clash Arena Admin</title>
+<meta name="description" content="Admin financial monitoring dashboard for Clash Arena.">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="pt-6 pb-10">
+
+    <!-- ═══════════════════════════════════════════════════════════════════
+         HEADER
+         ═══════════════════════════════════════════════════════════════════ -->
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
+        <div>
+            <h1 class="text-2xl sm:text-3xl font-black text-white tracking-tight">📊 Financial Dashboard</h1>
+            <p class="text-gray-400 text-xs sm:text-sm mt-1">Real-time financial monitoring • Admin Only</p>
+        </div>
+        <div class="flex items-center gap-2 text-xs">
+            <span class="px-3 py-1.5 rounded-full bg-green-500/20 border border-green-500/30 text-green-400 font-bold">🟢 System Live</span>
+            <span class="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-gray-400 font-medium">Updated: Now</span>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════
+         SECTION 1: TOP METRICS (6 cards)
+         ═══════════════════════════════════════════════════════════════════ -->
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+
+        <div class="ca-glass p-4 text-center">
+            <p class="text-green-400 text-xl sm:text-2xl font-black">₹{{ metrics.total_deposits|floatformat:0 }}</p>
+            <p class="text-gray-400 text-[10px] sm:text-xs uppercase tracking-wider mt-1 font-bold">Total Deposits</p>
+        </div>
+
+        <div class="ca-glass p-4 text-center">
+            <p class="text-red-400 text-xl sm:text-2xl font-black">₹{{ metrics.total_withdrawals|floatformat:0 }}</p>
+            <p class="text-gray-400 text-[10px] sm:text-xs uppercase tracking-wider mt-1 font-bold">Total Withdrawals</p>
+        </div>
+
+        <div class="ca-glass p-4 text-center">
+            <p class="text-purple-400 text-xl sm:text-2xl font-black">₹{{ metrics.platform_revenue|floatformat:0 }}</p>
+            <p class="text-gray-400 text-[10px] sm:text-xs uppercase tracking-wider mt-1 font-bold">Platform Revenue</p>
+        </div>
+
+        <div class="ca-glass p-4 text-center">
+            <p class="text-blue-400 text-xl sm:text-2xl font-black">₹{{ metrics.total_wallet_balance|floatformat:0 }}</p>
+            <p class="text-gray-400 text-[10px] sm:text-xs uppercase tracking-wider mt-1 font-bold">Total Wallets</p>
+        </div>
+
+        <div class="ca-glass p-4 text-center">
+            <p class="text-yellow-400 text-xl sm:text-2xl font-black">₹{{ metrics.pending_withdrawals|floatformat:0 }}</p>
+            <p class="text-gray-400 text-[10px] sm:text-xs uppercase tracking-wider mt-1 font-bold">Pending W/D</p>
+        </div>
+
+        <div class="ca-glass p-4 text-center">
+            <p class="text-ca-accent text-xl sm:text-2xl font-black">{{ metrics.today_tx_count }}</p>
+            <p class="text-gray-400 text-[10px] sm:text-xs uppercase tracking-wider mt-1 font-bold">Today's TXs</p>
+        </div>
+
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════
+         SECTION 7: RECONCILIATION PANEL
+         ═══════════════════════════════════════════════════════════════════ -->
+    <div class="ca-glass p-4 sm:p-5 mb-6">
+        <h2 class="text-sm font-bold text-white uppercase tracking-wider mb-3">🔍 Reconciliation Check</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div class="bg-black/30 rounded-xl p-3 border border-green-500/20 text-center">
+                <p class="text-green-400 font-black text-lg">₹{{ recon.cashfree_total|floatformat:2 }}</p>
+                <p class="text-gray-400 text-[10px] uppercase tracking-wider font-bold">Cashfree Deposits</p>
+            </div>
+            <div class="bg-black/30 rounded-xl p-3 border border-blue-500/20 text-center">
+                <p class="text-blue-400 font-black text-lg">₹{{ recon.internal_credits|floatformat:2 }}</p>
+                <p class="text-gray-400 text-[10px] uppercase tracking-wider font-bold">Internal Credits</p>
+            </div>
+            <div class="bg-black/30 rounded-xl p-3 border {% if recon.mismatch %}border-red-500/40{% else %}border-green-500/40{% endif %} text-center">
+                <p class="{% if recon.mismatch %}text-red-400 animate-pulse{% else %}text-green-400{% endif %} font-black text-lg">
+                    {% if recon.mismatch %}⚠️ ₹{{ recon.difference|floatformat:2 }}{% else %}✅ Balanced{% endif %}
+                </p>
+                <p class="text-gray-400 text-[10px] uppercase tracking-wider font-bold">Difference</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════
+         REVENUE CHART
+         ═══════════════════════════════════════════════════════════════════ -->
+    <div class="ca-glass p-4 sm:p-5 mb-6">
+        <h2 class="text-sm font-bold text-white uppercase tracking-wider mb-3">📈 7-Day Financial Trends</h2>
+        <div class="relative" style="height: 260px;">
+            <canvas id="revenueChart"></canvas>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════
+         SECTION 8: ALERTS
+         ═══════════════════════════════════════════════════════════════════ -->
+    {% if alerts %}
+    <div class="ca-glass p-4 sm:p-5 mb-6">
+        <h2 class="text-sm font-bold text-white uppercase tracking-wider mb-3">🚨 Active Alerts</h2>
+        <div class="space-y-2 max-h-48 overflow-y-auto">
+            {% for alert in alerts %}
+            <div class="flex items-center gap-3 p-3 rounded-xl bg-{{ alert.color }}-500/10 border border-{{ alert.color }}-500/20">
+                <span class="text-lg">{{ alert.icon }}</span>
+                <div class="flex-1 min-w-0">
+                    <p class="text-white text-sm font-bold truncate">{{ alert.title }}</p>
+                    <p class="text-gray-400 text-xs truncate">{{ alert.message }}</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ═══════════════════════════════════════════════════════════════════
+         SECTION 4: WITHDRAWAL MANAGEMENT
+         ═══════════════════════════════════════════════════════════════════ -->
+    <div class="ca-glass p-4 sm:p-5 mb-6">
+        <div class="flex items-center justify-between mb-3">
+            <h2 class="text-sm font-bold text-white uppercase tracking-wider">💸 Pending Withdrawals</h2>
+            <span class="text-xs text-yellow-400 font-bold">{{ pending_withdrawals|length }} pending</span>
+        </div>
+        {% if pending_withdrawals %}
+        <div class="overflow-x-auto -mx-4 sm:mx-0">
+            <table class="w-full text-xs sm:text-sm min-w-[600px]">
+                <thead>
+                    <tr class="text-gray-400 uppercase text-[10px] tracking-wider border-b border-white/10">
+                        <th class="text-left py-2 px-3">User</th>
+                        <th class="text-right py-2 px-3">Amount</th>
+                        <th class="text-left py-2 px-3">UPI ID</th>
+                        <th class="text-left py-2 px-3">Requested</th>
+                        <th class="text-center py-2 px-3">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for wd in pending_withdrawals %}
+                    <tr class="border-b border-white/5 hover:bg-white/5 transition">
+                        <td class="py-3 px-3 text-white font-bold">{{ wd.user.username }}</td>
+                        <td class="py-3 px-3 text-right text-green-400 font-black">₹{{ wd.amount|floatformat:2 }}</td>
+                        <td class="py-3 px-3 text-gray-300 break-all">{{ wd.upi_id }}</td>
+                        <td class="py-3 px-3 text-gray-400"><span class="local-time" data-utc="{{ wd.requested_at|date:'c' }}">{{ wd.requested_at }}</span></td>
+                        <td class="py-3 px-3 text-center">
+                            <div class="flex items-center justify-center gap-2">
+                                <form method="post" action="/approve-withdrawal/{{ wd.id }}/" class="inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="px-3 py-1 rounded-full bg-green-500/20 border border-green-500/30 text-green-400 text-xs font-bold hover:bg-green-500/30 transition">✅ Approve</button>
+                                </form>
+                                <form method="post" action="/reject-withdrawal/{{ wd.id }}/" class="inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="px-3 py-1 rounded-full bg-red-500/20 border border-red-500/30 text-red-400 text-xs font-bold hover:bg-red-500/30 transition">❌ Reject</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-gray-500 text-sm text-center py-4">No pending withdrawals 🎉</p>
+        {% endif %}
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════
+         SECTION 5: TOURNAMENT FINANCIALS
+         ═══════════════════════════════════════════════════════════════════ -->
+    <div class="ca-glass p-4 sm:p-5 mb-6">
+        <h2 class="text-sm font-bold text-white uppercase tracking-wider mb-3">🏆 Tournament Financials (Paid)</h2>
+        {% if tournament_financials %}
+        <div class="overflow-x-auto -mx-4 sm:mx-0">
+            <table class="w-full text-xs sm:text-sm min-w-[700px]">
+                <thead>
+                    <tr class="text-gray-400 uppercase text-[10px] tracking-wider border-b border-white/10">
+                        <th class="text-left py-2 px-3">Tournament</th>
+                        <th class="text-left py-2 px-3">Creator</th>
+                        <th class="text-right py-2 px-3">Collection</th>
+                        <th class="text-right py-2 px-3">Winner (70%)</th>
+                        <th class="text-right py-2 px-3">Creator (18%)</th>
+                        <th class="text-right py-2 px-3">Platform (12%)</th>
+                        <th class="text-center py-2 px-3">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in tournament_financials %}
+                    <tr class="border-b border-white/5 hover:bg-white/5 transition">
+                        <td class="py-3 px-3 text-white font-bold truncate max-w-[150px]">{{ t.name }}</td>
+                        <td class="py-3 px-3 text-gray-300">{{ t.creator_name }}</td>
+                        <td class="py-3 px-3 text-right text-blue-400 font-black">₹{{ t.total_collection|floatformat:0 }}</td>
+                        <td class="py-3 px-3 text-right text-green-400 font-bold">₹{{ t.winner_share|floatformat:0 }}</td>
+                        <td class="py-3 px-3 text-right text-amber-400 font-bold">₹{{ t.creator_share|floatformat:0 }}</td>
+                        <td class="py-3 px-3 text-right text-purple-400 font-bold">₹{{ t.platform_share|floatformat:0 }}</td>
+                        <td class="py-3 px-3 text-center">
+                            {% if t.prize_distributed %}
+                            <span class="px-2 py-1 rounded-full bg-green-500/20 text-green-400 text-[10px] font-bold">✅ Paid</span>
+                            {% else %}
+                            <span class="px-2 py-1 rounded-full bg-yellow-500/20 text-yellow-400 text-[10px] font-bold">⏳ Pending</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-gray-500 text-sm text-center py-4">No paid tournaments yet.</p>
+        {% endif %}
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════
+         SECTION 2: USER FINANCIAL SUMMARY (Top 20)
+         ═══════════════════════════════════════════════════════════════════ -->
+    <div class="ca-glass p-4 sm:p-5 mb-6">
+        <h2 class="text-sm font-bold text-white uppercase tracking-wider mb-3">👥 User Wallets (Top 20 by Balance)</h2>
+        <div class="overflow-x-auto -mx-4 sm:mx-0">
+            <table class="w-full text-xs sm:text-sm min-w-[650px]">
+                <thead>
+                    <tr class="text-gray-400 uppercase text-[10px] tracking-wider border-b border-white/10">
+                        <th class="text-left py-2 px-3">User</th>
+                        <th class="text-right py-2 px-3">Deposit</th>
+                        <th class="text-right py-2 px-3">Winnings</th>
+                        <th class="text-right py-2 px-3">Total</th>
+                        <th class="text-center py-2 px-3">Trust</th>
+                        <th class="text-center py-2 px-3">Flagged</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in user_wallets %}
+                    <tr class="border-b border-white/5 hover:bg-white/5 transition {% if u.is_flagged %}bg-red-500/5{% endif %}">
+                        <td class="py-3 px-3 text-white font-bold">{{ u.display_name }}</td>
+                        <td class="py-3 px-3 text-right text-blue-400 font-bold">₹{{ u.deposit_balance|floatformat:2 }}</td>
+                        <td class="py-3 px-3 text-right text-green-400 font-bold">₹{{ u.winnings_balance|floatformat:2 }}</td>
+                        <td class="py-3 px-3 text-right text-white font-black">₹{{ u.total_balance|floatformat:2 }}</td>
+                        <td class="py-3 px-3 text-center">
+                            <span class="px-2 py-1 rounded-full text-[10px] font-bold
+                                {% if u.trust_score >= 80 %}bg-green-500/20 text-green-400
+                                {% elif u.trust_score >= 50 %}bg-yellow-500/20 text-yellow-400
+                                {% else %}bg-red-500/20 text-red-400{% endif %}">{{ u.trust_score }}</span>
+                        </td>
+                        <td class="py-3 px-3 text-center">
+                            {% if u.is_flagged %}<span class="text-red-400 font-bold">🚩</span>{% else %}<span class="text-gray-600">—</span>{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════
+         SECTION 3: RECENT TRANSACTION LEDGER
+         ═══════════════════════════════════════════════════════════════════ -->
+    <div class="ca-glass p-4 sm:p-5 mb-6">
+        <h2 class="text-sm font-bold text-white uppercase tracking-wider mb-3">📒 Recent Ledger (Last 50)</h2>
+        <div class="overflow-x-auto -mx-4 sm:mx-0">
+            <table class="w-full text-xs min-w-[800px]">
+                <thead>
+                    <tr class="text-gray-400 uppercase text-[10px] tracking-wider border-b border-white/10">
+                        <th class="text-left py-2 px-2">ID</th>
+                        <th class="text-left py-2 px-2">User</th>
+                        <th class="text-center py-2 px-2">Type</th>
+                        <th class="text-left py-2 px-2">Reason</th>
+                        <th class="text-right py-2 px-2">Amount</th>
+                        <th class="text-right py-2 px-2">After</th>
+                        <th class="text-left py-2 px-2">Ref</th>
+                        <th class="text-left py-2 px-2">Time</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for tx in recent_transactions %}
+                    <tr class="border-b border-white/5 hover:bg-white/5 transition">
+                        <td class="py-2 px-2 text-gray-500">#{{ tx.id }}</td>
+                        <td class="py-2 px-2 text-white font-bold">{{ tx.user.username }}</td>
+                        <td class="py-2 px-2 text-center">
+                            {% if tx.transaction_type == 'credit' %}
+                            <span class="px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 text-[10px] font-bold">CREDIT</span>
+                            {% else %}
+                            <span class="px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 text-[10px] font-bold">DEBIT</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-2 px-2 text-gray-300">{{ tx.get_reason_display }}</td>
+                        <td class="py-2 px-2 text-right {% if tx.transaction_type == 'credit' %}text-green-400{% else %}text-red-400{% endif %} font-bold">
+                            {% if tx.transaction_type == 'credit' %}+{% else %}-{% endif %}₹{{ tx.amount|floatformat:2 }}
+                        </td>
+                        <td class="py-2 px-2 text-right text-gray-400">{% if tx.balance_after is not None %}₹{{ tx.balance_after|floatformat:2 }}{% else %}—{% endif %}</td>
+                        <td class="py-2 px-2 text-gray-500 truncate max-w-[100px]" title="{{ tx.reference_id }}">{{ tx.reference_id|default:"—"|truncatechars:15 }}</td>
+                        <td class="py-2 px-2 text-gray-500"><span class="local-time" data-utc="{{ tx.created_at|date:'c' }}">{{ tx.created_at }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════
+         SECTION 6: FRAUD & RISK MONITORING
+         ═══════════════════════════════════════════════════════════════════ -->
+    <div class="ca-glass p-4 sm:p-5 mb-6">
+        <h2 class="text-sm font-bold text-white uppercase tracking-wider mb-3">🛡️ Fraud & Risk Monitor</h2>
+        {% if flagged_users %}
+        <div class="space-y-2">
+            {% for f in flagged_users %}
+            <div class="flex items-center gap-3 p-3 rounded-xl bg-red-500/5 border border-red-500/20">
+                <div class="w-10 h-10 rounded-full flex items-center justify-center text-lg
+                    {% if f.risk == 'high' %}bg-red-500/20{% elif f.risk == 'medium' %}bg-yellow-500/20{% else %}bg-blue-500/20{% endif %}">
+                    {% if f.risk == 'high' %}🔴{% elif f.risk == 'medium' %}🟡{% else %}🔵{% endif %}
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-white text-sm font-bold">{{ f.username }} <span class="text-gray-500 text-xs">(Trust: {{ f.trust_score }})</span></p>
+                    <p class="text-gray-400 text-xs truncate">{{ f.reason }}</p>
+                </div>
+                <span class="px-2 py-1 rounded-full text-[10px] font-bold uppercase
+                    {% if f.risk == 'high' %}bg-red-500/20 text-red-400
+                    {% elif f.risk == 'medium' %}bg-yellow-500/20 text-yellow-400
+                    {% else %}bg-blue-500/20 text-blue-400{% endif %}">{{ f.risk }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-gray-500 text-sm text-center py-4">No flagged users 🎉</p>
+        {% endif %}
+    </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     CHART.JS — Revenue Trends
+     ═══════════════════════════════════════════════════════════════════ -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('revenueChart');
+    if (!ctx) return;
+
+    const labels = {{ chart_labels|safe }};
+    const depositData = {{ chart_deposits|safe }};
+    const withdrawalData = {{ chart_withdrawals|safe }};
+    const revenueData = {{ chart_revenue|safe }};
+
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Deposits',
+                    data: depositData,
+                    borderColor: '#22c55e',
+                    backgroundColor: 'rgba(34,197,94,0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    borderWidth: 2,
+                    pointRadius: 3,
+                    pointBackgroundColor: '#22c55e',
+                },
+                {
+                    label: 'Withdrawals',
+                    data: withdrawalData,
+                    borderColor: '#ef4444',
+                    backgroundColor: 'rgba(239,68,68,0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    borderWidth: 2,
+                    pointRadius: 3,
+                    pointBackgroundColor: '#ef4444',
+                },
+                {
+                    label: 'Platform Revenue',
+                    data: revenueData,
+                    borderColor: '#a855f7',
+                    backgroundColor: 'rgba(168,85,247,0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    borderWidth: 2,
+                    pointRadius: 3,
+                    pointBackgroundColor: '#a855f7',
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    labels: {
+                        color: '#9ca3af',
+                        font: { size: 11, family: 'Plus Jakarta Sans' },
+                        usePointStyle: true,
+                        pointStyle: 'circle',
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0,0,0,0.85)',
+                    titleColor: '#fff',
+                    bodyColor: '#d1d5db',
+                    borderColor: 'rgba(255,255,255,0.1)',
+                    borderWidth: 1,
+                    padding: 10,
+                    cornerRadius: 8,
+                    callbacks: {
+                        label: function(ctx) {
+                            return ctx.dataset.label + ': ₹' + ctx.parsed.y.toLocaleString();
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: { color: '#6b7280', font: { size: 10 } },
+                    grid: { color: 'rgba(255,255,255,0.04)' },
+                },
+                y: {
+                    ticks: {
+                        color: '#6b7280',
+                        font: { size: 10 },
+                        callback: v => '₹' + v.toLocaleString()
+                    },
+                    grid: { color: 'rgba(255,255,255,0.04)' },
+                }
+            }
+        }
+    });
+});
+</script>
+
+{% endblock %}

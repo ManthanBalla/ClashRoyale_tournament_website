@@ -204,68 +204,44 @@ def notify_unresolved_cup_disputes_task():
             title='Unresolved Cup Disputes',
             message='You have disputed cup matches pending resolution.'
         )
-@shared_task
-def distribute_tournament_prizes_task(tournament_id):
-    from .models import Tournament, Match, Participant, User
-    from decimal import Decimal
-    from collections import Counter
-    from .utils import credit_wallet, send_notification, notify_all_participants
+@shared_task(bind=True, max_retries=3, acks_late=True)
+def distribute_tournament_prizes_task(self, tournament_id):
+    """
+    Retry-safe Celery task for prize distribution.
+    Delegates all financial logic to the services layer.
+    Only retries on transient errors (DB timeouts, connection issues).
+    Permanent rejections (already distributed, fraud) are NOT retried.
+    """
+    from .services import distribute_rewards
 
-    try:
-        with transaction.atomic():
-            tournament = Tournament.objects.select_for_update().get(id=tournament_id)
-            if tournament.prize_distributed:
-                return
+    success, message = distribute_rewards(tournament_id)
 
-            all_matches = Match.objects.filter(tournament=tournament)
-            total_players = Participant.objects.filter(tournament=tournament).count()
-            
-            if total_players < tournament.min_players:
-                logger.warning(f"Tournament {tournament_id} has insufficient participants ({total_players}/{tournament.min_players}). Skipping prize distribution.")
-                return
+    if success:
+        logger.info("PAYOUT task completed for tournament %s", tournament_id)
+        return
 
-            if not all_matches.exists() or not all(m.winner for m in all_matches):
-                return
+    # Permanent rejections — do NOT retry
+    permanent_rejections = (
+        "Rewards already distributed",
+        "Tournament is not paid",
+        "Duplicate payout blocked",
+        "Financial integrity violation",
+    )
+    if any(msg in message for msg in permanent_rejections):
+        logger.warning(
+            "PAYOUT permanently rejected for tournament %s: %s",
+            tournament_id, message,
+        )
+        return
 
-            if tournament.is_paid and tournament.status == 'ongoing':
-                wins = Counter(m.winner_id for m in all_matches if m.winner)
-                top_winner_id = wins.most_common(1)[0][0]
-                top_winner = User.objects.get(id=top_winner_id)
-
-                total_players = Participant.objects.filter(tournament=tournament).count()
-                total_collection = tournament.entry_fee * total_players
-                
-                # 70% to winner, 30% split (60% creator, 40% admin)
-                prize_pool = (total_collection * Decimal('0.70')).quantize(Decimal('0.01'))
-                remaining = total_collection - prize_pool
-                creator_share = (remaining * Decimal('0.60')).quantize(Decimal('0.01'))
-                admin_share = remaining - creator_share
-
-                credit_wallet(top_winner, prize_pool, 'tournament_win', balance_type='winnings',
-                            description=f'🏆 Prize — Won {tournament.name}', tournament=tournament, reference_id=str(tournament.id))
-                
-                credit_wallet(tournament.creator, creator_share, 'creator_share', balance_type='winnings',
-                            description=f'🎮 Creator earnings — {tournament.name}', tournament=tournament, reference_id=str(tournament.id))
-                
-                admin = User.objects.filter(profile__is_admin=True).first()
-                if admin:
-                    credit_wallet(admin, admin_share, 'admin_share', balance_type='winnings',
-                                description=f'⚙️ Platform fee — {tournament.name}', tournament=tournament, reference_id=str(tournament.id))
-
-                tournament.status = 'completed'
-                tournament.prize_distributed = True
-                tournament.save(update_fields=['status', 'prize_distributed'])
-
-                # Generate certificate
-                from .utils import generate_winner_certificate
-                generate_winner_certificate(top_winner, tournament=tournament)
-
-                notify_all_participants(
-                    tournament, 'tournament_end', f'🏆 {tournament.name} Has Ended!',
-                    f'{tournament.name} has ended! Winner: {top_winner.username}.'
-                )
-    except Exception:
-        logger.exception("Prize distribution task failed tournament_id=%s", tournament_id)
+    # Transient error — retry with exponential backoff
+    retry_delay = 60 * (2 ** self.request.retries)  # 60s, 120s, 240s
+    logger.warning(
+        "PAYOUT retry %d/%d for tournament %s: %s (next in %ds)",
+        self.request.retries + 1, self.max_retries,
+        tournament_id, message, retry_delay,
+    )
+    raise self.retry(countdown=retry_delay, exc=Exception(message))
 
 @shared_task
 def reconcile_payments_task():

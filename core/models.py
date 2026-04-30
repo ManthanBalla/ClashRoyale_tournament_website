@@ -230,9 +230,10 @@ class Transaction(models.Model):
     reason = models.CharField(max_length=30, choices=REASON_CHOICES)
     status = models.CharField(max_length=20, default='success', help_text='pending, success, failed')
     amount = models.DecimalField(max_digits=10, decimal_places=2)
+    balance_after = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Snapshot of user balance after this transaction (Ledger Integrity)')
     tournament = models.ForeignKey('Tournament', on_delete=models.SET_NULL, null=True, blank=True, related_name='transactions', db_index=True)
     payment = models.ForeignKey('Payment', on_delete=models.SET_NULL, null=True, blank=True, related_name='transactions')
-    reference_id = models.CharField(max_length=100, blank=True, null=True, help_text='order_id / tournament_id / withdrawal_id')
+    reference_id = models.CharField(max_length=100, blank=True, null=True, help_text='order_id / tournament_id / withdrawal_id (Idempotency Key)')
     description = models.CharField(max_length=255, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 

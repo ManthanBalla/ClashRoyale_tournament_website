@@ -17,7 +17,8 @@ from .views import (
     generate_cup_matches, mark_cup_winner, confirm_cup_match_result, cup_player_action,
     resolve_cup_dispute, unlock_cup_match, set_cup_match_deadline, cup_state_api,
     edit_cup, delete_cup, payment_page, contact_page, adjust_trust_score,
-    create_cashfree_order, cashfree_webhook, check_cashfree_status, api_mark_winner
+    create_cashfree_order, cashfree_webhook, check_cashfree_status, api_mark_winner,
+    admin_finance_dashboard
 )
 from django.contrib.auth import views as auth_views
 from django.contrib.sitemaps.views import sitemap
@@ -81,6 +82,7 @@ urlpatterns = [
     path('upload-results/<int:tournament_id>/', upload_results, name='upload_results'),
 
     path('creator-admin/', creator_admin, name='creator_admin'),
+    path('dashboard/finance/', admin_finance_dashboard, name='admin_finance'),
     path('adjust-trust-score/<int:user_id>/', adjust_trust_score, name='adjust_trust_score'),
     path('promote-user/<int:user_id>/', promote_user, name='promote_user'),
     path('demote-user/<int:user_id>/', demote_user, name='demote_user'),

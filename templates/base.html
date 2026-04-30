@@ -265,6 +265,7 @@
                     <span class="text-ca-accent font-bold text-xs uppercase tracking-wider">Admin</span>
                     <a href="/create-tournament/" class="text-white/90 hover:text-ca-accent transition">Host</a>
                     <a href="/creator-admin/" class="text-white/90 hover:text-ca-accent transition">Panel</a>
+                    <a href="/dashboard/finance/" class="text-white/90 hover:text-ca-accent transition">Finance</a>
                 {% elif user.profile.is_creator %}
                     <span class="text-amber-200/90 font-semibold text-xs uppercase tracking-wider">Creator</span>
                     <a href="/create-tournament/" class="text-white/90 hover:text-ca-accent transition">Host</a>
@@ -336,6 +337,7 @@
                         <p class="px-4 py-2 text-ca-accent text-[10px] uppercase tracking-widest font-bold">Admin</p>
                         <a href="/create-tournament/" class="px-4 py-3.5 hover:bg-white/5 block min-h-[2.75rem] flex items-center">Host tournament</a>
                         <a href="/creator-admin/" class="px-4 py-3.5 hover:bg-white/5 block min-h-[2.75rem] flex items-center">Admin panel</a>
+                        <a href="/dashboard/finance/" class="px-4 py-3.5 hover:bg-white/5 block min-h-[2.75rem] flex items-center">💰 Finance</a>
                     </div>
                 {% elif user.profile.is_creator %}
                     <div class="border-t border-white/10 pt-1">
