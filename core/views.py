@@ -742,6 +742,8 @@ def check_cashfree_status(request):
 
 
 
+from django.contrib import messages
+
 # ─── WITHDRAW ──────────────────────────────────────────────────────────────
 
 @login_required
@@ -782,9 +784,10 @@ def withdraw_view(request):
                     'profile': profile
                 })
 
-            # 1. Deduct from winnings balance
+            # 1. Deduct from winnings balance and add to locked balance
             profile.winnings_balance -= amount
-            profile.save(update_fields=['winnings_balance'])
+            profile.locked_balance += amount
+            profile.save(update_fields=['winnings_balance', 'locked_balance'])
 
             # 2. Create withdrawal request
             wr = WithdrawalRequest.objects.create(
@@ -801,11 +804,15 @@ def withdraw_view(request):
                 status='pending', reference_id=str(wr.id)
             )
 
+            logger.info("WITHDRAWAL REQUEST: User %s requested ₹%s to %s. Status: pending.", request.user.username, amount, profile.upi_id)
+
         send_notification(
             request.user, 'wallet_credit',
             f'💸 Withdrawal Requested — ₹{amount}',
             f'Your withdrawal request of ₹{amount} has been submitted and is pending admin approval.'
         )
+        
+        messages.success(request, f"⏳ Withdrawal request of ₹{amount} submitted.")
         return redirect('/profile/?withdrawn=1')
 
     return render(request, 'withdraw.html', {'profile': profile})
@@ -842,7 +849,10 @@ def tournament_rules(request, tournament_id):
     return render(request, 'tournament_rules.html', {
         'tournament': tournament,
         'count': count,
-        'prize_pool': prize_pool
+        'prize_pool': prize_pool,
+        'winner_share': winner_share,
+        'creator_share': creator_share,
+        'platform_share': platform_share,
     })
 
 
@@ -1171,7 +1181,17 @@ def tournament_detail(request, tournament_id):
             # Fallback check if it was missed
             pass
 
-    prize_pool = tournament.entry_fee * count if tournament.is_paid else None
+    prize_pool = None
+    winner_share = None
+    creator_share = None
+    platform_share = None
+    
+    if tournament.is_paid:
+        prize_pool = Decimal(str(tournament.entry_fee)) * count
+        winner_share = (prize_pool * Decimal('0.70')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        remaining = prize_pool - winner_share
+        creator_share = (remaining * Decimal('0.60')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        platform_share = remaining - creator_share
 
     return render(request, 'tournament_detail.html', {
         'tournament': tournament,
@@ -1380,6 +1400,8 @@ def api_mark_winner(request):
         match.status = 'completed'
         match.save(update_fields=['winner', 'status'])
         
+        logger.info("WINNER SELECTED: Match %s won by %s in tournament %s", match_id, winner.username, tournament.id)
+        
         # Check if ALL matches in the tournament are now completed
         all_matches = Match.objects.filter(tournament=tournament)
         all_completed = all(m.status == 'completed' for m in all_matches)
@@ -1387,9 +1409,15 @@ def api_mark_winner(request):
         prize_triggered = False
         if all_completed and all_matches.count() > 0:
             if not tournament.prize_distributed and tournament.is_paid:
-                enqueue_task(distribute_tournament_prizes_task, tournament.id)
-                prize_triggered = True
-                logger.info("Prize distribution task enqueued for tournament %s", tournament.id)
+                try:
+                    enqueue_task(distribute_tournament_prizes_task, tournament.id)
+                    prize_triggered = True
+                    logger.info("Prize distribution task enqueued for tournament %s", tournament.id)
+                except Exception as e:
+                    logger.error("Failed to enqueue celery task for tournament %s. Running synchronously as fallback. Error: %s", tournament.id, str(e))
+                    from .services import distribute_rewards
+                    success, msg = distribute_rewards(tournament.id)
+                    prize_triggered = success
 
     return JsonResponse({
         'success': True,
@@ -2192,8 +2220,17 @@ def approve_withdrawal(request, withdrawal_id):
     if not request.user.profile.is_admin:
         return redirect('/')
     w = get_object_or_404(WithdrawalRequest, id=withdrawal_id)
-    w.status = 'approved'
-    w.save()
+    
+    with transaction.atomic():
+        profile = Profile.objects.select_for_update().get(user=w.user)
+        # Deduct from locked_balance
+        if profile.locked_balance >= w.amount:
+            profile.locked_balance -= w.amount
+            profile.save(update_fields=['locked_balance'])
+            
+        w.status = 'approved'
+        w.save()
+        
     send_notification(
         w.user, 'wallet_credit',
         f'✅ Withdrawal Approved — ₹{w.amount}',
@@ -2207,19 +2244,28 @@ def reject_withdrawal(request, withdrawal_id):
     if not request.user.profile.is_admin:
         return redirect('/')
     w = get_object_or_404(WithdrawalRequest, id=withdrawal_id)
-    credit_wallet(
-        w.user, w.amount,
-        'withdrawal_refund',
-        balance_type='winnings',
-        description=f'♻️ Withdrawal rejected — ₹{w.amount} refunded to winnings'
-    )
+    
+    with transaction.atomic():
+        profile = Profile.objects.select_for_update().get(user=w.user)
+        # Return from locked_balance
+        if profile.locked_balance >= w.amount:
+            profile.locked_balance -= w.amount
+            profile.save(update_fields=['locked_balance'])
+            
+        credit_wallet(
+            w.user, w.amount,
+            'withdrawal_refund',
+            balance_type='winnings',
+            description=f'♻️ Withdrawal rejected — ₹{w.amount} refunded to winnings'
+        )
+        w.status = 'rejected'
+        w.save()
+        
     send_notification(
         w.user, 'wallet_credit',
         f'♻️ Withdrawal Rejected — ₹{w.amount} Refunded',
         f'Your withdrawal of ₹{w.amount} was rejected. Amount has been refunded to your wallet.'
     )
-    w.status = 'rejected'
-    w.save()
     return redirect('/creator-admin/')
 
 

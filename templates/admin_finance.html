@@ -97,6 +97,7 @@
     <!-- ═══════════════════════════════════════════════════════════════════
          SECTION 8: ALERTS
          ═══════════════════════════════════════════════════════════════════ -->
+    <div id="alerts-container">
     {% if alerts %}
     <div class="ca-glass p-4 sm:p-5 mb-6">
         <h2 class="text-sm font-bold text-white uppercase tracking-wider mb-3">🚨 Active Alerts</h2>
@@ -113,11 +114,12 @@
         </div>
     </div>
     {% endif %}
+    </div>
 
     <!-- ═══════════════════════════════════════════════════════════════════
          SECTION 4: WITHDRAWAL MANAGEMENT
          ═══════════════════════════════════════════════════════════════════ -->
-    <div class="ca-glass p-4 sm:p-5 mb-6">
+    <div class="ca-glass p-4 sm:p-5 mb-6" id="withdrawals-container">
         <div class="flex items-center justify-between mb-3">
             <h2 class="text-sm font-bold text-white uppercase tracking-wider">💸 Pending Withdrawals</h2>
             <span class="text-xs text-yellow-400 font-bold">{{ pending_withdrawals|length }} pending</span>
@@ -251,7 +253,7 @@
     <!-- ═══════════════════════════════════════════════════════════════════
          SECTION 3: RECENT TRANSACTION LEDGER
          ═══════════════════════════════════════════════════════════════════ -->
-    <div class="ca-glass p-4 sm:p-5 mb-6">
+    <div class="ca-glass p-4 sm:p-5 mb-6" id="transactions-container">
         <h2 class="text-sm font-bold text-white uppercase tracking-wider mb-3">📒 Recent Ledger (Last 50)</h2>
         <div class="overflow-x-auto -mx-4 sm:mx-0">
             <table class="w-full text-xs min-w-[800px]">
@@ -332,10 +334,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const ctx = document.getElementById('revenueChart');
     if (!ctx) return;
 
-    const labels = {{ chart_labels|safe }};
-    const depositData = {{ chart_deposits|safe }};
-    const withdrawalData = {{ chart_withdrawals|safe }};
-    const revenueData = {{ chart_revenue|safe }};
+    const labels = JSON.parse('{{ chart_labels|escapejs }}');
+    const depositData = JSON.parse('{{ chart_deposits|escapejs }}');
+    const withdrawalData = JSON.parse('{{ chart_withdrawals|escapejs }}');
+    const revenueData = JSON.parse('{{ chart_revenue|escapejs }}');
 
     new Chart(ctx, {
         type: 'line',
@@ -420,6 +422,27 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     });
+
+    // Auto-refresh using AJAX polling
+    setTimeout(async function poll() {
+        try {
+            const res = await fetch(window.location.href);
+            const text = await res.text();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(text, 'text/html');
+            
+            ['alerts-container', 'withdrawals-container', 'transactions-container'].forEach(id => {
+                const newEl = doc.getElementById(id);
+                const oldEl = document.getElementById(id);
+                if (newEl && oldEl) {
+                    oldEl.innerHTML = newEl.innerHTML;
+                }
+            });
+        } catch(e) {
+            console.error('Polling error', e);
+        }
+        setTimeout(poll, 15000);
+    }, 15000);
 });
 </script>
 

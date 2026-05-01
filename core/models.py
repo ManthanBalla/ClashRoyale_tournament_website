@@ -18,6 +18,7 @@ class Profile(models.Model):
     upi_id = models.CharField(max_length=100, blank=True, null=True)
     deposit_balance = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     winnings_balance = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    locked_balance = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     creator_plan = models.CharField(max_length=20, choices=PLAN_CHOICES, default='none')
     plan_expiry = models.DateTimeField(null=True, blank=True)
     tournaments_created_this_month = models.IntegerField(default=0)

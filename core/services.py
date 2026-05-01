@@ -301,6 +301,13 @@ def distribute_rewards(tournament_id):
             # ── 7. Fraud detection ──────────────────────────────────────
             monitor_suspicious_activity(tournament, top_winner)
 
+            logger.info(
+                "PRE-PAYOUT LOG: tournament_id=%s, total_collection=₹%s, winner_id=%s, "
+                "splits -> winner=₹%s, creator=₹%s, platform=₹%s",
+                tournament.id, total_collection, top_winner.id,
+                prize_pool, creator_share, admin_share
+            )
+
             # ── 8. Execute ledger payouts ───────────────────────────────
             ref_id = f"PAYOUT_TRN_{tournament.id}"
 

@@ -261,15 +261,25 @@
     <h2 class="text-lg font-bold text-white mb-3">📊 Transaction History</h2>
     <div class="ca-panel mb-6">
         {% for t in transactions %}
-        <div class="flex items-center justify-between p-4 border-b border-white/[0.06] gap-2">
-            <div class="flex-1 min-w-0">
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border-b border-white/[0.06] gap-3">
+            <div class="flex-1 min-w-0 w-full">
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full bg-white/10 text-gray-300">{{ t.get_reason_display }}</span>
+                    {% if t.status == 'success' %}
+                        <span class="text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 border border-green-500/30">Success</span>
+                    {% elif t.status == 'pending' %}
+                        <span class="text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">Pending</span>
+                    {% else %}
+                        <span class="text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/30">Failed</span>
+                    {% endif %}
+                </div>
                 <p class="text-white text-sm truncate">{{ t.description }}</p>
                 <p class="text-gray-500 text-xs">{{ t.created_at|date:"d M Y, H:i" }}</p>
             </div>
             {% if t.transaction_type == 'credit' %}
-                <span class="text-green-400 font-bold text-sm flex-shrink-0">+₹{{ t.amount }}</span>
+                <span class="text-green-400 font-bold text-base sm:text-sm flex-shrink-0 bg-green-500/10 px-3 py-1 rounded-lg">+₹{{ t.amount }}</span>
             {% else %}
-                <span class="text-red-400 font-bold text-sm flex-shrink-0">-₹{{ t.amount }}</span>
+                <span class="text-red-400 font-bold text-base sm:text-sm flex-shrink-0 bg-red-500/10 px-3 py-1 rounded-lg">-₹{{ t.amount }}</span>
             {% endif %}
         </div>
         {% empty %}

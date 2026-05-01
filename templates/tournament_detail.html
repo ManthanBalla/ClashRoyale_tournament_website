@@ -201,7 +201,7 @@
             <p class="text-gray-400 text-xs mb-2 uppercase tracking-widest">Prize Info</p>
             <div class="flex justify-between text-xs">
                 <span class="text-gray-300">🏆 Winner Prize</span>
-                <span class="text-green-400 font-bold">₹{{ prize_pool }}</span>
+                <span class="text-green-400 font-bold">₹{{ winner_share }}</span>
             </div>
         </div>
 
@@ -347,18 +347,18 @@
             </span>
             {% endif %}
         </div>
-        <div class="grid grid-cols-3 gap-2 text-center">
+        <div class="grid grid-cols-3 gap-2 text-center mt-3">
             <div class="bg-black/30 rounded-xl p-3 border border-green-500/20">
-                <p class="text-green-400 text-lg font-black">70%</p>
-                <p class="text-gray-400 text-[10px] uppercase tracking-wider">Winner Prize</p>
+                <p class="text-green-400 text-lg font-black">₹{{ winner_share }}</p>
+                <p class="text-gray-400 text-[10px] uppercase tracking-wider">Winner (70%)</p>
             </div>
             <div class="bg-black/30 rounded-xl p-3 border border-blue-500/20">
-                <p class="text-blue-400 text-lg font-black">18%</p>
-                <p class="text-gray-400 text-[10px] uppercase tracking-wider">Creator</p>
+                <p class="text-blue-400 text-lg font-black">₹{{ creator_share }}</p>
+                <p class="text-gray-400 text-[10px] uppercase tracking-wider">Creator (18%)</p>
             </div>
             <div class="bg-black/30 rounded-xl p-3 border border-purple-500/20">
-                <p class="text-purple-400 text-lg font-black">12%</p>
-                <p class="text-gray-400 text-[10px] uppercase tracking-wider">Platform</p>
+                <p class="text-purple-400 text-lg font-black">₹{{ platform_share }}</p>
+                <p class="text-gray-400 text-[10px] uppercase tracking-wider">Platform (12%)</p>
             </div>
         </div>
     </div>
@@ -504,6 +504,19 @@
              style="background:linear-gradient(135deg,#0d1f0a,#1a3a0a); border-color:rgba(52,211,153,0.4);">
             <div class="relative">
                 <h2 class="text-lg font-bold text-green-400 mb-4">🏆 Tournament Results</h2>
+
+                {% if likely_winner and tournament.prize_distributed %}
+                <div class="mb-5 bg-black/40 rounded-xl p-4 border border-green-500/30 text-center">
+                    <p class="text-gray-400 text-xs uppercase tracking-widest mb-1">🎉 Winner Declared</p>
+                    <p class="text-white text-xl font-black">{{ likely_winner.profile.display_name }}</p>
+                    {% if winner_share %}
+                        <p class="text-green-400 font-bold text-lg mt-1">Won ₹{{ winner_share }}</p>
+                    {% endif %}
+                    <div class="mt-3 inline-block px-3 py-1 rounded-full bg-green-500/20 border border-green-500/40 text-green-400 text-xs font-bold">
+                        Prize Distributed ✅
+                    </div>
+                </div>
+                {% endif %}
 
                 {% if tournament.result_screenshot %}
                 <div class="mb-4">

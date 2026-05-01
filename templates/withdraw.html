@@ -26,8 +26,8 @@
             {% csrf_token %}
 
             <label class="ca-label text-xs font-medium mb-1.5 block">Amount (₹) — <span class="text-gray-400">Min ₹100</span></label>
-            <input type="number" name="amount" placeholder="Enter amount" min="100" max="{{ profile.winnings_balance }}"
-                required class="ca-input mb-4">
+            <input type="number" id="withdrawAmount" name="amount" placeholder="Enter amount" min="100" max="{{ profile.winnings_balance }}"
+                required class="ca-input mb-4" {% if profile.winnings_balance < 100 %}disabled{% endif %}>
 
             <div class="ca-glass-sm border border-amber-500/25 px-4 py-3 mb-5">
                 <p class="text-amber-100/90 text-xs leading-relaxed">
@@ -36,10 +36,47 @@
                 </p>
             </div>
 
-            <button type="submit" class="ca-btn w-full">
-                Confirm withdraw
+            <button type="submit" class="ca-btn w-full" {% if profile.winnings_balance < 100 %}disabled{% endif %} id="withdrawBtn">
+                {% if profile.winnings_balance < 100 %}
+                    Insufficient Balance (Min ₹100)
+                {% else %}
+                    Request Withdrawal
+                {% endif %}
             </button>
         </form>
+
+        <script>
+            document.querySelector('form').addEventListener('submit', function(e) {
+                const amountInput = document.getElementById('withdrawAmount');
+                const max = parseFloat(amountInput.max);
+                const val = parseFloat(amountInput.value);
+                if (val > max) {
+                    e.preventDefault();
+                    // Custom toast instead of browser alert
+                    const toast = document.createElement('div');
+                    toast.className = 'fixed bottom-4 right-4 bg-red-500 text-white px-4 py-2 rounded shadow-lg z-50';
+                    toast.innerText = 'Amount cannot exceed your winnings balance (₹' + max + ')';
+                    document.body.appendChild(toast);
+                    setTimeout(() => toast.remove(), 3000);
+                }
+            });
+            
+            // Override default HTML5 invalid messages to avoid "value must be less than 0" issues
+            document.getElementById('withdrawAmount').addEventListener('invalid', function(e) {
+                e.preventDefault();
+                const toast = document.createElement('div');
+                toast.className = 'fixed bottom-4 right-4 bg-red-500 text-white px-4 py-2 rounded shadow-lg z-50';
+                if (this.validity.rangeUnderflow) {
+                    toast.innerText = 'Minimum withdrawal amount is ₹100';
+                } else if (this.validity.rangeOverflow) {
+                    toast.innerText = 'Amount cannot exceed your winnings balance (₹' + this.max + ')';
+                } else {
+                    toast.innerText = 'Please enter a valid amount';
+                }
+                document.body.appendChild(toast);
+                setTimeout(() => toast.remove(), 3000);
+            });
+        </script>
 
         <p class="ca-muted text-xs text-center mt-5">Withdrawals are reviewed by admin within 24-48 hours.</p>
 

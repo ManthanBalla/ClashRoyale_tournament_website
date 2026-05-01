@@ -459,5 +459,33 @@
         });
     </script>
 
+    <script>
+        function showToast(message, type="blue") {
+            const toast = document.createElement('div');
+            toast.className = `fixed bottom-4 right-4 bg-${type}-500 text-white px-4 py-2 rounded shadow-lg z-50 transition-opacity duration-500`;
+            toast.innerText = message;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 500);
+            }, 4000);
+        }
+    </script>
+    
+    {% if messages %}
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            {% for message in messages %}
+                let type = "blue";
+                {% if message.tags == 'error' %} type = "red";
+                {% elif message.tags == 'success' %} type = "green";
+                {% elif message.tags == 'warning' %} type = "yellow";
+                {% endif %}
+                showToast("{{ message|escapejs }}", type);
+            {% endfor %}
+        });
+    </script>
+    {% endif %}
+
 </body>
 </html>
