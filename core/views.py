@@ -15,7 +15,7 @@ from django.template.loader import render_to_string
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.conf import settings
 from datetime import timedelta, datetime
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 import json
 import logging
 import random
@@ -849,10 +849,7 @@ def tournament_rules(request, tournament_id):
     return render(request, 'tournament_rules.html', {
         'tournament': tournament,
         'count': count,
-        'prize_pool': prize_pool,
-        'winner_share': winner_share,
-        'creator_share': creator_share,
-        'platform_share': platform_share,
+        'prize_pool': prize_pool
     })
 
 
